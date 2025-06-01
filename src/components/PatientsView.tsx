@@ -7,8 +7,6 @@ import {
   Users, 
   Calendar, 
   Phone, 
-  Mail,
-  MapPin,
   FileText,
   Plus,
   Edit3,
@@ -87,7 +85,7 @@ const PatientsView: React.FC<PatientsViewProps> = ({
 
   // Filter and search patients
   const filteredPatients = useMemo(() => {
-    let filtered = patients.filter((patient: Patient) => {
+    const filtered = patients.filter((patient: Patient) => {
       // Search filter
       const matchesSearch = searchTerm === '' || 
         patient.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -473,7 +471,7 @@ const PatientsView: React.FC<PatientsViewProps> = ({
                     <div className="flex space-x-2">
                       <select
                         value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value as any)}
+                        onChange={(e) => setSortBy(e.target.value as 'name' | 'age' | 'doctor' | 'created')}
                         className="flex-1 px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500"
                       >
                         <option value="name">Name</option>

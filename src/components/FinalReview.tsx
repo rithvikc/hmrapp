@@ -210,11 +210,6 @@ Email: avishkarlal01@gmail.com`;
     }
   };
 
-  const handleSendReport = async () => {
-    // This function is no longer needed - keeping for now to avoid breaking changes
-    alert('Email sending has been replaced with copy-pasteable templates. Please use the Template tab.');
-  };
-
   const copyEmailTemplate = () => {
     if (emailTemplate) {
       navigator.clipboard.writeText(emailTemplate).then(() => {
@@ -263,7 +258,7 @@ Email: avishkarlal01@gmail.com`;
             <h4 className="font-medium text-blue-900 mb-2">Instructions:</h4>
             <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
               <li>Generate the PDF report from the Preview tab</li>
-              <li>Click "Copy Template" to copy the email text</li>
+              <li>Click &quot;Copy Template&quot; to copy the email text</li>
               <li>Open your email client (Outlook, Gmail, etc.)</li>
               <li>Paste the template - the subject line will be at the top</li>
               <li>Attach the generated PDF report</li>
@@ -545,7 +540,7 @@ Email: avishkarlal01@gmail.com`;
         ) : (
           <div className="border-2 border-dashed border-gray-300 rounded-lg py-12 text-center">
             <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">Click "Preview PDF" to generate and preview the report</p>
+            <p className="text-gray-500">Click &quot;Preview PDF&quot; to generate and preview the report</p>
           </div>
         )}
       </div>

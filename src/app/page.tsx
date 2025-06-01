@@ -9,7 +9,7 @@ import PatientInterview from '@/components/PatientInterview';
 import ClinicalRecommendations from '@/components/ClinicalRecommendations';
 import FinalReview from '@/components/FinalReview';
 import PatientsView from '@/components/PatientsView';
-import { useHMRSelectors } from '@/store/hmr-store';
+import { useHMRSelectors, Patient } from '@/store/hmr-store';
 
 export default function Home() {
   const [mounted, setMounted] = useState(false);
@@ -20,7 +20,10 @@ export default function Home() {
     resetWorkflow,
     hasUnsavedWork,
     setLoading,
-    setError
+    setError,
+    patients,
+    loadPatients,
+    setCurrentPatient
   } = useHMRSelectors();
 
   useEffect(() => {
@@ -87,16 +90,13 @@ export default function Home() {
       setLoading(true);
       console.log('Starting review for patient ID:', patientId);
       
-      // Get current store state using the hook
-      const storeState = useHMRSelectors();
-      
       // Load patients if not already loaded
-      if (storeState.patients.length === 0) {
+      if (patients.length === 0) {
         console.log('Loading patients from API...');
-        await storeState.loadPatients();
+        await loadPatients();
       }
       
-      const patient = storeState.patients.find((p: any) => p.id === patientId);
+      const patient = patients.find((p: Patient) => p.id === patientId);
       if (!patient) {
         throw new Error(`Patient with ID ${patientId} not found`);
       }
@@ -107,10 +107,10 @@ export default function Home() {
       resetWorkflow();
       
       // Set the current patient to pre-populate the workflow
-      storeState.setCurrentPatient(patient);
+      setCurrentPatient(patient);
       
       // Navigate directly to patient info review with pre-populated data
-      storeState.setCurrentStep('patient-info');
+      setCurrentStep('patient-info');
       
       console.log('Successfully started HMR workflow for patient:', patient.name);
       
