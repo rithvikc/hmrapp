@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useHMRSelectors, ClinicalRecommendation } from '@/store/hmr-store';
 import { 
   FileText, Mail, Send, Eye, Edit, CheckCircle, AlertTriangle, 
-  Clock, Printer, Smartphone, Save, Phone, Calendar
+  Clock, Printer, Smartphone, Save, Phone, Calendar, X
 } from 'lucide-react';
 
 interface FinalReviewProps {
@@ -21,11 +21,13 @@ export default function FinalReview({ onNext, onPrevious }: FinalReviewProps) {
     currentInterviewResponse,
     currentClinicalRecommendations,
     setLoading,
-    saveDraft
+    saveDraft,
+    setCurrentStep
   } = useHMRSelectors();
 
   const [activeTab, setActiveTab] = useState<ReviewTab>('summary');
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+  const [isPdfOutdated, setIsPdfOutdated] = useState(false);
   const [emailData, setEmailData] = useState({
     to: currentPatient?.doctor_email || '',
     cc: '',
@@ -41,6 +43,7 @@ export default function FinalReview({ onNext, onPrevious }: FinalReviewProps) {
     includeEducationSheet: false,
     includeMedicationList: false
   });
+  const [showMobilePreview, setShowMobilePreview] = useState(false);
 
   const validateReview = useCallback(() => {
     const issues: string[] = [];
@@ -121,6 +124,13 @@ Email: avishkarlal01@gmail.com`;
     generateEmailTemplate();
   }, [validateReview, generateEmailTemplate]);
 
+  // Mark PDF as outdated when data changes
+  useEffect(() => {
+    if (pdfUrl) {
+      setIsPdfOutdated(true);
+    }
+  }, [currentPatient, currentMedications, currentInterviewResponse, currentClinicalRecommendations]);
+
   const handleGeneratePDF = async () => {
     setLoading(true);
     try {
@@ -146,6 +156,7 @@ Email: avishkarlal01@gmail.com`;
       if (response.ok) {
         const data: { pdfUrl: string } = await response.json();
         setPdfUrl(data.pdfUrl);
+        setIsPdfOutdated(false);
       } else {
         alert('Failed to generate PDF');
       }
@@ -154,6 +165,46 @@ Email: avishkarlal01@gmail.com`;
       alert('Error generating PDF');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleMobilePreview = () => {
+    setShowMobilePreview(true);
+  };
+
+  const handlePrintPreview = () => {
+    if (pdfUrl) {
+      const printWindow = window.open(pdfUrl, '_blank');
+      if (printWindow) {
+        printWindow.addEventListener('load', () => {
+          printWindow.print();
+        });
+      }
+    } else {
+      alert('Please generate PDF first');
+    }
+  };
+
+  const navigateToStep = (step: string) => {
+    // Save current progress before navigating
+    saveDraft();
+    
+    // Navigate to the appropriate workflow step
+    switch (step) {
+      case 'patient':
+        setCurrentStep('patient-info');
+        break;
+      case 'medications':
+        setCurrentStep('medications-review');
+        break;
+      case 'interview':
+        setCurrentStep('interview');
+        break;
+      case 'recommendations':
+        setCurrentStep('recommendations');
+        break;
+      default:
+        break;
     }
   };
 
@@ -248,7 +299,11 @@ Email: avishkarlal01@gmail.com`;
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">Patient Information</h3>
-            <button className="text-blue-600 hover:text-blue-800">
+            <button 
+              onClick={() => navigateToStep('patient')}
+              className="text-blue-600 hover:text-blue-800 transition-colors"
+              title="Edit patient information"
+            >
               <Edit className="w-4 h-4" />
             </button>
           </div>
@@ -266,7 +321,11 @@ Email: avishkarlal01@gmail.com`;
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">Medications Summary</h3>
-            <button className="text-blue-600 hover:text-blue-800">
+            <button 
+              onClick={() => navigateToStep('medications')}
+              className="text-blue-600 hover:text-blue-800 transition-colors"
+              title="Edit medications"
+            >
               <Edit className="w-4 h-4" />
             </button>
           </div>
@@ -283,7 +342,11 @@ Email: avishkarlal01@gmail.com`;
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">Interview Summary</h3>
-            <button className="text-blue-600 hover:text-blue-800">
+            <button 
+              onClick={() => navigateToStep('interview')}
+              className="text-blue-600 hover:text-blue-800 transition-colors"
+              title="Edit interview responses"
+            >
               <Edit className="w-4 h-4" />
             </button>
           </div>
@@ -304,7 +367,11 @@ Email: avishkarlal01@gmail.com`;
         <div className="bg-white border border-gray-200 rounded-lg p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-gray-900">Clinical Recommendations</h3>
-            <button className="text-blue-600 hover:text-blue-800">
+            <button 
+              onClick={() => navigateToStep('recommendations')}
+              className="text-blue-600 hover:text-blue-800 transition-colors"
+              title="Edit clinical recommendations"
+            >
               <Edit className="w-4 h-4" />
             </button>
           </div>
@@ -346,65 +413,74 @@ Email: avishkarlal01@gmail.com`;
               <option>A4</option>
             </select>
           </div>
-          <div className="md:col-span-2">
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Include Appendices</label>
             <div className="space-y-2">
               <label className="flex items-center">
-                <input
-                  type="checkbox"
-                  checked={sendOptions.includeMedicationList}
-                  onChange={(e) => setSendOptions(prev => ({ ...prev, includeMedicationList: e.target.checked }))}
-                  className="mr-2"
-                />
-                <span className="text-sm">Medication List</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="checkbox"
+                <input 
+                  type="checkbox" 
                   checked={sendOptions.includeEducationSheet}
                   onChange={(e) => setSendOptions(prev => ({ ...prev, includeEducationSheet: e.target.checked }))}
-                  className="mr-2"
+                  className="mr-2" 
                 />
-                <span className="text-sm">Patient Education</span>
+                <span className="text-sm">Patient Education Sheet</span>
+              </label>
+              <label className="flex items-center">
+                <input 
+                  type="checkbox" 
+                  checked={sendOptions.includeMedicationList}
+                  onChange={(e) => setSendOptions(prev => ({ ...prev, includeMedicationList: e.target.checked }))}
+                  className="mr-2" 
+                />
+                <span className="text-sm">Medication List Summary</span>
               </label>
             </div>
           </div>
-          <div className="md:col-span-2">
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Watermark</label>
-            <div className="flex space-x-4">
-              <label className="flex items-center">
-                <input type="radio" name="watermark" value="draft" className="mr-2" />
-                <span className="text-sm">Draft</span>
-              </label>
-              <label className="flex items-center">
-                <input type="radio" name="watermark" value="final" defaultChecked className="mr-2" />
-                <span className="text-sm">Final</span>
-              </label>
-              <label className="flex items-center">
-                <input type="radio" name="watermark" value="none" className="mr-2" />
-                <span className="text-sm">None</span>
-              </label>
-            </div>
+            <select className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value={validationIssues.length > 0 ? 'Draft' : 'Final'}>
+                {validationIssues.length > 0 ? 'Draft' : 'Final'}
+              </option>
+            </select>
           </div>
         </div>
         
         <div className="flex space-x-4 mt-6">
           <button
             onClick={handleGeneratePDF}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center space-x-2"
+            className={`px-4 py-2 ${isPdfOutdated ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'} text-white rounded-md transition-colors flex items-center space-x-2`}
           >
             <Eye className="w-4 h-4" />
-            <span>Preview PDF</span>
+            <span>{isPdfOutdated ? 'Regenerate PDF' : 'Preview PDF'}</span>
           </button>
-          <button className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors flex items-center space-x-2">
+          <button 
+            onClick={handleMobilePreview}
+            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors flex items-center space-x-2"
+          >
             <Smartphone className="w-4 h-4" />
             <span>Mobile Preview</span>
           </button>
-          <button className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors flex items-center space-x-2">
+          <button 
+            onClick={handlePrintPreview}
+            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors flex items-center space-x-2"
+          >
             <Printer className="w-4 h-4" />
             <span>Print Preview</span>
           </button>
         </div>
+
+        {isPdfOutdated && pdfUrl && (
+          <div className="mt-4 p-3 bg-orange-50 border border-orange-200 rounded-md">
+            <div className="flex items-center">
+              <AlertTriangle className="w-5 h-5 text-orange-500 mr-2" />
+              <span className="text-orange-700 font-medium">PDF may be outdated</span>
+            </div>
+            <p className="text-sm text-orange-600 mt-1">
+              Data has been changed since the last PDF generation. Click "Regenerate PDF" to update.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* PDF Preview Area */}
@@ -421,10 +497,34 @@ Email: avishkarlal01@gmail.com`;
         ) : (
           <div className="border-2 border-dashed border-gray-300 rounded-lg py-12 text-center">
             <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">Click &quot;Preview PDF&quot; to generate and preview the report</p>
+            <p className="text-gray-500">Click "Preview PDF" to generate and preview the report</p>
           </div>
         )}
       </div>
+
+      {/* Mobile Preview Modal */}
+      {showMobilePreview && pdfUrl && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 max-w-sm w-full mx-4">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Mobile Preview</h3>
+              <button 
+                onClick={() => setShowMobilePreview(false)}
+                className="text-gray-500 hover:text-gray-700"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="border border-gray-300 rounded-lg overflow-hidden">
+              <iframe 
+                src={pdfUrl} 
+                className="w-full h-96"
+                title="Mobile PDF Preview"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 
