@@ -129,7 +129,7 @@ Email: avishkarlal01@gmail.com`;
     if (pdfUrl) {
       setIsPdfOutdated(true);
     }
-  }, [currentPatient, currentMedications, currentInterviewResponse, currentClinicalRecommendations]);
+  }, [currentPatient, currentMedications, currentInterviewResponse, currentClinicalRecommendations, pdfUrl]);
 
   const handleGeneratePDF = async () => {
     setLoading(true);
@@ -477,7 +477,7 @@ Email: avishkarlal01@gmail.com`;
               <span className="text-orange-700 font-medium">PDF may be outdated</span>
             </div>
             <p className="text-sm text-orange-600 mt-1">
-              Data has been changed since the last PDF generation. Click "Regenerate PDF" to update.
+              Data has been changed since the last PDF generation. Click &quot;Regenerate PDF&quot; to update.
             </p>
           </div>
         )}

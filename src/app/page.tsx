@@ -8,6 +8,7 @@ import MedicationsReview from '@/components/MedicationsReview';
 import PatientInterview from '@/components/PatientInterview';
 import ClinicalRecommendations from '@/components/ClinicalRecommendations';
 import FinalReview from '@/components/FinalReview';
+import PatientsView from '@/components/PatientsView';
 import { useHMRSelectors } from '@/store/hmr-store';
 
 export default function Home() {
@@ -17,7 +18,9 @@ export default function Home() {
     setCurrentStep,
     loadDraft,
     resetWorkflow,
-    hasUnsavedWork
+    hasUnsavedWork,
+    setLoading,
+    setError
   } = useHMRSelectors();
 
   useEffect(() => {
@@ -54,10 +57,81 @@ export default function Home() {
     setCurrentStep('interview');
   };
 
-  const handleViewReport = (reviewId: number) => {
-    // View/download completed report
-    console.log('View report for review:', reviewId);
-    // TODO: Implement report viewing/downloading
+  const handleViewAllPatients = () => {
+    setCurrentStep('patients-view');
+  };
+
+  const handleGenerateReports = () => {
+    // Show reports generation interface
+    alert('Generate Reports functionality - will show options to generate batch reports, statistics, and export data');
+  };
+
+  // Patient view handlers
+  const handleNewPatient = () => {
+    // Navigate to add new patient form
+    alert('Add New Patient functionality - will navigate to patient creation form');
+  };
+
+  const handleEditPatient = (patientId: number) => {
+    // Navigate to edit patient form
+    alert(`Edit Patient ${patientId} functionality - will navigate to patient edit form`);
+  };
+
+  const handleViewPatient = (patientId: number) => {
+    // Show detailed patient view
+    alert(`View Patient ${patientId} functionality - will show detailed patient information`);
+  };
+
+  const handleStartReview = (patientId: number) => {
+    // Start a new review for the selected patient
+    alert(`Start Review for Patient ${patientId} functionality - will begin HMR workflow for this patient`);
+  };
+
+  const handleViewReport = async (reviewId: number) => {
+    try {
+      setLoading(true);
+      
+      // Fetch the review data
+      const reviewResponse = await fetch(`/api/reviews/${reviewId}`);
+      if (!reviewResponse.ok) {
+        throw new Error('Failed to fetch review data');
+      }
+      const reviewData = await reviewResponse.json();
+
+      // Generate PDF
+      const pdfResponse = await fetch('/api/generate-hmr-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(reviewData),
+      });
+
+      if (!pdfResponse.ok) {
+        const errorText = await pdfResponse.text();
+        throw new Error(`Failed to generate PDF: ${errorText}`);
+      }
+
+      // Download the PDF
+      const blob = await pdfResponse.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = `HMR_Report_${reviewData.patient.name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      
+      console.log('Report downloaded successfully');
+    } catch (error) {
+      console.error('Error generating report:', error);
+      setError(error instanceof Error ? error.message : 'Failed to generate report');
+      alert(`Failed to generate report: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDataExtracted = (data: { patient?: Record<string, string | number>; medications?: Record<string, string | number>[] }) => {
@@ -125,6 +199,19 @@ export default function Home() {
             onNewReview={handleNewReview}
             onContinueDraft={handleContinueDraft}
             onViewReport={handleViewReport}
+            onViewAllPatients={handleViewAllPatients}
+            onGenerateReports={handleGenerateReports}
+          />
+        );
+
+      case 'patients-view':
+        return (
+          <PatientsView
+            onBack={() => setCurrentStep('dashboard')}
+            onNewPatient={handleNewPatient}
+            onEditPatient={handleEditPatient}
+            onViewPatient={handleViewPatient}
+            onStartReview={handleStartReview}
           />
         );
         
@@ -221,6 +308,8 @@ export default function Home() {
             onNewReview={handleNewReview}
             onContinueDraft={handleContinueDraft}
             onViewReport={handleViewReport}
+            onViewAllPatients={handleViewAllPatients}
+            onGenerateReports={handleGenerateReports}
           />
         );
     }
@@ -228,72 +317,74 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Progress Bar */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4">
-          <div className="flex items-center justify-between mb-4">
-            <h1 className="text-xl font-semibold text-gray-900">
-              HMR Workflow
-            </h1>
-            <button
-              onClick={() => {
-                const confirmExit = window.confirm(
-                  'Are you sure you want to exit? Unsaved changes will be lost.'
-                );
-                if (confirmExit) {
-                  resetWorkflow();
-                  setCurrentStep('dashboard');
-                }
-              }}
-              className="text-gray-500 hover:text-gray-700 text-sm"
-            >
-              Exit Workflow
-            </button>
-          </div>
-          
-          <div className="flex items-center space-x-4">
-            {[
-              { step: 'upload', label: 'Upload' },
-              { step: 'patient-info', label: 'Patient Info' },
-              { step: 'medications-review', label: 'Medications Review' },
-              { step: 'interview', label: 'Interview' },
-              { step: 'recommendations', label: 'Recommendations' },
-              { step: 'review', label: 'Review' },
-              { step: 'email', label: 'Send' }
-            ].map((item, index) => {
-              const isActive = currentStep === item.step;
-              const isCompleted = ['upload', 'patient-info', 'medications-review', 'interview', 'recommendations', 'review', 'email']
-                .indexOf(currentStep) > index;
-              
-              return (
-                <div key={item.step} className="flex items-center">
-                  <div className={`
-                    w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
-                    ${isActive 
-                      ? 'bg-blue-600 text-white' 
-                      : isCompleted 
-                        ? 'bg-green-600 text-white' 
-                        : 'bg-gray-200 text-gray-600'
-                    }
-                  `}>
-                    {index + 1}
+      {/* Progress Bar - Only show during HMR workflow, not for patients-view */}
+      {currentStep !== 'dashboard' && currentStep !== 'patients-view' && (
+        <div className="bg-white border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-6 py-4">
+            <div className="flex items-center justify-between mb-4">
+              <h1 className="text-xl font-semibold text-gray-900">
+                HMR Workflow
+              </h1>
+              <button
+                onClick={() => {
+                  const confirmExit = window.confirm(
+                    'Are you sure you want to exit? Unsaved changes will be lost.'
+                  );
+                  if (confirmExit) {
+                    resetWorkflow();
+                    setCurrentStep('dashboard');
+                  }
+                }}
+                className="text-gray-500 hover:text-gray-700 text-sm"
+              >
+                Exit Workflow
+              </button>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              {[
+                { step: 'upload', label: 'Upload' },
+                { step: 'patient-info', label: 'Patient Info' },
+                { step: 'medications-review', label: 'Medications Review' },
+                { step: 'interview', label: 'Interview' },
+                { step: 'recommendations', label: 'Recommendations' },
+                { step: 'review', label: 'Review' },
+                { step: 'email', label: 'Send' }
+              ].map((item, index) => {
+                const isActive = currentStep === item.step;
+                const isCompleted = ['upload', 'patient-info', 'medications-review', 'interview', 'recommendations', 'review', 'email']
+                  .indexOf(currentStep) > index;
+                
+                return (
+                  <div key={item.step} className="flex items-center">
+                    <div className={`
+                      w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium
+                      ${isActive 
+                        ? 'bg-blue-600 text-white' 
+                        : isCompleted 
+                          ? 'bg-green-600 text-white' 
+                          : 'bg-gray-200 text-gray-600'
+                      }
+                    `}>
+                      {index + 1}
+                    </div>
+                    <span className={`ml-2 text-sm ${
+                      isActive ? 'text-blue-600 font-medium' : 'text-gray-600'
+                    }`}>
+                      {item.label}
+                    </span>
+                    {index < 6 && (
+                      <div className={`mx-4 h-0.5 w-8 ${
+                        isCompleted ? 'bg-green-600' : 'bg-gray-200'
+                      }`} />
+                    )}
                   </div>
-                  <span className={`ml-2 text-sm ${
-                    isActive ? 'text-blue-600 font-medium' : 'text-gray-600'
-                  }`}>
-                    {item.label}
-                  </span>
-                  {index < 6 && (
-                    <div className={`mx-4 h-0.5 w-8 ${
-                      isCompleted ? 'bg-green-600' : 'bg-gray-200'
-                    }`} />
-                  )}
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* Current Step Content */}
       {renderCurrentStep()}

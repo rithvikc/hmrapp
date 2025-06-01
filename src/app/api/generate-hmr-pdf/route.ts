@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import puppeteer from 'puppeteer';
-import { writeFileSync, existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
 
 interface Patient {
   name?: string;
@@ -624,7 +622,7 @@ const generateHMRHTML = (data: HMRData) => {
 
 export async function POST(request: NextRequest) {
   try {
-    const { reviewData } = await request.json();
+    const reviewData = await request.json();
 
     // Generate HTML content
     const htmlContent = generateHMRHTML(reviewData);
@@ -655,33 +653,18 @@ export async function POST(request: NextRequest) {
 
     await browser.close();
 
-    // Create filename
-    const patientName = reviewData.patient?.name?.replace(/[^a-zA-Z0-9]/g, '_') || 'Patient';
-    const date = new Date().toLocaleDateString('en-AU').replace(/\//g, '');
-    const filename = `HMR_Report_${patientName}_${date}.pdf`;
-
-    // Ensure reports directory exists
-    const reportsDir = join(process.cwd(), 'public', 'reports');
-    if (!existsSync(reportsDir)) {
-      mkdirSync(reportsDir, { recursive: true });
-    }
-
-    // Save PDF file
-    const filePath = join(reportsDir, filename);
-    writeFileSync(filePath, pdfBuffer);
-
-    // Return response with PDF URL
-    return NextResponse.json({
-      success: true,
-      pdfUrl: `/reports/${filename}`,
-      filename,
-      size: pdfBuffer.length
+    // Return the PDF as a blob response
+    return new NextResponse(pdfBuffer, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `attachment; filename="HMR_Report_${reviewData.patient?.name?.replace(/[^a-zA-Z0-9]/g, '_') || 'Patient'}_${new Date().toISOString().split('T')[0]}.pdf"`
+      }
     });
 
   } catch (error) {
     console.error('Error generating PDF:', error);
     return NextResponse.json(
-      { success: false, error: 'Failed to generate PDF' },
+      { success: false, error: 'Failed to generate PDF', details: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }
     );
   }

@@ -159,7 +159,7 @@ interface ExtractedData {
 
 export interface HMRWorkflowState {
   // Current workflow step
-  currentStep: 'dashboard' | 'upload' | 'patient-info' | 'medications-review' | 'interview' | 'recommendations' | 'review' | 'email';
+  currentStep: 'dashboard' | 'patients-view' | 'upload' | 'patient-info' | 'medications-review' | 'interview' | 'recommendations' | 'review' | 'email';
   
   // Current data being worked on
   currentPatient: Patient | null;
@@ -229,6 +229,10 @@ export interface HMRWorkflowState {
   saveDraft: () => void;
   loadDraft: () => void;
   completeReview: () => void;
+  
+  // Data loading operations
+  loadDashboardData: () => Promise<void>;
+  loadPatients: () => Promise<void>;
   
   // Computed properties
   hasUnsavedWork: boolean;
@@ -377,12 +381,15 @@ export const useHMRStore = create<HMRWorkflowState>()(
                 currentInterviewResponse: draft.currentInterviewResponse || null,
                 currentMedicationCompliance: draft.currentMedicationCompliance || [],
                 currentClinicalRecommendations: draft.currentClinicalRecommendations || [],
-                currentStep: draft.currentStep || 'dashboard',
+                currentStep: 'dashboard',
                 currentSection: draft.currentSection || 'patient-info',
               });
+            } else {
+              set({ currentStep: 'dashboard' });
             }
           } catch (error) {
             console.error('Failed to load draft:', error);
+            set({ currentStep: 'dashboard' });
           }
         },
         
@@ -397,6 +404,53 @@ export const useHMRStore = create<HMRWorkflowState>()(
             }));
           }
           localStorage.removeItem('hmr-draft');
+        },
+        
+        // Data loading operations
+        loadDashboardData: async () => {
+          set({ isLoading: true, error: null });
+          try {
+            const response = await fetch('/api/dashboard');
+            if (!response.ok) {
+              throw new Error('Failed to fetch dashboard data');
+            }
+            const data = await response.json();
+            
+            set({
+              patients: data.patients || [],
+              // Map interview responses to reviews for backward compatibility
+              reviews: data.recentActivity || [],
+              isLoading: false
+            });
+          } catch (error) {
+            console.error('Error loading dashboard data:', error);
+            set({ 
+              error: error instanceof Error ? error.message : 'Failed to load dashboard data',
+              isLoading: false 
+            });
+          }
+        },
+        
+        loadPatients: async () => {
+          set({ isLoading: true, error: null });
+          try {
+            const response = await fetch('/api/patients');
+            if (!response.ok) {
+              throw new Error('Failed to fetch patients');
+            }
+            const patients = await response.json();
+            
+            set({
+              patients,
+              isLoading: false
+            });
+          } catch (error) {
+            console.error('Error loading patients:', error);
+            set({ 
+              error: error instanceof Error ? error.message : 'Failed to load patients',
+              isLoading: false 
+            });
+          }
         },
         
         // Computed property

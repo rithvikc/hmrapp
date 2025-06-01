@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { 
   Calendar, 
   Clock, 
@@ -19,24 +19,59 @@ interface DashboardProps {
   onNewReview: () => void;
   onContinueDraft: (reviewId: number) => void;
   onViewReport: (reviewId: number) => void;
+  onViewAllPatients: () => void;
+  onGenerateReports: () => void;
 }
 
 const Dashboard: React.FC<DashboardProps> = ({
   onNewReview,
   onContinueDraft,
-  onViewReport
+  onViewReport,
+  onViewAllPatients,
+  onGenerateReports
 }) => {
+  const [mounted, setMounted] = useState(false);
   const {
     pendingReviews,
     completedReviews,
     draftReviews,
     reviews,
-    patients
+    patients,
+    isLoading,
+    error,
+    loadDashboardData
   } = useHMRSelectors();
 
+  // Load dashboard data on mount
+  useEffect(() => {
+    setMounted(true);
+    loadDashboardData();
+  }, [loadDashboardData]);
+
+  // Don't render until mounted to prevent hydration issues
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
   const recentActivity = reviews
-    .sort((a, b) => new Date(b.interview_date).getTime() - new Date(a.interview_date).getTime())
+    .sort((a, b) => {
+      const dateA = new Date(a.interview_date || '').getTime();
+      const dateB = new Date(b.interview_date || '').getTime();
+      return dateB - dateA;
+    })
     .slice(0, 5);
+
+  const formatDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), 'MMM dd, yyyy');
+    } catch {
+      return 'Invalid Date';
+    }
+  };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
@@ -63,6 +98,32 @@ const Dashboard: React.FC<DashboardProps> = ({
         return 'bg-gray-100 text-gray-800';
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Dashboard</h2>
+          <p className="text-gray-600 mb-4">{error}</p>
+          <button 
+            onClick={loadDashboardData}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+          >
+            Try Again
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -99,7 +160,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             </button>
             
             <button
-              onClick={() => {/* Handle view all patients */}}
+              onClick={onViewAllPatients}
               className="bg-gray-100 hover:bg-gray-200 text-gray-700 p-6 rounded-lg shadow-sm transition-colors flex items-center justify-center space-x-3"
             >
               <User className="w-6 h-6" />
@@ -107,7 +168,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             </button>
             
             <button
-              onClick={() => {/* Handle reports */}}
+              onClick={onGenerateReports}
               className="bg-gray-100 hover:bg-gray-200 text-gray-700 p-6 rounded-lg shadow-sm transition-colors flex items-center justify-center space-x-3"
             >
               <FileText className="w-6 h-6" />
@@ -187,7 +248,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                           <div className="flex items-center space-x-4 mt-1">
                             <span className="text-sm text-gray-500 flex items-center">
                               <Calendar className="w-4 h-4 mr-1" />
-                              {format(new Date(review.interview_date), 'MMM dd, yyyy')}
+                              {formatDate(review.interview_date)}
                             </span>
                             <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(review.status)}`}>
                               {review.status.charAt(0).toUpperCase() + review.status.slice(1)}
@@ -237,7 +298,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                               {patient?.name || 'Unknown Patient'}
                             </h4>
                             <p className="text-sm text-gray-500">
-                              {format(new Date(review.interview_date), 'MMM dd, yyyy')}
+                              {formatDate(review.interview_date)}
                             </p>
                           </div>
                         </div>
@@ -294,7 +355,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                         <Clock className="w-4 h-4 text-yellow-500" />
                       </div>
                       <p className="text-sm text-gray-600 mb-3">
-                        Started: {format(new Date(review.interview_date), 'MMM dd')}
+                        Started: {formatDate(review.interview_date)}
                       </p>
                       <button
                         onClick={() => onContinueDraft(review.id!)}
