@@ -76,10 +76,11 @@ interface Recommendation {
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const reviewId = parseInt(params.id);
+    const { id } = await params;
+    const reviewId = parseInt(id);
     
     if (isNaN(reviewId)) {
       return NextResponse.json({ error: 'Invalid review ID' }, { status: 400 });
