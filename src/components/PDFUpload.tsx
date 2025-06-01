@@ -4,11 +4,9 @@ import React, { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { 
   Upload, 
-  FileText, 
   AlertCircle, 
   CheckCircle, 
   Loader2,
-  Eye,
   Edit,
   Save,
   X
@@ -151,7 +149,7 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
       if (!prev) return prev;
       return {
         ...prev,
-        medications: (prev.medications || []).map((med, i: number) => 
+        medications: (prev.medications || []).map((med, i) => 
           i === index ? { ...med, [field]: value } : med
         )
       };
@@ -182,7 +180,7 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
       if (!prev) return prev;
       return {
         ...prev,
-        medications: (prev.medications || []).filter((_, i: number) => i !== index)
+        medications: (prev.medications || []).filter((_, i) => i !== index)
       };
     });
   };
@@ -199,35 +197,24 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
         phone: extractedData.phone || '',
         referring_doctor: extractedData.referringDoctor || '',
         doctor_email: extractedData.doctorEmail || '',
+        practice_name: '',
         known_allergies: extractedData.allergies || '',
         current_conditions: extractedData.currentConditions || '',
         past_medical_history: extractedData.pastMedicalHistory || ''
       });
 
-      // Set medications in store - with null check and type conversion
-      const medications = extractedData.medications || [];
-      setCurrentMedications(medications.map((med) => {
-        // Ensure prn_status is one of the valid literal types
-        let prnStatus: 'Regular' | 'PRN (as needed)' | 'Limited Duration' | 'Stopped' = 'Regular';
-        if (med.prnStatus === 'PRN') {
-          prnStatus = 'PRN (as needed)';
-        } else if (med.prnStatus === 'Limited Duration') {
-          prnStatus = 'Limited Duration';
-        } else if (med.prnStatus === 'Stopped') {
-          prnStatus = 'Stopped';
-        }
-
-        return {
-          name: med.name || '',
-          dosage: med.dosage || '',
-          frequency: med.frequency || '',
-          prn_status: prnStatus,
-          prescribed_usage: '',
-          actual_usage: undefined,
-          compliance_comment: ''
-        };
+      // Set medications in store
+      const medications = (extractedData.medications || []).map((med, index) => ({
+        id: index + 1,
+        name: med.name,
+        dosage: med.dosage,
+        frequency: med.frequency,
+        prn_status: med.prnStatus as 'Regular' | 'PRN (as needed)' | 'Limited Duration' | 'Stopped',
+        compliance_status: 'Good' as const,
+        route: 'Oral' as const
       }));
 
+      setCurrentMedications(medications);
       onNext();
     }
   };
@@ -433,7 +420,13 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
                 )}
               </div>
 
-              {(editMode ? editedData?.medications : extractedData.medications)?.map((medication: any, index: number) => (
+              {(editMode ? editedData?.medications : extractedData.medications)?.map((medication: {
+                name: string;
+                dosage: string;
+                frequency: string;
+                prnStatus: string;
+                confidence: number;
+              }, index: number) => (
                 <div key={index} className="mb-4 p-4 border border-gray-200 rounded-lg">
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>

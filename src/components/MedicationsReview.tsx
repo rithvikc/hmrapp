@@ -39,9 +39,16 @@ export default function MedicationsReview({ onNext, onPrevious }: MedicationsRev
   // Load medications from extracted data if available
   useEffect(() => {
     if (extractedData?.medications && currentMedications.length === 0) {
-      const extractedMeds = extractedData.medications.map((med: Medication) => ({
-        ...med,
-        patient_id: currentPatient?.id
+      const extractedMeds = extractedData.medications.map((med) => ({
+        patient_id: currentPatient?.id,
+        name: med.name,
+        dosage: med.dosage,
+        frequency: med.frequency,
+        prn_status: med.prnStatus as 'Regular' | 'PRN (as needed)' | 'Limited Duration' | 'Stopped',
+        strength: '',
+        form: undefined,
+        route: undefined,
+        prescriber: ''
       }));
       setCurrentMedications(extractedMeds);
     }

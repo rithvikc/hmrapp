@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import nodemailer from 'nodemailer';
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, writeFileSync } from 'fs';
 import { join } from 'path';
 
 // Create email transporter (configure with your email service)
@@ -11,19 +11,6 @@ const createTransporter = () => {
     auth: {
       user: process.env.EMAIL_USER || 'avishkarlal01@gmail.com',
       pass: process.env.EMAIL_PASSWORD || process.env.EMAIL_APP_PASSWORD
-    }
-  });
-};
-
-// Alternative configuration for other email services
-const createCustomTransporter = () => {
-  return nodemailer.createTransport({
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
-    port: parseInt(process.env.SMTP_PORT || '587'),
-    secure: false, // true for 465, false for other ports
-    auth: {
-      user: process.env.EMAIL_USER,
-      pass: process.env.EMAIL_PASSWORD
     }
   });
 };
@@ -159,8 +146,7 @@ export async function POST(request: NextRequest) {
     // Save confirmation to file (in production, save to database)
     const confirmationPath = join(process.cwd(), 'public', 'reports', `Email_Confirmation_${Date.now()}.json`);
     try {
-      const fs = require('fs');
-      fs.writeFileSync(confirmationPath, JSON.stringify(emailConfirmation, null, 2));
+      writeFileSync(confirmationPath, JSON.stringify(emailConfirmation, null, 2));
     } catch (error) {
       console.warn('Failed to save email confirmation:', error);
     }

@@ -4,43 +4,51 @@ import { format } from 'date-fns';
 import path from 'path';
 import fs from 'fs';
 
+interface Patient {
+  name: string;
+  dob: string;
+  gender: string;
+  medicare?: string;
+  address?: string;
+  phone?: string;
+}
+
+interface Medication {
+  name: string;
+  dosage?: string;
+  frequency?: string;
+  prnStatus: string;
+  prescribedUsage?: string;
+  actualUsage?: string;
+  complianceComment?: string;
+}
+
+interface Assessment {
+  medicationUnderstanding: string;
+  medicationAdministration: string;
+  medicationAdherence: string;
+  fluidIntake: string;
+  teaConsumption?: number;
+  coffeeConsumption?: number;
+  eatingHabits: string;
+  smokingStatus: string;
+  cigarettesPerDay?: number;
+  alcoholUse: string;
+  drugUse: string;
+}
+
+interface Recommendation {
+  issueIdentified: string;
+  suggestedAction: string;
+}
+
 export interface ReportData {
-  patient: {
-    name: string;
-    dob: string;
-    gender: string;
-    medicare?: string;
-    address?: string;
-    phone?: string;
-  };
+  patient: Patient;
   referringDoctor: string;
   interviewDate: string;
-  medications: Array<{
-    name: string;
-    dosage?: string;
-    frequency?: string;
-    prnStatus: string;
-    prescribedUsage?: string;
-    actualUsage?: string;
-    complianceComment?: string;
-  }>;
-  assessment: {
-    medicationUnderstanding: string;
-    medicationAdministration: string;
-    medicationAdherence: string;
-    fluidIntake: string;
-    teaConsumption?: number;
-    coffeeConsumption?: number;
-    eatingHabits: string;
-    smokingStatus: string;
-    cigarettesPerDay?: number;
-    alcoholUse: string;
-    drugUse: string;
-  };
-  recommendations: Array<{
-    issueIdentified: string;
-    suggestedAction: string;
-  }>;
+  medications: Medication[];
+  assessment: Assessment;
+  recommendations: Recommendation[];
   additionalNotes?: string;
 }
 
@@ -107,7 +115,7 @@ class PDFGenerator {
     this.currentY += 25;
   }
 
-  private addPatientInformation(patient: any, referringDoctor: string, interviewDate: string) {
+  private addPatientInformation(patient: Patient, referringDoctor: string, interviewDate: string) {
     this.doc.setFontSize(12);
     this.doc.setFont('helvetica', 'bold');
     this.doc.text('PATIENT INFORMATION', this.margin, this.currentY);
@@ -127,7 +135,7 @@ class PDFGenerator {
       ['Contact:', '0490 417 047']
     ];
 
-    (this.doc as any).autoTable({
+    (this.doc as jsPDF & { autoTable: (options: Record<string, unknown>) => void }).autoTable({
       startY: this.currentY,
       head: [],
       body: patientData,
@@ -143,10 +151,10 @@ class PDFGenerator {
       margin: { left: this.margin, right: this.margin }
     });
 
-    this.currentY = (this.doc as any).lastAutoTable.finalY + 15;
+    this.currentY = (this.doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 15;
   }
 
-  private addGeneralComments(assessment: any) {
+  private addGeneralComments(assessment: Assessment) {
     this.doc.setFontSize(12);
     this.doc.setFont('helvetica', 'bold');
     this.doc.text('GENERAL COMMENTS', this.margin, this.currentY);
@@ -158,7 +166,7 @@ class PDFGenerator {
       ['Medication Adherence:', assessment.medicationAdherence || 'Not assessed']
     ];
 
-    (this.doc as any).autoTable({
+    (this.doc as jsPDF & { autoTable: (options: Record<string, unknown>) => void }).autoTable({
       startY: this.currentY,
       body: comments,
       theme: 'striped',
@@ -173,10 +181,10 @@ class PDFGenerator {
       margin: { left: this.margin, right: this.margin }
     });
 
-    this.currentY = (this.doc as any).lastAutoTable.finalY + 15;
+    this.currentY = (this.doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 15;
   }
 
-  private addLifestyleConsiderations(assessment: any) {
+  private addLifestyleConsiderations(assessment: Assessment) {
     this.doc.setFontSize(12);
     this.doc.setFont('helvetica', 'bold');
     this.doc.text('LIFESTYLE CONSIDERATIONS', this.margin, this.currentY);
@@ -193,7 +201,7 @@ class PDFGenerator {
       ['Drug Use:', assessment.drugUse || 'Not assessed']
     ];
 
-    (this.doc as any).autoTable({
+    (this.doc as jsPDF & { autoTable: (options: Record<string, unknown>) => void }).autoTable({
       startY: this.currentY,
       body: lifestyle,
       theme: 'striped',
@@ -208,15 +216,10 @@ class PDFGenerator {
       margin: { left: this.margin, right: this.margin }
     });
 
-    this.currentY = (this.doc as any).lastAutoTable.finalY + 15;
+    this.currentY = (this.doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 15;
   }
 
-  private addMedicationReview(medications: any[]) {
-    if (this.currentY > this.pageHeight - 80) {
-      this.doc.addPage();
-      this.currentY = this.margin;
-    }
-
+  private addMedicationReview(medications: Medication[]) {
     this.doc.setFontSize(12);
     this.doc.setFont('helvetica', 'bold');
     this.doc.text('MEDICATION REVIEW', this.margin, this.currentY);
@@ -224,183 +227,150 @@ class PDFGenerator {
 
     if (medications.length === 0) {
       this.doc.setFont('helvetica', 'normal');
-      this.doc.text('No medications documented.', this.margin, this.currentY);
-      this.currentY += 15;
+      this.doc.text('No medications documented', this.margin, this.currentY);
+      this.currentY += 20;
       return;
     }
 
-    const headers = ['Medication', 'Dosage', 'Frequency', 'Type', 'Prescribed Usage', 'Actual Usage', 'Compliance'];
-    const rows = medications.map(med => [
-      med.name || '',
-      med.dosage || '',
-      med.frequency || '',
-      med.prnStatus || 'Regular',
-      med.prescribedUsage || '',
-      med.actualUsage || '',
-      med.complianceComment || ''
+    const medicationData = medications.map(med => [
+      med.name,
+      med.dosage || 'As directed',
+      med.frequency || 'As prescribed',
+      med.prnStatus,
+      med.complianceComment || med.actualUsage || 'Taking as prescribed'
     ]);
 
-    (this.doc as any).autoTable({
+    (this.doc as jsPDF & { autoTable: (options: Record<string, unknown>) => void }).autoTable({
       startY: this.currentY,
-      head: [headers],
-      body: rows,
-      theme: 'striped',
+      head: [['Medication', 'Dosage', 'Frequency', 'Status', 'Comments']],
+      body: medicationData,
+      theme: 'grid',
       styles: {
         fontSize: 9,
-        cellPadding: 2,
+        cellPadding: 3,
       },
       headStyles: {
-        fillColor: [70, 130, 180],
+        fillColor: [255, 107, 107],
         textColor: 255,
         fontStyle: 'bold'
-      },
-      columnStyles: {
-        0: { cellWidth: 30 },
-        1: { cellWidth: 20 },
-        2: { cellWidth: 25 },
-        3: { cellWidth: 20 },
-        4: { cellWidth: 30 },
-        5: { cellWidth: 30 },
-        6: { cellWidth: 35 }
       },
       margin: { left: this.margin, right: this.margin }
     });
 
-    this.currentY = (this.doc as any).lastAutoTable.finalY + 15;
+    this.currentY = (this.doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 15;
   }
 
-  private addRecommendations(recommendations: any[]) {
-    if (this.currentY > this.pageHeight - 80) {
-      this.doc.addPage();
-      this.currentY = this.margin;
-    }
-
+  private addRecommendations(recommendations: Recommendation[]) {
     this.doc.setFontSize(12);
     this.doc.setFont('helvetica', 'bold');
-    this.doc.text('ISSUES IDENTIFIED AND RECOMMENDATIONS', this.margin, this.currentY);
+    this.doc.text('ISSUES AND RECOMMENDATIONS', this.margin, this.currentY);
     this.currentY += 10;
 
     if (recommendations.length === 0) {
       this.doc.setFont('helvetica', 'normal');
       this.doc.text('No specific issues identified during this review.', this.margin, this.currentY);
-      this.currentY += 15;
+      this.currentY += 20;
       return;
     }
 
-    const headers = ['Issue Identified', 'Recommended Action'];
-    const rows = recommendations.map(rec => [
-      rec.issueIdentified || '',
-      rec.suggestedAction || ''
+    const recommendationData = recommendations.map(rec => [
+      rec.issueIdentified,
+      rec.suggestedAction,
+      '[ ] Agreed - implemented\n[ ] Other (please specify)\n\n_________________\nReview'
     ]);
 
-    (this.doc as any).autoTable({
+    (this.doc as jsPDF & { autoTable: (options: Record<string, unknown>) => void }).autoTable({
       startY: this.currentY,
-      head: [headers],
-      body: rows,
-      theme: 'striped',
-      styles: {
-        fontSize: 10,
-        cellPadding: 4,
-      },
-      headStyles: {
-        fillColor: [200, 50, 50],
-        textColor: 255,
-        fontStyle: 'bold'
-      },
-      columnStyles: {
-        0: { cellWidth: 80 },
-        1: { cellWidth: 90 }
-      },
-      margin: { left: this.margin, right: this.margin }
-    });
-
-    this.currentY = (this.doc as any).lastAutoTable.finalY + 15;
-  }
-
-  private addManagementPlan() {
-    if (this.currentY > this.pageHeight - 100) {
-      this.doc.addPage();
-      this.currentY = this.margin;
-    }
-
-    this.doc.setFontSize(12);
-    this.doc.setFont('helvetica', 'bold');
-    this.doc.text('MANAGEMENT PLAN FOR GP COMPLETION', this.margin, this.currentY);
-    this.currentY += 10;
-
-    const planHeaders = ['Action Item', 'Priority', 'Target Date', 'Notes'];
-    const planRows = [
-      ['', '', '', ''],
-      ['', '', '', ''],
-      ['', '', '', ''],
-      ['', '', '', '']
-    ];
-
-    (this.doc as any).autoTable({
-      startY: this.currentY,
-      head: [planHeaders],
-      body: planRows,
+      head: [['Issues Identified', 'Suggested Action', 'Management Plan (GP)']],
+      body: recommendationData,
       theme: 'grid',
       styles: {
-        fontSize: 10,
-        cellPadding: 8,
-        minCellHeight: 15
+        fontSize: 9,
+        cellPadding: 4,
+        valign: 'top'
       },
       headStyles: {
-        fillColor: [100, 150, 100],
+        fillColor: [255, 107, 107],
         textColor: 255,
         fontStyle: 'bold'
       },
       columnStyles: {
         0: { cellWidth: 60 },
-        1: { cellWidth: 30 },
-        2: { cellWidth: 40 },
-        3: { cellWidth: 60 }
+        1: { cellWidth: 60 },
+        2: { cellWidth: 50 }
       },
       margin: { left: this.margin, right: this.margin }
     });
 
-    this.currentY = (this.doc as any).lastAutoTable.finalY + 10;
+    this.currentY = (this.doc as jsPDF & { lastAutoTable: { finalY: number } }).lastAutoTable.finalY + 15;
+  }
 
-    // Add signature section
+  private addManagementPlan() {
+    this.doc.setFontSize(12);
+    this.doc.setFont('helvetica', 'bold');
+    this.doc.text('MANAGEMENT PLAN FOR GP', this.margin, this.currentY);
+    this.currentY += 10;
+
     this.doc.setFont('helvetica', 'normal');
     this.doc.setFontSize(10);
-    this.doc.text('GP Signature: _________________________________  Date: ___________', this.margin, this.currentY + 10);
+    
+    const managementText = [
+      'As the pharmacist responsible for undertaking this medication management review,',
+      'I understand that there may be sound clinical reasons why my recommendations',
+      'may not be considered appropriate for this patient.',
+      '',
+      'I would welcome advice on this and how these reports can be made useful to you.',
+      'I would also be pleased to provide supporting literature or clarification of any',
+      'issue raised in this report.',
+      '',
+      'Please complete the attached Medication Management Report and forward a copy to',
+      'avishkarlal01@gmail.com. MBS item number 900 can then be claimed.',
+      '',
+      'I recommend that a follow up review be considered in 6 months.',
+      '',
+      'However, if you have no objections, I will see the patient again in a few months',
+      'to follow up on any ongoing issues.'
+    ];
+
+    managementText.forEach(line => {
+      this.doc.text(line, this.margin, this.currentY);
+      this.currentY += 5;
+    });
+
+    this.currentY += 10;
   }
 
   private addFooter() {
-    // Add footer at bottom of page
-    const footerY = this.pageHeight - 30;
-    
-    this.doc.setLineWidth(0.5);
-    this.doc.line(this.margin, footerY - 5, this.pageWidth - this.margin, footerY - 5);
-    
     this.doc.setFontSize(10);
+    this.doc.setFont('helvetica', 'normal');
+    
+    this.doc.text('Regards,', this.margin, this.currentY);
+    this.currentY += 10;
+    
     this.doc.setFont('helvetica', 'bold');
-    this.doc.text('LAL MedReviews', this.margin, footerY);
+    this.doc.text('Avishkar Lal', this.margin, this.currentY);
+    this.currentY += 5;
     
     this.doc.setFont('helvetica', 'normal');
-    this.doc.text('Professional Medication Review Services', this.margin, footerY + 5);
-    this.doc.text('Phone: 0490 417 047 | Pharmacist: Avishkar Lal (MRN: 8362)', this.margin, footerY + 10);
-    
-    // Page number
-    const pageCount = this.doc.getNumberOfPages();
-    this.doc.text(`Page ${pageCount}`, this.pageWidth - this.margin - 20, footerY);
+    this.doc.text('Accredited Pharmacist MRN 8362', this.margin, this.currentY);
+    this.currentY += 5;
+    this.doc.text('Phone: 0490 417 047', this.margin, this.currentY);
+    this.currentY += 5;
+    this.doc.text('Email: avishkarlal01@gmail.com', this.margin, this.currentY);
   }
 
   async saveReport(data: ReportData, filename: string): Promise<string> {
-    const buffer = await this.generateHMRReport(data);
-    const reportsDir = path.join(process.cwd(), 'reports');
+    const pdfBuffer = await this.generateHMRReport(data);
+    const filepath = path.join(process.cwd(), 'public', 'reports', filename);
     
-    // Ensure reports directory exists
-    if (!fs.existsSync(reportsDir)) {
-      fs.mkdirSync(reportsDir, { recursive: true });
+    // Ensure directory exists
+    const dir = path.dirname(filepath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
     }
     
-    const filePath = path.join(reportsDir, filename);
-    fs.writeFileSync(filePath, buffer);
-    
-    return filePath;
+    fs.writeFileSync(filepath, pdfBuffer);
+    return filepath;
   }
 }
 

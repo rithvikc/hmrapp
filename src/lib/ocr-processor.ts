@@ -24,7 +24,7 @@ export interface ExtractedMedication {
 }
 
 class OCRProcessor {
-  private worker: any = null;
+  private worker: Tesseract.Worker | null = null;
 
   async initTesseract() {
     if (!this.worker) {

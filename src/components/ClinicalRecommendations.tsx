@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useHMRSelectors } from '@/store/hmr-store';
 import { ClinicalRecommendation } from '@/store/hmr-store';
 import { Plus, X, Save, FileText, AlertTriangle, Clock, CheckCircle } from 'lucide-react';
@@ -92,9 +92,6 @@ export default function ClinicalRecommendations({ onNext, onPrevious }: Clinical
     currentMedications,
     currentClinicalRecommendations, 
     setCurrentClinicalRecommendations,
-    addClinicalRecommendation,
-    updateClinicalRecommendation,
-    removeClinicalRecommendation,
     setLoading,
     saveDraft
   } = useHMRSelectors();
@@ -103,19 +100,23 @@ export default function ClinicalRecommendations({ onNext, onPrevious }: Clinical
   const [autoSuggestions, setAutoSuggestions] = useState<string[]>([]);
   const [showTemplates, setShowTemplates] = useState<{ [key: number]: boolean }>({});
 
-  useEffect(() => {
-    if (currentClinicalRecommendations.length > 0) {
-      setRecommendations(currentClinicalRecommendations);
-    } else {
-      // Start with one empty recommendation
-      addNewRecommendation();
-    }
+  const addNewRecommendation = useCallback(() => {
+    const newRecommendation: ClinicalRecommendation = {
+      id: Date.now(),
+      patient_id: currentPatient?.id,
+      category: 'Other Clinical Issue',
+      issue_identified: '',
+      suggested_action: '',
+      priority_level: 'Medium',
+      order_number: recommendations.length + 1
+    };
     
-    // Generate auto-suggestions based on patient data
-    generateAutoSuggestions();
-  }, [currentClinicalRecommendations]);
+    const updatedRecommendations = [...recommendations, newRecommendation];
+    setRecommendations(updatedRecommendations);
+    setCurrentClinicalRecommendations(updatedRecommendations);
+  }, [currentPatient?.id, recommendations, setCurrentClinicalRecommendations]);
 
-  const generateAutoSuggestions = () => {
+  const generateAutoSuggestions = useCallback(() => {
     const suggestions: string[] = [];
     
     // Age-based suggestions
@@ -144,21 +145,73 @@ export default function ClinicalRecommendations({ onNext, onPrevious }: Clinical
     }
 
     setAutoSuggestions(suggestions);
+  }, [currentPatient?.dob, currentMedications]);
+
+  useEffect(() => {
+    if (currentClinicalRecommendations.length > 0) {
+      setRecommendations(currentClinicalRecommendations);
+    } else {
+      // Start with one empty recommendation
+      addNewRecommendation();
+    }
+    
+    // Generate auto-suggestions based on patient data
+    generateAutoSuggestions();
+  }, [currentClinicalRecommendations, addNewRecommendation, generateAutoSuggestions]);
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      // Validate recommendations
+      const validRecommendations = recommendations.filter(rec => 
+        rec.issue_identified.trim() && rec.suggested_action.trim()
+      );
+
+      if (validRecommendations.length === 0) {
+        alert('Please add at least one complete recommendation before saving.');
+        setLoading(false);
+        return;
+      }
+
+      await saveDraft();
+      alert('Recommendations saved successfully!');
+    } catch (error) {
+      console.error('Error saving recommendations:', error);
+      alert('Error saving recommendations. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const addNewRecommendation = () => {
-    const newRecommendation: ClinicalRecommendation = {
-      patient_id: currentPatient?.id,
-      issue_identified: '',
-      suggested_action: '',
-      priority_level: 'Medium',
-      category: 'Other Clinical Issue',
-      order_number: recommendations.length + 1
-    };
-    
-    const updatedRecommendations = [...recommendations, newRecommendation];
-    setRecommendations(updatedRecommendations);
-    setCurrentClinicalRecommendations(updatedRecommendations);
+  const handleContinue = async () => {
+    if (recommendations.length === 0 || !recommendations.some(rec => rec.issue_identified && rec.suggested_action)) {
+      alert('Please complete at least one recommendation before continuing.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      await saveDraft();
+      onNext();
+    } catch (error) {
+      console.error('Error saving before continuing:', error);
+      alert('Error saving data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getPriorityIcon = (priority: string) => {
+    switch (priority) {
+      case 'High': return <AlertTriangle className="w-4 h-4" />;
+      case 'Medium': return <Clock className="w-4 h-4" />;
+      case 'Low': return <CheckCircle className="w-4 h-4" />;
+      default: return <Clock className="w-4 h-4" />;
+    }
+  };
+
+  const getPriorityConfig = (priority: string) => {
+    return PRIORITY_LEVELS.find(p => p.value === priority) || PRIORITY_LEVELS[1];
   };
 
   const removeRecommendation = (index: number) => {
@@ -195,64 +248,6 @@ export default function ClinicalRecommendations({ onNext, onPrevious }: Clinical
     setRecommendations(updatedRecommendations);
     setCurrentClinicalRecommendations(updatedRecommendations);
     setShowTemplates({ ...showTemplates, [index]: false });
-  };
-
-  const handleSave = async () => {
-    setLoading(true);
-    try {
-      // Validate that all recommendations have required fields
-      const incompleteRecommendations = recommendations.filter(rec => 
-        !rec.issue_identified?.trim() || !rec.suggested_action?.trim()
-      );
-      
-      if (incompleteRecommendations.length > 0) {
-        alert('Please complete all issue descriptions and suggested actions before saving.');
-        setLoading(false);
-        return;
-      }
-
-      // Save recommendations to API would go here
-      saveDraft();
-      alert('Recommendations saved successfully');
-    } catch (error) {
-      console.error('Error saving recommendations:', error);
-      alert('Error saving recommendations');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleContinue = async () => {
-    await handleSave();
-    
-    // Validate before continuing
-    const hasHighPriorityWithAction = recommendations.some(rec => 
-      rec.priority_level === 'High' && rec.suggested_action?.trim()
-    );
-    
-    const allCompleted = recommendations.every(rec => 
-      rec.issue_identified?.trim() && rec.suggested_action?.trim()
-    );
-    
-    if (!allCompleted) {
-      alert('Please complete all recommendations before continuing.');
-      return;
-    }
-    
-    onNext();
-  };
-
-  const getPriorityIcon = (priority: string) => {
-    switch (priority) {
-      case 'High': return <AlertTriangle className="w-4 h-4 text-red-500" />;
-      case 'Medium': return <Clock className="w-4 h-4 text-yellow-500" />;
-      case 'Low': return <CheckCircle className="w-4 h-4 text-green-500" />;
-      default: return <Clock className="w-4 h-4 text-gray-500" />;
-    }
-  };
-
-  const getPriorityConfig = (priority: string) => {
-    return PRIORITY_LEVELS.find(p => p.value === priority) || PRIORITY_LEVELS[1];
   };
 
   return (
@@ -436,15 +431,15 @@ export default function ClinicalRecommendations({ onNext, onPrevious }: Clinical
                     Patient Counselling Provided
                   </label>
                   <textarea
-                    value={(recommendation as any).patient_counselling || ''}
-                    onChange={(e) => updateRecommendation(index, 'patient_counselling' as any, e.target.value)}
+                    value={(recommendation as ClinicalRecommendation & { patient_counselling?: string }).patient_counselling || ''}
+                    onChange={(e) => updateRecommendation(index, 'patient_counselling' as keyof ClinicalRecommendation, e.target.value)}
                     rows={3}
                     maxLength={500}
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
                     placeholder="What education was provided to the patient..."
                   />
                   <p className="text-xs text-gray-500 mt-1">
-                    {((recommendation as any).patient_counselling || '').length}/500 characters
+                    {((recommendation as ClinicalRecommendation & { patient_counselling?: string }).patient_counselling || '').length}/500 characters
                   </p>
                 </div>
               </div>

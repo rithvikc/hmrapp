@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
-import { useHMRSelectors } from '@/store/hmr-store';
+import React, { useState, useEffect, useCallback } from 'react';
+import { useHMRSelectors, ClinicalRecommendation } from '@/store/hmr-store';
 import { 
   FileText, Mail, Send, Eye, Edit, CheckCircle, AlertTriangle, 
-  Clock, Download, Printer, Smartphone, Save, Phone, Calendar
+  Clock, Printer, Smartphone, Save, Phone, Calendar
 } from 'lucide-react';
 
 interface FinalReviewProps {
@@ -42,12 +42,7 @@ export default function FinalReview({ onNext, onPrevious }: FinalReviewProps) {
     includeMedicationList: false
   });
 
-  useEffect(() => {
-    validateReview();
-    generateEmailTemplate();
-  }, [currentPatient, currentMedications, currentInterviewResponse, currentClinicalRecommendations]);
-
-  const validateReview = () => {
+  const validateReview = useCallback(() => {
     const issues: string[] = [];
     
     if (!currentPatient?.name) issues.push('Patient name is missing');
@@ -61,14 +56,12 @@ export default function FinalReview({ onNext, onPrevious }: FinalReviewProps) {
     if (!currentInterviewResponse?.pharmacist_name) issues.push('Pharmacist name is missing');
     
     setValidationIssues(issues);
-  };
+  }, [currentPatient, currentMedications, currentInterviewResponse, currentClinicalRecommendations]);
 
-  const generateEmailTemplate = () => {
+  const generateEmailTemplate = useCallback(() => {
     if (!currentPatient) return;
     
     const pronoun = currentPatient.gender?.toLowerCase() === 'female' ? 'She' : 'He';
-    const possessive = currentPatient.gender?.toLowerCase() === 'female' ? 'her' : 'his';
-    const objective = currentPatient.gender?.toLowerCase() === 'female' ? 'her' : 'him';
     
     const highPriorityCount = currentClinicalRecommendations.filter(rec => rec.priority_level === 'High').length;
     const isUrgent = highPriorityCount > 0;
@@ -121,7 +114,12 @@ Email: avishkarlal01@gmail.com`;
     }
     
     setEmailData(prev => ({ ...prev, body: template }));
-  };
+  }, [currentPatient, currentInterviewResponse, currentClinicalRecommendations]);
+
+  useEffect(() => {
+    validateReview();
+    generateEmailTemplate();
+  }, [validateReview, generateEmailTemplate]);
 
   const handleGeneratePDF = async () => {
     setLoading(true);
@@ -146,7 +144,7 @@ Email: avishkarlal01@gmail.com`;
       });
       
       if (response.ok) {
-        const data = await response.json();
+        const data: { pdfUrl: string } = await response.json();
         setPdfUrl(data.pdfUrl);
       } else {
         alert('Failed to generate PDF');
@@ -204,7 +202,7 @@ Email: avishkarlal01@gmail.com`;
             { label: 'All medications reviewed and confirmed', valid: currentMedications.length > 0 },
             { label: 'Interview sections completed', valid: !!currentInterviewResponse },
             { label: 'At least one clinical recommendation documented', valid: currentClinicalRecommendations.length > 0 },
-            { label: 'Patient counselling documented', valid: currentClinicalRecommendations.some(rec => (rec as any).patient_counselling) },
+            { label: 'Patient counselling documented', valid: currentClinicalRecommendations.some(rec => (rec as ClinicalRecommendation & { patient_counselling?: string }).patient_counselling) },
             { label: 'GP email address confirmed', valid: !!currentPatient?.doctor_email }
           ].map((item, index) => (
             <div key={index} className="flex items-center space-x-3">
@@ -423,7 +421,7 @@ Email: avishkarlal01@gmail.com`;
         ) : (
           <div className="border-2 border-dashed border-gray-300 rounded-lg py-12 text-center">
             <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500">Click "Preview PDF" to generate and preview the report</p>
+            <p className="text-gray-500">Click &quot;Preview PDF&quot; to generate and preview the report</p>
           </div>
         )}
       </div>

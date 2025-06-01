@@ -597,7 +597,7 @@ export default function PatientInterview({ onNext, onPrevious }: PatientIntervie
         {['A', 'B'].map((section) => (
           <button
             key={section}
-            onClick={() => setCurrentSection(section as any)}
+            onClick={() => setCurrentSection(section as 'A' | 'B')}
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
               currentSection === section
                 ? 'border-blue-500 text-blue-600'

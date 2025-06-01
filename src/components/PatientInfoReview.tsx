@@ -41,10 +41,20 @@ export default function PatientInfoReview({ onNext, onPrevious }: PatientInfoRev
   useEffect(() => {
     if (currentPatient) {
       setFormData(currentPatient);
-    } else if (extractedData?.patient) {
+    } else if (extractedData) {
       setFormData(prev => ({
         ...prev,
-        ...extractedData.patient
+        name: extractedData.name || '',
+        dob: extractedData.dob || '',
+        gender: extractedData.gender || '',
+        medicare_number: extractedData.medicareNumber || '',
+        address: extractedData.address || '',
+        phone: extractedData.phone || '',
+        referring_doctor: extractedData.referringDoctor || '',
+        doctor_email: extractedData.doctorEmail || '',
+        known_allergies: extractedData.allergies || '',
+        current_conditions: extractedData.currentConditions || '',
+        past_medical_history: extractedData.pastMedicalHistory || ''
       }));
     }
   }, [currentPatient, extractedData]);

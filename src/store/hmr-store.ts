@@ -136,6 +136,27 @@ export interface Recommendation {
   suggested_action: string;
 }
 
+interface ExtractedData {
+  name?: string;
+  dob?: string;
+  gender?: string;
+  medicareNumber?: string;
+  address?: string;
+  phone?: string;
+  referringDoctor?: string;
+  doctorEmail?: string;
+  currentConditions?: string;
+  pastMedicalHistory?: string;
+  allergies?: string;
+  medications?: Array<{
+    name: string;
+    dosage: string;
+    frequency: string;
+    prnStatus: string;
+    confidence: number;
+  }>;
+}
+
 export interface HMRWorkflowState {
   // Current workflow step
   currentStep: 'dashboard' | 'upload' | 'patient-info' | 'medications-review' | 'interview' | 'recommendations' | 'review' | 'email';
@@ -165,7 +186,7 @@ export interface HMRWorkflowState {
   
   // File handling
   uploadedFile: File | null;
-  extractedData: any;
+  extractedData: ExtractedData | null;
   
   // Actions
   setCurrentStep: (step: HMRWorkflowState['currentStep']) => void;
@@ -197,7 +218,7 @@ export interface HMRWorkflowState {
   
   // File operations
   setUploadedFile: (file: File | null) => void;
-  setExtractedData: (data: any) => void;
+  setExtractedData: (data: ExtractedData | null) => void;
   
   // UI operations
   setLoading: (loading: boolean) => void;

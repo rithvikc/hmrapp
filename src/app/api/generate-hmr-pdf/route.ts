@@ -1,10 +1,65 @@
 import { NextRequest, NextResponse } from 'next/server';
 import puppeteer from 'puppeteer';
-import { createReadStream, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join } from 'path';
 
+interface Patient {
+  name?: string;
+  gender?: string;
+  dob?: string;
+  referring_doctor?: string;
+  practice_name?: string;
+  known_allergies?: string;
+}
+
+interface Medication {
+  name: string;
+  strength?: string;
+  dosage?: string;
+  frequency?: string;
+  compliance_status?: string;
+  compliance_comment?: string;
+  actual_usage?: string;
+  route?: string;
+}
+
+interface Interview {
+  medication_understanding?: string;
+  medication_administration?: string;
+  medication_adherence?: string;
+  fluid_intake?: string;
+  tea_cups_daily?: number;
+  coffee_cups_daily?: number;
+  eating_habits?: string;
+  dietary_concerns?: string;
+  smoking_status?: string;
+  cigarettes_daily?: number;
+  quit_date?: string;
+  alcohol_consumption?: string;
+  alcohol_drinks_weekly?: number;
+  recreational_drug_use?: string;
+  drug_type?: string;
+  drug_frequency?: string;
+  interview_date?: string;
+  next_review_date?: string;
+}
+
+interface Recommendation {
+  category?: string;
+  issue_identified: string;
+  suggested_action: string;
+  patient_counselling?: string;
+}
+
+interface HMRData {
+  patient: Patient;
+  medications: Medication[];
+  interview: Interview;
+  recommendations: Recommendation[];
+}
+
 // HTML template for the HMR report
-const generateHMRHTML = (data: any) => {
+const generateHMRHTML = (data: HMRData) => {
   const { patient, medications, interview, recommendations } = data;
   
   // Determine pronouns
@@ -13,7 +68,7 @@ const generateHMRHTML = (data: any) => {
   const objective = patient?.gender?.toLowerCase() === 'female' ? 'her' : 'him';
   
   // Format date
-  const formatDate = (dateStr: string) => {
+  const formatDate = (dateStr: string | undefined) => {
     if (!dateStr) return '[Date]';
     return new Date(dateStr).toLocaleDateString('en-AU', {
       day: '2-digit',
@@ -129,7 +184,7 @@ const generateHMRHTML = (data: any) => {
       return '<tr><td class="issue-cell"><strong>No specific issues identified</strong><br>No medication-related problems were identified during this review.</td><td class="action-cell">Continue current management.</td><td class="management-cell">[ ] Agreed- implemented<br>[ ] Other (please specify)<br><br><div class="signature-line">Review</div></td></tr>';
     }
 
-    return recommendations.map((rec: any, index: number) => `
+    return recommendations.map((rec: Recommendation) => `
       <tr>
         <td class="issue-cell">
           <strong>${rec.category || 'General Issue'}</strong><br>
@@ -145,11 +200,11 @@ const generateHMRHTML = (data: any) => {
           <div class="signature-line">Review</div>
         </td>
       </tr>
-      ${(rec as any).patient_counselling ? `
+      ${rec.patient_counselling ? `
       <tr>
         <td class="issue-cell">
           <strong>Patient Counselling Provided:</strong><br>
-          ${(rec as any).patient_counselling}
+          ${rec.patient_counselling}
         </td>
         <td class="action-cell">
           For your information.
@@ -169,7 +224,7 @@ const generateHMRHTML = (data: any) => {
       return '<tr><td colspan="4">No medications documented</td></tr>';
     }
 
-    return medications.map((med: any) => {
+    return medications.map((med: Medication) => {
       const isNonCompliant = med.compliance_status === 'Poor' || med.compliance_status === 'Non-adherent';
       const drugName = isNonCompliant ? `<strong>${med.name}</strong>` : med.name;
       const dosage = med.dosage || 'As directed';
@@ -569,7 +624,7 @@ const generateHMRHTML = (data: any) => {
 
 export async function POST(request: NextRequest) {
   try {
-    const { reviewData, options } = await request.json();
+    const { reviewData } = await request.json();
 
     // Generate HTML content
     const htmlContent = generateHMRHTML(reviewData);
