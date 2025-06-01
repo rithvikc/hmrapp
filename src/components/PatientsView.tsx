@@ -171,6 +171,147 @@ const PatientsView: React.FC<PatientsViewProps> = ({
     }
   };
 
+  // Export functions
+  const exportToCSV = () => {
+    try {
+      // Define CSV headers
+      const headers = [
+        'ID',
+        'Name',
+        'Gender',
+        'Date of Birth',
+        'Age',
+        'Medicare Number',
+        'Phone',
+        'Address',
+        'Referring Doctor',
+        'Practice Name',
+        'Practice Phone',
+        'Known Allergies',
+        'Current Conditions',
+        'Past Medical History',
+        'Date Added'
+      ];
+
+      // Convert patients to CSV rows
+      const csvRows = [
+        headers.join(','), // Header row
+        ...filteredPatients.map((patient: Patient) => [
+          patient.id,
+          `"${patient.name}"`,
+          patient.gender,
+          patient.dob,
+          calculateAge(patient.dob),
+          patient.medicare_number || '',
+          `"${patient.phone || ''}"`,
+          `"${patient.address || ''}"`,
+          `"${patient.referring_doctor}"`,
+          `"${patient.practice_name || ''}"`,
+          `"${patient.practice_phone || ''}"`,
+          `"${patient.known_allergies || ''}"`,
+          `"${patient.current_conditions || ''}"`,
+          `"${patient.past_medical_history || ''}"`,
+          patient.created_at ? formatDate(patient.created_at) : ''
+        ].join(','))
+      ];
+
+      // Create and download CSV file
+      const csvContent = csvRows.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      
+      if (link.download !== undefined) {
+        const url = URL.createObjectURL(blob);
+        link.setAttribute('href', url);
+        link.setAttribute('download', `patients_export_${new Date().toISOString().split('T')[0]}.csv`);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      
+      console.log(`Exported ${filteredPatients.length} patients to CSV`);
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+      alert('Failed to export CSV file. Please try again.');
+    }
+  };
+
+  const exportToPDF = async () => {
+    try {
+      // Create PDF content for patients list
+      const pdfData = {
+        title: 'Patients List Report',
+        generated: new Date().toISOString(),
+        filters: {
+          search: searchTerm || 'None',
+          gender: selectedGender === 'all' ? 'All' : selectedGender,
+          ageRange: selectedAgeRange === 'all' ? 'All' : selectedAgeRange,
+          condition: selectedCondition === 'all' ? 'All' : selectedCondition,
+          doctor: selectedDoctor === 'all' ? 'All' : selectedDoctor
+        },
+        patients: filteredPatients.map((patient: Patient) => ({
+          id: patient.id,
+          name: patient.name,
+          gender: patient.gender,
+          dob: patient.dob,
+          age: calculateAge(patient.dob),
+          medicare_number: patient.medicare_number || '',
+          phone: patient.phone || '',
+          address: patient.address || '',
+          referring_doctor: patient.referring_doctor,
+          practice_name: patient.practice_name || '',
+          known_allergies: patient.known_allergies || '',
+          current_conditions: patient.current_conditions || '',
+          past_medical_history: patient.past_medical_history || ''
+        })),
+        summary: {
+          totalPatients: filteredPatients.length,
+          genderDistribution: {
+            male: filteredPatients.filter((p: Patient) => p.gender?.toLowerCase() === 'male').length,
+            female: filteredPatients.filter((p: Patient) => p.gender?.toLowerCase() === 'female').length,
+            other: filteredPatients.filter((p: Patient) => p.gender && !['male', 'female'].includes(p.gender.toLowerCase())).length
+          },
+          ageGroups: {
+            '18-30': filteredPatients.filter((p: Patient) => { const age = calculateAge(p.dob); return age >= 18 && age <= 30; }).length,
+            '31-50': filteredPatients.filter((p: Patient) => { const age = calculateAge(p.dob); return age >= 31 && age <= 50; }).length,
+            '51-70': filteredPatients.filter((p: Patient) => { const age = calculateAge(p.dob); return age >= 51 && age <= 70; }).length,
+            '70+': filteredPatients.filter((p: Patient) => calculateAge(p.dob) > 70).length
+          }
+        }
+      };
+
+      // Send to PDF generation API
+      const response = await fetch('/api/generate-patients-pdf', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(pdfData),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+
+      // Download the PDF
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `patients_report_${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      console.log(`Exported ${filteredPatients.length} patients to PDF`);
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      alert('Failed to export PDF file. Please try again.');
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -470,11 +611,17 @@ const PatientsView: React.FC<PatientsViewProps> = ({
                 <p className="text-gray-600">Export patient data for reporting and analysis</p>
               </div>
               <div className="flex space-x-3">
-                <button className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                <button
+                  onClick={exportToCSV}
+                  className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
                   <Download className="w-5 h-5" />
                   <span>Export CSV</span>
                 </button>
-                <button className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors">
+                <button
+                  onClick={exportToPDF}
+                  className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
                   <Download className="w-5 h-5" />
                   <span>Export PDF</span>
                 </button>

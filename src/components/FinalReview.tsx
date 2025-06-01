@@ -3,8 +3,8 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useHMRSelectors, ClinicalRecommendation } from '@/store/hmr-store';
 import { 
-  FileText, Mail, Send, Eye, Edit, CheckCircle, AlertTriangle, 
-  Clock, Printer, Smartphone, Save, Phone, Calendar, X
+  FileText, Mail, Eye, Edit, CheckCircle, AlertTriangle, 
+  Clock, Printer, Smartphone, Save, X
 } from 'lucide-react';
 
 interface FinalReviewProps {
@@ -12,7 +12,7 @@ interface FinalReviewProps {
   onPrevious: () => void;
 }
 
-type ReviewTab = 'summary' | 'preview' | 'email' | 'send';
+type ReviewTab = 'summary' | 'preview' | 'template';
 
 export default function FinalReview({ onNext, onPrevious }: FinalReviewProps) {
   const {
@@ -28,15 +28,7 @@ export default function FinalReview({ onNext, onPrevious }: FinalReviewProps) {
   const [activeTab, setActiveTab] = useState<ReviewTab>('summary');
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [isPdfOutdated, setIsPdfOutdated] = useState(false);
-  const [emailData, setEmailData] = useState({
-    to: currentPatient?.doctor_email || '',
-    cc: '',
-    bcc: 'avishkarlal01@gmail.com',
-    subject: `Home Medication Review - ${currentPatient?.name || 'Patient'} - ${new Date().toLocaleDateString('en-AU')}`,
-    body: ''
-  });
   const [validationIssues, setValidationIssues] = useState<string[]>([]);
-  const [emailTemplate, setEmailTemplate] = useState('standard');
   const [sendOptions, setSendOptions] = useState({
     immediate: true,
     scheduledTime: null as Date | null,
@@ -44,6 +36,7 @@ export default function FinalReview({ onNext, onPrevious }: FinalReviewProps) {
     includeMedicationList: false
   });
   const [showMobilePreview, setShowMobilePreview] = useState(false);
+  const [emailTemplate, setEmailTemplate] = useState('');
 
   const validateReview = useCallback(() => {
     const issues: string[] = [];
@@ -72,7 +65,9 @@ export default function FinalReview({ onNext, onPrevious }: FinalReviewProps) {
     let template = '';
     
     if (isUrgent) {
-      template = `Dear Dr ${currentPatient.referring_doctor || '[Doctor Name]'},
+      template = `Subject: URGENT - Home Medication Review findings for ${currentPatient.name}
+
+Dear Dr ${currentPatient.referring_doctor || '[Doctor Name]'},
 
 URGENT - Home Medication Review findings for ${currentPatient.name}
 
@@ -93,7 +88,9 @@ Accredited Pharmacist MRN 8362
 Phone: 0490 417 047
 Email: avishkarlal01@gmail.com`;
     } else {
-      template = `Dear Dr ${currentPatient.referring_doctor || '[Doctor Name]'},
+      template = `Subject: Home Medication Review - ${currentPatient.name} - ${new Date().toLocaleDateString('en-AU')}
+
+Dear Dr ${currentPatient.referring_doctor || '[Doctor Name]'},
 
 Thank you for referring ${currentPatient.name} for a Home Medication Review. ${pronoun} was interviewed on ${currentInterviewResponse?.interview_date || '[Date]'}.
 
@@ -116,7 +113,7 @@ Phone: 0490 417 047
 Email: avishkarlal01@gmail.com`;
     }
     
-    setEmailData(prev => ({ ...prev, body: template }));
+    setEmailTemplate(template);
   }, [currentPatient, currentInterviewResponse, currentClinicalRecommendations]);
 
   useEffect(() => {
@@ -154,15 +151,20 @@ Email: avishkarlal01@gmail.com`;
       });
       
       if (response.ok) {
-        const data: { pdfUrl: string } = await response.json();
-        setPdfUrl(data.pdfUrl);
+        // Handle PDF blob response
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        setPdfUrl(url);
         setIsPdfOutdated(false);
+        console.log('PDF generated successfully');
       } else {
-        alert('Failed to generate PDF');
+        const errorText = await response.text();
+        console.error('PDF generation failed:', errorText);
+        alert(`Failed to generate PDF: ${errorText}`);
       }
     } catch (error) {
       console.error('Error generating PDF:', error);
-      alert('Error generating PDF');
+      alert(`Error generating PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
     }
@@ -209,38 +211,84 @@ Email: avishkarlal01@gmail.com`;
   };
 
   const handleSendReport = async () => {
-    if (validationIssues.length > 0) {
-      alert('Please resolve all validation issues before sending the report.');
-      return;
-    }
-    
-    setLoading(true);
-    try {
-      const response = await fetch('/api/send-hmr-report', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          patientId: currentPatient?.id,
-          emailData,
-          sendOptions,
-          pdfUrl
-        })
+    // This function is no longer needed - keeping for now to avoid breaking changes
+    alert('Email sending has been replaced with copy-pasteable templates. Please use the Template tab.');
+  };
+
+  const copyEmailTemplate = () => {
+    if (emailTemplate) {
+      navigator.clipboard.writeText(emailTemplate).then(() => {
+        alert('Email template copied to clipboard! You can now paste it into your email client.');
+      }).catch(err => {
+        console.error('Failed to copy email template:', err);
+        alert('Failed to copy to clipboard. Please select and copy the text manually.');
       });
-      
-      if (response.ok) {
-        alert('Report sent successfully!');
-        saveDraft();
-        onNext();
-      } else {
-        alert('Failed to send report');
-      }
-    } catch (error) {
-      console.error('Error sending report:', error);
-      alert('Error sending report');
-    } finally {
-      setLoading(false);
     }
   };
+
+  const renderTemplateTab = () => (
+    <div className="space-y-6">
+      {/* Email Template */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Email Template</h3>
+          <button
+            onClick={copyEmailTemplate}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center space-x-2"
+            disabled={!emailTemplate}
+          >
+            <Mail className="w-4 h-4" />
+            <span>Copy Template</span>
+          </button>
+        </div>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Ready-to-Use Email Template
+            </label>
+            <p className="text-sm text-gray-600 mb-4">
+              This template includes the subject line and email body. Copy and paste directly into your email client.
+            </p>
+            <textarea
+              value={emailTemplate}
+              readOnly
+              rows={20}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm bg-gray-50"
+              placeholder="Email template will appear here once patient and review data is available..."
+            />
+          </div>
+          
+          <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+            <h4 className="font-medium text-blue-900 mb-2">Instructions:</h4>
+            <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+              <li>Generate the PDF report from the Preview tab</li>
+              <li>Click "Copy Template" to copy the email text</li>
+              <li>Open your email client (Outlook, Gmail, etc.)</li>
+              <li>Paste the template - the subject line will be at the top</li>
+              <li>Attach the generated PDF report</li>
+              <li>Send to the referring doctor</li>
+            </ol>
+          </div>
+          
+          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+            <h4 className="font-medium text-yellow-900 mb-2">Email Details:</h4>
+            <div className="text-sm text-yellow-800 space-y-1">
+              <div><strong>To:</strong> {currentPatient?.doctor_email || 'Doctor email not provided'}</div>
+              <div><strong>BCC:</strong> avishkarlal01@gmail.com (for records)</div>
+              <div><strong>Attachments:</strong> HMR Report PDF</div>
+              {sendOptions.includeEducationSheet && (
+                <div><strong>Additional:</strong> Patient Education Sheet</div>
+              )}
+              {sendOptions.includeMedicationList && (
+                <div><strong>Additional:</strong> Medication List Summary</div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
 
   const renderSummaryTab = () => (
     <div className="space-y-6">
@@ -528,209 +576,6 @@ Email: avishkarlal01@gmail.com`;
     </div>
   );
 
-  const renderEmailTab = () => (
-    <div className="space-y-6">
-      {/* Email Composition */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Email Setup</h3>
-        
-        <div className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">To *</label>
-              <input
-                type="email"
-                value={emailData.to}
-                onChange={(e) => setEmailData(prev => ({ ...prev, to: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="GP email address"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">CC</label>
-              <input
-                type="email"
-                value={emailData.cc}
-                onChange={(e) => setEmailData(prev => ({ ...prev, cc: e.target.value }))}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Optional - practice manager email"
-              />
-            </div>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Subject</label>
-            <input
-              type="text"
-              value={emailData.subject}
-              onChange={(e) => setEmailData(prev => ({ ...prev, subject: e.target.value }))}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Email Template</label>
-            <div className="flex space-x-4 mb-2">
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  name="template"
-                  value="standard"
-                  checked={emailTemplate === 'standard'}
-                  onChange={(e) => setEmailTemplate(e.target.value)}
-                  className="mr-2"
-                />
-                <span className="text-sm">Standard Follow-up</span>
-              </label>
-              <label className="flex items-center">
-                <input
-                  type="radio"
-                  name="template"
-                  value="urgent"
-                  checked={emailTemplate === 'urgent'}
-                  onChange={(e) => setEmailTemplate(e.target.value)}
-                  className="mr-2"
-                />
-                <span className="text-sm">Urgent Issues</span>
-              </label>
-            </div>
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Email Body</label>
-            <textarea
-              value={emailData.body}
-              onChange={(e) => setEmailData(prev => ({ ...prev, body: e.target.value }))}
-              rows={12}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-            />
-          </div>
-          
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Attachments</label>
-            <div className="space-y-2">
-              <div className="flex items-center">
-                <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-                <span className="text-sm">HMR_Report_{currentPatient?.name?.replace(' ', '_')}_{new Date().toLocaleDateString('en-AU').replace(/\//g, '')}.pdf</span>
-              </div>
-              {sendOptions.includeEducationSheet && (
-                <div className="flex items-center">
-                  <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-                  <span className="text-sm">Patient_Education_Sheet.pdf</span>
-                </div>
-              )}
-              {sendOptions.includeMedicationList && (
-                <div className="flex items-center">
-                  <CheckCircle className="w-4 h-4 text-green-500 mr-2" />
-                  <span className="text-sm">Medication_List_Summary.pdf</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderSendTab = () => (
-    <div className="space-y-6">
-      {/* Final Checklist */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4 text-center">📋 Final Checklist</h3>
-        
-        <div className="space-y-3">
-          {[
-            { label: 'PDF report generated and reviewed', completed: !!pdfUrl },
-            { label: 'Email composed and recipient confirmed', completed: !!emailData.to && !!emailData.body },
-            { label: 'All attachments ready', completed: true },
-            { label: 'Patient record updated', completed: true }
-          ].map((item, index) => (
-            <div key={index} className="flex items-center">
-              {item.completed ? (
-                <CheckCircle className="w-5 h-5 text-green-500 mr-3" />
-              ) : (
-                <Clock className="w-5 h-5 text-yellow-500 mr-3" />
-              )}
-              <span className={`${item.completed ? 'text-gray-700' : 'text-yellow-700'}`}>
-                {item.label}
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-
-      {/* Sending Options */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Sending Options</h3>
-        <div className="space-y-3">
-          <label className="flex items-center">
-            <input
-              type="radio"
-              name="sendMethod"
-              value="email"
-              defaultChecked
-              className="mr-3"
-            />
-            <span>Email to GP</span>
-          </label>
-          <label className="flex items-center">
-            <input type="radio" name="sendMethod" value="email-sms" className="mr-3" />
-            <span>Email + SMS notification</span>
-          </label>
-          <label className="flex items-center">
-            <input type="radio" name="sendMethod" value="email-fax" className="mr-3" />
-            <span>Email + Fax backup</span>
-          </label>
-        </div>
-      </div>
-
-      {/* After Sending */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">After Sending</h3>
-        <div className="space-y-3">
-          <label className="flex items-center">
-            <input type="checkbox" defaultChecked className="mr-3" />
-            <span>Mark case as completed</span>
-          </label>
-          <label className="flex items-center">
-            <input type="checkbox" defaultChecked className="mr-3" />
-            <span>Schedule follow-up reminder</span>
-          </label>
-          <label className="flex items-center">
-            <input type="checkbox" className="mr-3" />
-            <span>Add to billing system</span>
-          </label>
-          <label className="flex items-center">
-            <input type="checkbox" className="mr-3" />
-            <span>Archive patient files</span>
-          </label>
-        </div>
-      </div>
-
-      {/* Send Buttons */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <div className="flex justify-center space-x-4">
-          <button
-            onClick={handleSendReport}
-            disabled={validationIssues.length > 0 || !pdfUrl}
-            className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center space-x-2 disabled:bg-gray-400"
-          >
-            <Send className="w-5 h-5" />
-            <span>Send Report</span>
-          </button>
-          <button className="px-6 py-3 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors flex items-center space-x-2">
-            <Phone className="w-5 h-5" />
-            <span>Call GP First</span>
-          </button>
-          <button className="px-6 py-3 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors flex items-center space-x-2">
-            <Calendar className="w-5 h-5" />
-            <span>Schedule Send</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
     <div className="max-w-6xl mx-auto p-6">
       {/* Header */}
@@ -759,8 +604,7 @@ Email: avishkarlal01@gmail.com`;
         {[
           { key: 'summary', label: 'Review Summary', icon: FileText },
           { key: 'preview', label: 'PDF Preview', icon: Eye },
-          { key: 'email', label: 'Email Setup', icon: Mail },
-          { key: 'send', label: 'Send Report', icon: Send }
+          { key: 'template', label: 'Email Template', icon: Mail }
         ].map((tab) => {
           const Icon = tab.icon;
           return (
@@ -784,8 +628,7 @@ Email: avishkarlal01@gmail.com`;
       <div className="bg-gray-50 min-h-96">
         {activeTab === 'summary' && renderSummaryTab()}
         {activeTab === 'preview' && renderPreviewTab()}
-        {activeTab === 'email' && renderEmailTab()}
-        {activeTab === 'send' && renderSendTab()}
+        {activeTab === 'template' && renderTemplateTab()}
       </div>
 
       {/* Navigation Buttons */}
@@ -805,7 +648,7 @@ Email: avishkarlal01@gmail.com`;
             <Save className="w-4 h-4" />
             <span>Save Progress</span>
           </button>
-          {activeTab === 'send' ? (
+          {activeTab === 'template' ? (
             <button
               onClick={onNext}
               className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
@@ -815,7 +658,7 @@ Email: avishkarlal01@gmail.com`;
           ) : (
             <button
               onClick={() => {
-                const tabs: ReviewTab[] = ['summary', 'preview', 'email', 'send'];
+                const tabs: ReviewTab[] = ['summary', 'preview', 'template'];
                 const currentIndex = tabs.indexOf(activeTab);
                 if (currentIndex < tabs.length - 1) {
                   setActiveTab(tabs[currentIndex + 1]);

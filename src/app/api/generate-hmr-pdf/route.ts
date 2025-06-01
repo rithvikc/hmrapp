@@ -622,22 +622,55 @@ const generateHMRHTML = (data: HMRData) => {
 
 export async function POST(request: NextRequest) {
   try {
-    const reviewData = await request.json();
+    const requestData = await request.json();
+    console.log('PDF Generation started with data:', JSON.stringify(requestData, null, 2));
+
+    // Handle different data structures
+    let reviewData;
+    if (requestData.reviewData) {
+      // Data from FinalReview component (nested structure)
+      reviewData = requestData.reviewData;
+      console.log('Using nested reviewData structure');
+    } else if (requestData.patient) {
+      // Data from Dashboard component (direct structure)
+      reviewData = requestData;
+      console.log('Using direct data structure');
+    } else {
+      throw new Error('Invalid data structure: neither reviewData nor patient found');
+    }
+
+    console.log('Final reviewData:', JSON.stringify(reviewData, null, 2));
 
     // Generate HTML content
     const htmlContent = generateHMRHTML(reviewData);
+    console.log('HTML content generated, length:', htmlContent.length);
 
-    // Create PDF using Puppeteer
+    // Create PDF using Puppeteer with better macOS compatibility
+    console.log('Launching browser...');
     const browser = await puppeteer.launch({
       headless: true,
-      args: ['--no-sandbox', '--disable-setuid-sandbox']
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-accelerated-2d-canvas',
+        '--no-first-run',
+        '--no-zygote',
+        '--single-process',
+        '--disable-gpu'
+      ],
+      executablePath: process.env.PUPPETEER_EXECUTABLE_PATH, // Allow custom Chrome path
     });
 
+    console.log('Browser launched, creating new page...');
     const page = await browser.newPage();
+    
+    // Set a more reasonable timeout and better error handling
     await page.setContent(htmlContent, { 
       waitUntil: 'networkidle0',
-      timeout: 30000 
+      timeout: 60000 
     });
+    console.log('Page content set, generating PDF...');
 
     // Generate PDF buffer
     const pdfBuffer = await page.pdf({
@@ -651,6 +684,7 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    console.log('PDF generated successfully, size:', pdfBuffer.length, 'bytes');
     await browser.close();
 
     // Return the PDF as a blob response
@@ -663,8 +697,19 @@ export async function POST(request: NextRequest) {
 
   } catch (error) {
     console.error('Error generating PDF:', error);
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    
+    // More detailed error response
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorDetails = error instanceof Error ? error.stack : 'No details available';
+    
     return NextResponse.json(
-      { success: false, error: 'Failed to generate PDF', details: error instanceof Error ? error.message : 'Unknown error' },
+      { 
+        success: false, 
+        error: 'Failed to generate PDF', 
+        details: errorMessage,
+        stack: errorDetails
+      },
       { status: 500 }
     );
   }

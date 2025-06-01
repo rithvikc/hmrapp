@@ -82,9 +82,50 @@ export default function Home() {
     alert(`View Patient ${patientId} functionality - will show detailed patient information`);
   };
 
-  const handleStartReview = (patientId: number) => {
-    // Start a new review for the selected patient
-    alert(`Start Review for Patient ${patientId} functionality - will begin HMR workflow for this patient`);
+  const handleStartReview = async (patientId: number) => {
+    try {
+      setLoading(true);
+      console.log('Starting review for patient ID:', patientId);
+      
+      // Get current store state using the hook
+      const storeState = useHMRSelectors();
+      
+      // Load patients if not already loaded
+      if (storeState.patients.length === 0) {
+        console.log('Loading patients from API...');
+        await storeState.loadPatients();
+      }
+      
+      const patient = storeState.patients.find((p: any) => p.id === patientId);
+      if (!patient) {
+        throw new Error(`Patient with ID ${patientId} not found`);
+      }
+
+      console.log('Found patient:', patient.name);
+
+      // Reset workflow but preserve the selected patient
+      resetWorkflow();
+      
+      // Set the current patient to pre-populate the workflow
+      storeState.setCurrentPatient(patient);
+      
+      // Navigate directly to patient info review with pre-populated data
+      storeState.setCurrentStep('patient-info');
+      
+      console.log('Successfully started HMR workflow for patient:', patient.name);
+      
+      // Show success message
+      const confirmMessage = `Started HMR review for ${patient.name}. The patient information has been pre-populated. You can now review and modify the details before proceeding to medications review.`;
+      alert(confirmMessage);
+      
+    } catch (error) {
+      console.error('Error starting review:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setError(`Failed to start review: ${errorMessage}`);
+      alert(`Failed to start review: ${errorMessage}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleViewReport = async (reviewId: number) => {
@@ -156,7 +197,8 @@ export default function Home() {
         setCurrentStep('review');
         break;
       case 'review':
-        setCurrentStep('email');
+        // Workflow complete - return to dashboard
+        setCurrentStep('dashboard');
         break;
       default:
         setCurrentStep('upload');
@@ -182,9 +224,6 @@ export default function Home() {
         break;
       case 'review':
         setCurrentStep('recommendations');
-        break;
-      case 'email':
-        setCurrentStep('review');
         break;
       default:
         setCurrentStep('dashboard');
@@ -263,45 +302,6 @@ export default function Home() {
           />
         );
       
-      case 'email':
-        return (
-          <div className="max-w-4xl mx-auto p-6">
-            <div className="mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-2">
-                Send Report
-              </h2>
-              <p className="text-gray-600">
-                Generate PDF report and send to referring doctor
-              </p>
-            </div>
-            
-            <div className="bg-white border border-gray-200 rounded-lg p-6">
-              <div className="text-center py-12">
-                <p className="text-gray-500 mb-4">Email Report Component</p>
-                <p className="text-sm text-gray-400">
-                  This will generate the PDF and handle email sending
-                </p>
-              </div>
-              
-              <div className="flex justify-between pt-6 border-t border-gray-200">
-                <button
-                  onClick={handlePreviousStep}
-                  className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
-                >
-                  Back to Review
-                </button>
-                
-                <button
-                  onClick={() => setCurrentStep('dashboard')}
-                  className="px-6 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-                >
-                  Complete & Return to Dashboard
-                </button>
-              </div>
-            </div>
-          </div>
-        );
-      
       default:
         return (
           <Dashboard
@@ -348,11 +348,10 @@ export default function Home() {
                 { step: 'medications-review', label: 'Medications Review' },
                 { step: 'interview', label: 'Interview' },
                 { step: 'recommendations', label: 'Recommendations' },
-                { step: 'review', label: 'Review' },
-                { step: 'email', label: 'Send' }
+                { step: 'review', label: 'Review' }
               ].map((item, index) => {
                 const isActive = currentStep === item.step;
-                const isCompleted = ['upload', 'patient-info', 'medications-review', 'interview', 'recommendations', 'review', 'email']
+                const isCompleted = ['upload', 'patient-info', 'medications-review', 'interview', 'recommendations', 'review']
                   .indexOf(currentStep) > index;
                 
                 return (
@@ -373,7 +372,7 @@ export default function Home() {
                     }`}>
                       {item.label}
                     </span>
-                    {index < 6 && (
+                    {index < 5 && (
                       <div className={`mx-4 h-0.5 w-8 ${
                         isCompleted ? 'bg-green-600' : 'bg-gray-200'
                       }`} />

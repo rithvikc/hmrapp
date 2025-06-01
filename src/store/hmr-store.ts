@@ -159,7 +159,7 @@ interface ExtractedData {
 
 export interface HMRWorkflowState {
   // Current workflow step
-  currentStep: 'dashboard' | 'patients-view' | 'upload' | 'patient-info' | 'medications-review' | 'interview' | 'recommendations' | 'review' | 'email';
+  currentStep: 'dashboard' | 'patients-view' | 'upload' | 'patient-info' | 'medications-review' | 'interview' | 'recommendations' | 'review';
   
   // Current data being worked on
   currentPatient: Patient | null;
