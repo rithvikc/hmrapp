@@ -30,16 +30,9 @@ class OCRProcessor {
   async initTesseract() {
     if (!this.worker) {
       try {
-        // Configure Tesseract for production environments
-        this.worker = await Tesseract.createWorker('eng', 1, {
-          workerPath: this.isProduction 
-            ? 'https://unpkg.com/tesseract.js@4/dist/worker.min.js'
-            : undefined,
-          workerBlobURL: this.isProduction,
-          corePath: this.isProduction 
-            ? 'https://unpkg.com/tesseract.js-core@4/tesseract-core.wasm.js'
-            : undefined,
-        });
+        // Configure Tesseract for production environments - use simple API
+        this.worker = await Tesseract.createWorker('eng');
+        
       } catch (error) {
         console.warn('Failed to initialize Tesseract worker:', error);
         // Don't throw here, let the extractWithOCR handle the fallback

@@ -61,6 +61,8 @@ const config: Config = {
       },
       fontFamily: {
         sans: [
+          'var(--font-plus-jakarta-sans)',
+          'Plus Jakarta Sans',
           '-apple-system',
           'BlinkMacSystemFont',
           'Segoe UI',
@@ -72,6 +74,13 @@ const config: Config = {
           'Droid Sans',
           'Helvetica Neue',
           'sans-serif',
+        ],
+        serif: [
+          'Georgia',
+          'Cambria',
+          'Times New Roman',
+          'Times',
+          'serif',
         ],
         mono: [
           'SF Mono',

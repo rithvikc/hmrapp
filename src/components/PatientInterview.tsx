@@ -118,6 +118,8 @@ export default function PatientInterview({ onNext, onPrevious }: PatientIntervie
 
   const handleSectionNext = () => {
     if (validateCurrentSection()) {
+      handleSave();
+      
       const sections: ('A' | 'B')[] = ['A', 'B'];
       const currentIndex = sections.indexOf(currentSection);
       if (currentIndex < sections.length - 1) {
@@ -127,6 +129,8 @@ export default function PatientInterview({ onNext, onPrevious }: PatientIntervie
   };
 
   const handleSectionPrevious = () => {
+    handleSave();
+    
     const sections: ('A' | 'B')[] = ['A', 'B'];
     const currentIndex = sections.indexOf(currentSection);
     if (currentIndex > 0) {
@@ -618,7 +622,10 @@ export default function PatientInterview({ onNext, onPrevious }: PatientIntervie
         <div className="flex justify-between items-center pt-8 mt-8 border-t border-gray-200">
           <div className="flex gap-4">
             <button
-              onClick={onPrevious}
+              onClick={() => {
+                handleSave();
+                onPrevious();
+              }}
               className="px-6 py-2 text-gray-600 hover:text-gray-800 transition-colors"
             >
               ← Back to Medications
@@ -649,7 +656,10 @@ export default function PatientInterview({ onNext, onPrevious }: PatientIntervie
               </button>
             ) : (
               <button
-                onClick={onNext}
+                onClick={() => {
+                  handleSave();
+                  onNext();
+                }}
                 className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
               >
                 Continue to Recommendations →

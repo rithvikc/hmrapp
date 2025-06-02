@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { 
   Upload, 
@@ -32,6 +32,7 @@ interface ExtractedData {
     prnStatus: string;
     confidence: number;
   }>;
+  pharmacistName?: string;
 }
 
 interface PDFUploadProps {
@@ -45,12 +46,14 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
   const [editMode, setEditMode] = useState(false);
   const [editedData, setEditedData] = useState<ExtractedData | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [issues, setIssues] = useState<string[]>([]);
 
   const {
     setUploadedFile,
     setExtractedData: setStoreExtractedData,
     setCurrentPatient,
     setCurrentMedications,
+    setCurrentInterviewResponse,
     setLoading,
     setError: setStoreError
   } = useHMRStore();
@@ -185,6 +188,30 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
     });
   };
 
+  const validateData = useCallback(() => {
+    if (!extractedData) return [];
+    
+    const newIssues: string[] = [];
+    
+    if (!extractedData.name) newIssues.push('Patient name is missing');
+    if (!extractedData.dob) newIssues.push('Date of birth is missing');
+    if (!extractedData.gender) newIssues.push('Gender is missing');
+    if (!extractedData.referringDoctor) newIssues.push('Referring doctor is missing');
+    if (!extractedData.pharmacistName) newIssues.push('Pharmacist name is missing');
+    if (!extractedData.medications || extractedData.medications.length === 0) {
+      newIssues.push('No medications detected');
+    }
+    
+    setIssues(newIssues);
+    return newIssues;
+  }, [extractedData]);
+
+  useEffect(() => {
+    if (extractedData) {
+      validateData();
+    }
+  }, [extractedData, validateData]);
+
   const proceedToNext = () => {
     if (extractedData) {
       // Set patient data in store
@@ -215,6 +242,17 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
       }));
 
       setCurrentMedications(medications);
+      
+      // Create initial interview response with pharmacist name if provided
+      if (extractedData.pharmacistName) {
+        setCurrentInterviewResponse({
+          patient_id: undefined,  // Will be set after patient is saved
+          interview_date: new Date().toISOString().split('T')[0],
+          pharmacist_name: extractedData.pharmacistName,
+          status: 'draft'
+        });
+      }
+      
       onNext();
     }
   };
@@ -330,6 +368,31 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
           </div>
 
           <div className="p-6">
+            {/* Validation Issues - NEW */}
+            {issues.length > 0 && (
+              <div className="mb-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                <div className="flex items-center mb-3">
+                  <AlertCircle className="w-5 h-5 text-yellow-500 mr-3" />
+                  <h4 className="text-md font-semibold text-yellow-800">
+                    {issues.length} {issues.length === 1 ? 'Issue' : 'Issues'} Found
+                  </h4>
+                </div>
+                <ul className="space-y-2">
+                  {issues.map((issue, index) => (
+                    <li key={index} className="flex items-center justify-between">
+                      <span className="text-sm text-yellow-700 mr-4">{issue}</span>
+                      <button
+                        onClick={() => setEditMode(true)}
+                        className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors ml-4"
+                      >
+                        Fix Now
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {/* Patient Information */}
             <div className="mb-8">
               <h4 className="text-lg font-semibold text-gray-900 mb-4">Patient Information</h4>
@@ -404,6 +467,28 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
               </div>
             </div>
 
+            {/* Pharmacist Information - NEW */}
+            <div className="mb-8">
+              <h4 className="text-lg font-semibold text-gray-900 mb-4">Pharmacist Information</h4>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Pharmacist Name
+                </label>
+                {editMode ? (
+                  <input
+                    type="text"
+                    value={editedData?.pharmacistName || ''}
+                    onChange={(e) => handleInputChange('pharmacistName', e.target.value)}
+                    className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500 text-gray-900 bg-white"
+                    style={{ color: '#1f2937' }}
+                    placeholder="e.g., Jane Smith (MRN 1234)"
+                  />
+                ) : (
+                  <p className="p-2 bg-gray-50 rounded">{extractedData.pharmacistName || 'Not specified'}</p>
+                )}
+              </div>
+            </div>
+
             {/* Medications */}
             <div className="mb-8">
               <div className="flex items-center justify-between mb-4">
@@ -438,7 +523,8 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
                           type="text"
                           value={medication.name || ''}
                           onChange={(e) => handleMedicationChange(index, 'name', e.target.value)}
-                          className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 text-gray-900 bg-white"
+                          style={{ color: '#1f2937' }}
                         />
                       ) : (
                         <p className="p-2 bg-gray-50 rounded">{medication.name}</p>
@@ -454,7 +540,8 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
                           type="text"
                           value={medication.dosage || ''}
                           onChange={(e) => handleMedicationChange(index, 'dosage', e.target.value)}
-                          className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 text-gray-900 bg-white"
+                          style={{ color: '#1f2937' }}
                         />
                       ) : (
                         <p className="p-2 bg-gray-50 rounded">{medication.dosage || 'Not specified'}</p>
@@ -470,7 +557,8 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
                           type="text"
                           value={medication.frequency || ''}
                           onChange={(e) => handleMedicationChange(index, 'frequency', e.target.value)}
-                          className="w-full p-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 text-gray-900 bg-white"
+                          style={{ color: '#1f2937' }}
                         />
                       ) : (
                         <p className="p-2 bg-gray-50 rounded">{medication.frequency || 'Not specified'}</p>
@@ -486,10 +574,11 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
                           <select
                             value={medication.prnStatus || 'Regular'}
                             onChange={(e) => handleMedicationChange(index, 'prnStatus', e.target.value)}
-                            className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                            className="flex-1 p-2 border border-gray-300 rounded focus:outline-none focus:border-blue-500 text-gray-900 bg-white"
+                            style={{ color: '#1f2937' }}
                           >
                             <option value="Regular">Regular</option>
-                            <option value="PRN">PRN</option>
+                            <option value="PRN (as needed)">PRN (as needed)</option>
                             <option value="Limited Duration">Limited Duration</option>
                           </select>
                           <button
@@ -532,7 +621,7 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
               
               <button
                 onClick={proceedToNext}
-                disabled={!extractedData || editMode}
+                disabled={!extractedData || editMode || issues.length > 0}
                 className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
                 Continue to Patient Review

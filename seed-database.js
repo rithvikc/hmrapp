@@ -7,11 +7,10 @@ console.log('Seeding database at:', dbPath);
 
 const db = new Database(dbPath);
 
-// Enable foreign keys
-db.exec('PRAGMA foreign_keys = ON;');
-
 // Clear existing data (optional - remove this if you want to keep existing data)
 console.log('Clearing existing data...');
+// Temporarily disable foreign keys while clearing data
+db.exec('PRAGMA foreign_keys = OFF;');
 db.exec(`
   DELETE FROM clinical_recommendations;
   DELETE FROM medication_compliance;
@@ -21,6 +20,8 @@ db.exec(`
   DELETE FROM recommendations;
   DELETE FROM reviews;
 `);
+// Re-enable foreign keys
+db.exec('PRAGMA foreign_keys = ON;');
 
 // Sample patients data
 const patients = [

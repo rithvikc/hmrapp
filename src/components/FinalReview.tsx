@@ -22,7 +22,8 @@ export default function FinalReview({ onNext, onPrevious }: FinalReviewProps) {
     currentClinicalRecommendations,
     setLoading,
     saveDraft,
-    setCurrentStep
+    setCurrentStep,
+    setCurrentInterviewResponse
   } = useHMRSelectors();
 
   const [activeTab, setActiveTab] = useState<ReviewTab>('summary');
@@ -37,6 +38,16 @@ export default function FinalReview({ onNext, onPrevious }: FinalReviewProps) {
   });
   const [showMobilePreview, setShowMobilePreview] = useState(false);
   const [emailTemplate, setEmailTemplate] = useState('');
+  
+  // Editing state variables
+  const [isEditingPharmacist, setIsEditingPharmacist] = useState(false);
+  const [pharmacistName, setPharmacistName] = useState('');
+  
+  useEffect(() => {
+    if (currentInterviewResponse?.pharmacist_name) {
+      setPharmacistName(currentInterviewResponse.pharmacist_name);
+    }
+  }, [currentInterviewResponse]);
 
   const validateReview = useCallback(() => {
     const issues: string[] = [];
@@ -221,6 +232,77 @@ Email: avishkarlal01@gmail.com`;
     }
   };
 
+  const handleSavePharmacistName = async () => {
+    if (!pharmacistName.trim()) {
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      if (currentInterviewResponse) {
+        const updatedInterview = {
+          ...currentInterviewResponse,
+          pharmacist_name: pharmacistName
+        };
+        
+        const response = await fetch('/api/interviews', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedInterview)
+        });
+        
+        if (response.ok) {
+          const interview = await response.json();
+          setCurrentInterviewResponse(interview);
+          saveDraft();
+          setIsEditingPharmacist(false);
+        }
+      } else {
+        // Create a new interview response if one doesn't exist
+        const newInterview = {
+          patient_id: currentPatient?.id,
+          interview_date: new Date().toISOString().split('T')[0],
+          pharmacist_name: pharmacistName,
+          status: 'draft'
+        };
+        
+        const response = await fetch('/api/interviews', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(newInterview)
+        });
+        
+        if (response.ok) {
+          const interview = await response.json();
+          setCurrentInterviewResponse(interview);
+          saveDraft();
+          setIsEditingPharmacist(false);
+        }
+      }
+    } catch (error) {
+      console.error('Error saving pharmacist name:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  const handleFixIssue = (issue: string) => {
+    // Navigate to the appropriate step based on the issue
+    if (issue.includes('Patient name')) {
+      navigateToStep('patient');
+    } else if (issue.includes('medications')) {
+      navigateToStep('medications');
+    } else if (issue.includes('Interview')) {
+      navigateToStep('interview');
+    } else if (issue.includes('recommendations')) {
+      navigateToStep('recommendations');
+    } else if (issue.includes('Pharmacist name')) {
+      setIsEditingPharmacist(true);
+    } else if (issue.includes('GP email')) {
+      navigateToStep('patient');
+    }
+  };
+
   const renderTemplateTab = () => (
     <div className="space-y-6">
       {/* Email Template */}
@@ -297,7 +379,8 @@ Email: avishkarlal01@gmail.com`;
             { label: 'Interview sections completed', valid: !!currentInterviewResponse },
             { label: 'At least one clinical recommendation documented', valid: currentClinicalRecommendations.length > 0 },
             { label: 'Patient counselling documented', valid: currentClinicalRecommendations.some(rec => (rec as ClinicalRecommendation & { patient_counselling?: string }).patient_counselling) },
-            { label: 'GP email address confirmed', valid: !!currentPatient?.doctor_email }
+            { label: 'GP email address confirmed', valid: !!currentPatient?.doctor_email },
+            { label: 'Pharmacist name provided', valid: !!currentInterviewResponse?.pharmacist_name }
           ].map((item, index) => (
             <div key={index} className="flex items-center space-x-3">
               {item.valid ? (
@@ -327,11 +410,80 @@ Email: avishkarlal01@gmail.com`;
             )}
           </div>
           {validationIssues.length > 0 && (
-            <ul className="mt-2 text-sm text-red-600 list-disc list-inside">
+            <ul className="mt-2 text-sm text-red-600 list-disc list-inside space-y-2">
               {validationIssues.map((issue, index) => (
-                <li key={index}>{issue}</li>
+                <li key={index} className="flex items-center justify-between">
+                  <span className="mr-4">{issue}</span>
+                  <button 
+                    onClick={() => handleFixIssue(issue)}
+                    className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition-colors ml-4"
+                  >
+                    Fix Now
+                  </button>
+                </li>
               ))}
             </ul>
+          )}
+        </div>
+      </div>
+
+      {/* Pharmacist Details Card - NEW */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Pharmacist Details</h3>
+          {!isEditingPharmacist ? (
+            <button 
+              onClick={() => setIsEditingPharmacist(true)}
+              className="text-blue-600 hover:text-blue-800 transition-colors"
+              title="Edit pharmacist details"
+            >
+              <Edit className="w-4 h-4" />
+            </button>
+          ) : (
+            <div className="flex space-x-2">
+              <button 
+                onClick={handleSavePharmacistName}
+                className="text-green-600 hover:text-green-800 transition-colors"
+                title="Save pharmacist details"
+              >
+                <Save className="w-4 h-4" />
+              </button>
+              <button 
+                onClick={() => {
+                  setIsEditingPharmacist(false);
+                  if (currentInterviewResponse?.pharmacist_name) {
+                    setPharmacistName(currentInterviewResponse.pharmacist_name);
+                  }
+                }}
+                className="text-gray-600 hover:text-gray-800 transition-colors"
+                title="Cancel"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+        <div className="space-y-2 text-sm">
+          {isEditingPharmacist ? (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Pharmacist Name (with credentials)
+              </label>
+              <input
+                type="text"
+                value={pharmacistName}
+                onChange={(e) => setPharmacistName(e.target.value)}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+                placeholder="e.g., John Smith (MRN 1234)"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                Enter your full name and MRN number as it should appear on the report
+              </p>
+            </div>
+          ) : (
+            <div>
+              <strong>Pharmacist Name:</strong> {currentInterviewResponse?.pharmacist_name || 'Not specified'}
+            </div>
           )}
         </div>
       </div>

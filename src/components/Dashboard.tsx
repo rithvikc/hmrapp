@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import { useHMRSelectors } from '@/store/hmr-store';
 import { format } from 'date-fns';
+import { FaRegFile, FaClipboardList } from 'react-icons/fa';
 
 interface DashboardProps {
   onNewReview: () => void;
@@ -30,6 +31,7 @@ const Dashboard: React.FC<DashboardProps> = ({
   onViewAllPatients,
   onGenerateReports
 }) => {
+  console.log('[DEBUG] Dashboard: Rendering component');
   const [mounted, setMounted] = useState(false);
   const {
     pendingReviews,
@@ -42,20 +44,36 @@ const Dashboard: React.FC<DashboardProps> = ({
     loadDashboardData
   } = useHMRSelectors();
 
-  // Load dashboard data on mount
+  // Force render after 3 seconds even if isLoading is still true
+  const [forceRender, setForceRender] = useState(false);
+  
   useEffect(() => {
+    console.log('[DEBUG] Dashboard: In useEffect, setting mounted = true');
     setMounted(true);
+    console.log('[DEBUG] Dashboard: Calling loadDashboardData()');
     loadDashboardData();
+    console.log('[DEBUG] Dashboard: After loadDashboardData()');
+    
+    // Force render after 3 seconds to prevent infinite loading
+    const timer = setTimeout(() => {
+      console.log('[DEBUG] Dashboard: Force rendering after timeout');
+      setForceRender(true);
+    }, 3000);
+    
+    return () => clearTimeout(timer);
   }, [loadDashboardData]);
 
   // Don't render until mounted to prevent hydration issues
   if (!mounted) {
+    console.log('[DEBUG] Dashboard: Not mounted, showing spinner');
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
       </div>
     );
   }
+
+  console.log('[DEBUG] Dashboard: Mounted, checking isLoading =', isLoading, 'forceRender =', forceRender);
 
   const recentActivity = reviews
     .sort((a, b) => {
@@ -99,7 +117,8 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
-  if (isLoading) {
+  if (isLoading && !forceRender) {
+    console.log('[DEBUG] Dashboard: isLoading is true, showing spinner');
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
@@ -132,7 +151,7 @@ const Dashboard: React.FC<DashboardProps> = ({
         <div className="mb-8">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900 mb-2">
+              <h1 className="text-3xl font-bold text-gray-900 mb-2 font-serif">
                 LAL MedReviews Dashboard
               </h1>
               <p className="text-gray-600">
@@ -141,7 +160,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-500">Pharmacist</p>
-              <p className="font-semibold text-gray-900">Avishkar Lal</p>
+              <p className="font-semibold text-gray-900 font-serif">Avishkar Lal</p>
               <p className="text-sm text-gray-500">MRN: 8362</p>
             </div>
           </div>
@@ -149,7 +168,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
         {/* Quick Actions */}
         <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4">Quick Actions</h2>
+          <h2 className="text-xl font-semibold mb-4 font-serif">Quick Actions</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <button
               onClick={onNewReview}
@@ -179,7 +198,7 @@ const Dashboard: React.FC<DashboardProps> = ({
 
         {/* Statistics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 mb-1">Total Patients</p>
@@ -189,7 +208,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
           
-          <div className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 mb-1">Pending Reviews</p>
@@ -199,7 +218,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
           
-          <div className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 mb-1">Completed Reviews</p>
@@ -209,7 +228,7 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
           
-          <div className="bg-white p-6 rounded-lg shadow-sm">
+          <div className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-gray-500 mb-1">Draft Reviews</p>
@@ -221,12 +240,53 @@ const Dashboard: React.FC<DashboardProps> = ({
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          {/* Draft Reviews */}
+          {draftReviews.length > 0 && (
+            <div className="col-span-full lg:col-span-1 bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300">
+              <div className="p-6 border-b border-gray-200">
+                <h3 className="text-lg font-semibold text-gray-900 flex items-center font-serif">
+                  {getStatusIcon('draft')}
+                  Draft Reviews ({draftReviews.length})
+                </h3>
+              </div>
+              <div className="p-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {draftReviews.map((review) => {
+                    const patient = patients.find(p => p.id === review.patient_id);
+                    return (
+                      <div
+                        key={review.id}
+                        className="p-4 border border-yellow-200 bg-yellow-50 rounded-xl hover:bg-yellow-100 transition-colors shadow-sm"
+                      >
+                        <div className="flex items-center justify-between mb-2">
+                          <h4 className="font-medium text-gray-900">
+                            {patient?.name || 'Unknown Patient'}
+                          </h4>
+                          {getStatusIcon(review.status)}
+                        </div>
+                        <p className="text-sm text-gray-600 mb-3">
+                          Started: {formatDate(review.interview_date)}
+                        </p>
+                        <button
+                          onClick={() => onContinueDraft(review.id!)}
+                          className="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded-lg text-sm font-medium transition-colors"
+                        >
+                          Continue Draft
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Pending Reviews */}
-          <div className="bg-white rounded-lg shadow-sm">
+          <div className="col-span-full lg:col-span-1 bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300">
             <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                <AlertCircle className="w-5 h-5 mr-2 text-blue-500" />
-                Pending Reviews
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center font-serif">
+                {getStatusIcon('pending')}
+                Pending Reviews ({pendingReviews.length})
               </h3>
             </div>
             <div className="p-6">
@@ -239,7 +299,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     return (
                       <div
                         key={review.id}
-                        className="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                        className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors shadow-sm"
                       >
                         <div className="flex-1">
                           <h4 className="font-medium text-gray-900">
@@ -247,7 +307,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                           </h4>
                           <div className="flex items-center space-x-4 mt-1">
                             <span className="text-sm text-gray-500 flex items-center">
-                              <Calendar className="w-4 h-4 mr-1" />
+                              {getStatusIcon(review.status)}
                               {formatDate(review.interview_date)}
                             </span>
                             <span className={`text-xs px-2 py-1 rounded-full ${getStatusColor(review.status)}`}>
@@ -272,9 +332,9 @@ const Dashboard: React.FC<DashboardProps> = ({
           </div>
 
           {/* Recent Activity */}
-          <div className="bg-white rounded-lg shadow-sm">
+          <div className="col-span-full lg:col-span-2 bg-white rounded-xl shadow-md hover:shadow-lg transition-shadow duration-300">
             <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
+              <h3 className="text-lg font-semibold text-gray-900 flex items-center font-serif">
                 <Activity className="w-5 h-5 mr-2 text-green-500" />
                 Recent Activity
               </h3>
@@ -289,7 +349,7 @@ const Dashboard: React.FC<DashboardProps> = ({
                     return (
                       <div
                         key={review.id}
-                        className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                        className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors shadow-sm"
                       >
                         <div className="flex items-center space-x-3">
                           {getStatusIcon(review.status)}
@@ -329,47 +389,6 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
           </div>
         </div>
-
-        {/* Draft Reviews Section */}
-        {draftReviews.length > 0 && (
-          <div className="mt-8 bg-white rounded-lg shadow-sm">
-            <div className="p-6 border-b border-gray-200">
-              <h3 className="text-lg font-semibold text-gray-900 flex items-center">
-                <FileText className="w-5 h-5 mr-2 text-yellow-500" />
-                Draft Reviews ({draftReviews.length})
-              </h3>
-            </div>
-            <div className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {draftReviews.map((review) => {
-                  const patient = patients.find(p => p.id === review.patient_id);
-                  return (
-                    <div
-                      key={review.id}
-                      className="p-4 border border-yellow-200 bg-yellow-50 rounded-lg hover:bg-yellow-100 transition-colors"
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="font-medium text-gray-900">
-                          {patient?.name || 'Unknown Patient'}
-                        </h4>
-                        <Clock className="w-4 h-4 text-yellow-500" />
-                      </div>
-                      <p className="text-sm text-gray-600 mb-3">
-                        Started: {formatDate(review.interview_date)}
-                      </p>
-                      <button
-                        onClick={() => onContinueDraft(review.id!)}
-                        className="w-full bg-yellow-600 hover:bg-yellow-700 text-white py-2 px-4 rounded text-sm font-medium transition-colors"
-                      >
-                        Continue Draft
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
