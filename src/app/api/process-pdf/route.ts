@@ -33,11 +33,15 @@ export async function POST(request: NextRequest) {
       // Clean up the processor
       await processor.cleanup();
       
+      // Return the structured response
       return NextResponse.json({
         success: true,
-        data: result.data,
+        message: 'PDF processed successfully',
         rawText: result.rawText,
-        message: 'PDF processed successfully'
+        data: {
+          ...result.data,
+          rawText: result.rawText
+        }
       });
       
     } catch (processingError) {

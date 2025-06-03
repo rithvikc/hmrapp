@@ -37,24 +37,41 @@ class OCRProcessor {
     try {
       console.log('Processing PDF with OCR...');
       
+      let rawText = '';
+      
       // Try Google Document AI first if API key is available
       if (process.env.GOOGLE_CLOUD_API_KEY) {
         try {
-          const text = await this.extractWithGoogleDocumentAI(buffer);
-          return {
-            rawText: text,
-            data: this.parseExtractedText(text)
-          };
+          rawText = await this.extractWithGoogleDocumentAI(buffer);
         } catch (error) {
           console.warn('Google Document AI failed, falling back to other methods:', error);
         }
       }
-
-      // Fallback to pdf-parse, then Tesseract, then mock data
-      const text = await this.extractWithFallbacks(buffer);
+      
+      // If no text yet, try fallback methods
+      if (!rawText) {
+        rawText = await this.extractWithFallbacks(buffer);
+      }
+      
+      console.log(`📄 Extracted ${rawText.length} characters`);
+      
+      // Use AI-enhanced parsing if available
+      let parsedData;
+      if (process.env.GEMINI_API_KEY && rawText.length > 100) {
+        try {
+          console.log('🤖 Using Gemini AI for enhanced parsing...');
+          parsedData = await this.parseWithGeminiAI(rawText);
+        } catch (error) {
+          console.warn('Gemini AI parsing failed, falling back to regex parsing:', error);
+          parsedData = this.parseExtractedText(rawText);
+        }
+      } else {
+        parsedData = this.parseExtractedText(rawText);
+      }
+      
       return {
-        rawText: text,
-        data: this.parseExtractedText(text)
+        rawText: rawText,
+        data: parsedData
       };
       
     } catch (error) {
@@ -717,6 +734,98 @@ class OCRProcessor {
       console.error('Image processing error:', error);
       throw error;
     }
+  }
+
+  private async parseWithGeminiAI(text: string): Promise<ExtractedPatientData> {
+    try {
+      const { GoogleGenerativeAI } = await import('@google/generative-ai');
+      const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
+      const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' });
+
+      const prompt = `
+You are a medical document parser. Extract structured information from this medical document text and return it as JSON.
+
+Text to parse:
+${text}
+
+Please extract the following information and return as valid JSON with these exact fields:
+{
+  "name": "patient's full name",
+  "dob": "date of birth in YYYY-MM-DD format",
+  "gender": "Male, Female, or Other",
+  "medicareNumber": "medicare number if present",
+  "address": "patient's address",
+  "phone": "patient's phone number",
+  "referringDoctor": "doctor's full name",
+  "doctorEmail": "doctor's email address",
+  "practiceName": "medical practice name",
+  "currentConditions": "current medical conditions",
+  "pastMedicalHistory": "past medical history",
+  "allergies": "known allergies",
+  "medications": [
+    {
+      "name": "medication name",
+      "dosage": "dosage amount",
+      "frequency": "how often taken",
+      "prnStatus": "Regular, PRN, or Limited Duration",
+      "confidence": 0.95
+    }
+  ]
+}
+
+Important rules:
+1. Return ONLY valid JSON, no additional text
+2. If information is not found, use empty string "" or empty array []
+3. For dates, convert to YYYY-MM-DD format (e.g. "24/01/1938" becomes "1938-01-24")
+4. For prnStatus, classify as "Regular" for routine medications, "PRN" for as-needed, "Limited Duration" for short courses
+5. Extract doctor name from signature sections (look for "Yours sincerely" followed by doctor name)
+6. Be very careful with medication names - don't include dosing instructions as medication names
+7. Confidence should be between 0.0 and 1.0 based on how clear the information is in the text
+`;
+
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const jsonText = response.text().trim();
+      
+      // Clean up the response to ensure it's valid JSON
+      const cleanedJson = jsonText.replace(/```json\n?|\n?```/g, '').trim();
+      
+      console.log('🤖 Gemini AI response:', cleanedJson.substring(0, 200) + '...');
+      
+      const parsedData = JSON.parse(cleanedJson);
+      
+      // Validate and normalize the parsed data
+      return this.normalizeAIParsedData(parsedData);
+      
+    } catch (error) {
+      console.error('Gemini AI parsing error:', error);
+      throw error;
+    }
+  }
+
+  private normalizeAIParsedData(data: any): ExtractedPatientData {
+    return {
+      name: data.name || '',
+      dob: data.dob || '',
+      gender: data.gender || '',
+      medicareNumber: data.medicareNumber || '',
+      address: data.address || '',
+      phone: data.phone || '',
+      referringDoctor: data.referringDoctor || '',
+      doctorEmail: data.doctorEmail || '',
+      practiceName: data.practiceName || '',
+      currentConditions: data.currentConditions || '',
+      pastMedicalHistory: data.pastMedicalHistory || '',
+      allergies: data.allergies || '',
+      medications: (data.medications || []).map((med: any) => ({
+        name: med.name || '',
+        dosage: med.dosage || '',
+        frequency: med.frequency || '',
+        prnStatus: med.prnStatus === 'PRN' ? 'PRN' : 
+                  med.prnStatus === 'Limited Duration' ? 'Limited Duration' : 'Regular',
+        confidence: Math.min(Math.max(med.confidence || 0.5, 0.0), 1.0)
+      }))
+    };
   }
 }
 

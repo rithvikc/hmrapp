@@ -48,6 +48,25 @@ export default function TabsWorkflow({ onExit }: TabsWorkflowProps) {
     const currentIndex = tabs.indexOf(activeTab);
     if (currentIndex < tabs.length - 1) {
       handleTabChange(tabs[currentIndex + 1]);
+    } else if (activeTab === 'review') {
+      // Workflow completed - handle completion
+      handleWorkflowCompletion();
+    }
+  };
+
+  const handleWorkflowCompletion = async () => {
+    try {
+      // Save final draft
+      await saveDraft();
+      
+      // Show completion message
+      alert('🎉 Workflow completed successfully! Your HMR report has been finalized and saved. You can now generate the PDF and email template from the Final Review tab.');
+      
+      // Optional: Navigate back to dashboard or keep on final review
+      // onExit(); // Uncomment if you want to exit to dashboard
+    } catch (error) {
+      console.error('Error completing workflow:', error);
+      alert('Error completing workflow. Please try again.');
     }
   };
 

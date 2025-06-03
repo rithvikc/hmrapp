@@ -149,6 +149,7 @@ interface ExtractedData {
   currentConditions?: string;
   pastMedicalHistory?: string;
   allergies?: string;
+  rawText?: string;
   medications?: Array<{
     name: string;
     dosage: string;

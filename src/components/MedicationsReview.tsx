@@ -141,13 +141,13 @@ export default function MedicationsReview({ onNext, onPrevious }: MedicationsRev
   const getLimitedDurationMedications = () => currentMedications.filter(med => med.prn_status === 'Limited Duration');
 
   return (
-    <div className="max-w-7xl mx-auto p-6">
+    <div className="max-w-7xl mx-auto p-4">
       {/* Header */}
-      <div className="mb-8">
-        <h2 className="text-3xl font-bold text-gray-900 mb-4">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-900 mb-3">
           Medications Review
         </h2>
-        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
           <div className="flex flex-wrap items-center gap-4 text-sm">
             <span><strong>Patient:</strong> {currentPatient?.name || 'Not specified'}</span>
             <span><strong>Total Medications:</strong> {currentMedications.length}</span>
@@ -158,62 +158,62 @@ export default function MedicationsReview({ onNext, onPrevious }: MedicationsRev
         </div>
       </div>
 
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
+      <div className="bg-white border border-gray-200 rounded-lg p-4">
         {/* Action Buttons */}
-        <div className="flex justify-between items-center mb-6">
-          <h3 className="text-xl font-semibold text-gray-900">Current Medications</h3>
-          <div className="flex gap-3">
+        <div className="flex justify-between items-center mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Current Medications</h3>
+          <div className="flex gap-2">
             <button
               onClick={handleAddMedication}
-              className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+              className="px-3 py-1.5 text-sm bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
             >
-              + Add New Medication
+              + Add New
             </button>
             <button
               onClick={handleImportFromPrevious}
-              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              className="px-3 py-1.5 text-sm bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
             >
-              Import from Previous Review
+              Import Previous
             </button>
             <button
               onClick={handleSaveMedications}
-              className="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+              className="px-3 py-1.5 text-sm bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
             >
-              Save Medications List
+              Save All
             </button>
           </div>
         </div>
 
         {/* Medications Table */}
         <div className="overflow-x-auto">
-          <table className="w-full border-collapse border border-gray-300">
+          <table className="w-full border-collapse border border-gray-300 text-sm">
             <thead>
               <tr className="bg-gray-50">
-                <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-900">
+                <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-900">
                   Medication Name
                 </th>
-                <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-900">
+                <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-900">
                   Strength
                 </th>
-                <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-900">
+                <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-900">
                   Form
                 </th>
-                <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-900">
+                <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-900">
                   Dosage
                 </th>
-                <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-900">
+                <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-900">
                   Frequency
                 </th>
-                <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-900">
+                <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-900">
                   Route
                 </th>
-                <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-900">
+                <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-900">
                   PRN Status
                 </th>
-                <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-900">
+                <th className="border border-gray-300 px-2 py-2 text-left text-xs font-medium text-gray-900">
                   Prescriber
                 </th>
-                <th className="border border-gray-300 px-4 py-3 text-left text-sm font-medium text-gray-900">
+                <th className="border border-gray-300 px-1 py-2 text-left text-xs font-medium text-gray-900">
                   Actions
                 </th>
               </tr>
@@ -221,106 +221,108 @@ export default function MedicationsReview({ onNext, onPrevious }: MedicationsRev
             <tbody>
               {currentMedications.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="border border-gray-300 px-4 py-8 text-center text-gray-500">
-                    No medications added yet. Click &quot;Add New Medication&quot; to get started.
+                  <td colSpan={9} className="border border-gray-300 px-4 py-6 text-center text-gray-500 text-sm">
+                    No medications added yet. Click "Add New" to get started.
                   </td>
                 </tr>
               ) : (
                 currentMedications.map((medication, index) => (
                   <tr key={index} className="hover:bg-gray-50">
-                    <td className="border border-gray-300 px-2 py-2">
+                    <td className="border border-gray-300 px-1 py-1">
                       <input
                         type="text"
                         value={medication.name || ''}
                         onChange={(e) => handleUpdateMedication(index, 'name', e.target.value)}
-                        className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full px-1 py-0.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                         placeholder="Medication name"
                       />
                     </td>
-                    <td className="border border-gray-300 px-2 py-2">
+                    <td className="border border-gray-300 px-1 py-1">
                       <input
                         type="text"
                         value={medication.strength || ''}
                         onChange={(e) => handleUpdateMedication(index, 'strength', e.target.value)}
-                        className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="e.g., 10mg"
+                        className="w-full px-1 py-0.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        placeholder="10mg"
                       />
                     </td>
-                    <td className="border border-gray-300 px-2 py-2">
+                    <td className="border border-gray-300 px-1 py-1">
                       <select
                         value={medication.form || ''}
                         onChange={(e) => handleUpdateMedication(index, 'form', e.target.value)}
-                        className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full px-1 py-0.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                       >
-                        <option value="">Select form</option>
+                        <option value="">Form</option>
                         {FORM_OPTIONS.map(form => (
                           <option key={form} value={form}>{form}</option>
                         ))}
                       </select>
                     </td>
-                    <td className="border border-gray-300 px-2 py-2">
+                    <td className="border border-gray-300 px-1 py-1">
                       <input
                         type="text"
                         value={medication.dosage || ''}
                         onChange={(e) => handleUpdateMedication(index, 'dosage', e.target.value)}
-                        className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="e.g., 1 tablet"
+                        className="w-full px-1 py-0.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        placeholder="1 tablet"
                       />
                     </td>
-                    <td className="border border-gray-300 px-2 py-2">
+                    <td className="border border-gray-300 px-1 py-1">
                       <input
                         type="text"
                         value={medication.frequency || ''}
                         onChange={(e) => handleUpdateMedication(index, 'frequency', e.target.value)}
-                        className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
-                        placeholder="e.g., twice daily"
+                        className="w-full px-1 py-0.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        placeholder="twice daily"
                       />
                     </td>
-                    <td className="border border-gray-300 px-2 py-2">
+                    <td className="border border-gray-300 px-1 py-1">
                       <select
                         value={medication.route || ''}
                         onChange={(e) => handleUpdateMedication(index, 'route', e.target.value)}
-                        className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full px-1 py-0.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                       >
-                        <option value="">Select route</option>
+                        <option value="">Route</option>
                         {ROUTE_OPTIONS.map(route => (
                           <option key={route} value={route}>{route}</option>
                         ))}
                       </select>
                     </td>
-                    <td className="border border-gray-300 px-2 py-2">
+                    <td className="border border-gray-300 px-1 py-1">
                       <select
                         value={medication.prn_status}
                         onChange={(e) => handleUpdateMedication(index, 'prn_status', e.target.value)}
-                        className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full px-1 py-0.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                       >
                         {PRN_STATUS_OPTIONS.map(status => (
                           <option key={status} value={status}>{status}</option>
                         ))}
                       </select>
                     </td>
-                    <td className="border border-gray-300 px-2 py-2">
+                    <td className="border border-gray-300 px-1 py-1">
                       <input
                         type="text"
                         value={medication.prescriber || ''}
                         onChange={(e) => handleUpdateMedication(index, 'prescriber', e.target.value)}
-                        className="w-full px-2 py-1 border border-gray-200 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        className="w-full px-1 py-0.5 border border-gray-200 rounded text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
                         placeholder="Prescriber"
                       />
                     </td>
-                    <td className="border border-gray-300 px-2 py-2">
-                      <div className="flex gap-1">
+                    <td className="border border-gray-300 px-1 py-1">
+                      <div className="flex gap-0.5">
                         <button
                           onClick={() => setEditingIndex(editingIndex === index ? null : index)}
-                          className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                          className="px-1.5 py-0.5 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
+                          title="Edit"
                         >
-                          {editingIndex === index ? 'Done' : 'Edit'}
+                          ✏️
                         </button>
                         <button
                           onClick={() => handleDeleteMedication(index)}
-                          className="px-2 py-1 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+                          className="px-1.5 py-0.5 text-xs bg-red-100 text-red-700 rounded hover:bg-red-200"
+                          title="Delete"
                         >
-                          Delete
+                          🗑️
                         </button>
                       </div>
                     </td>
@@ -332,75 +334,75 @@ export default function MedicationsReview({ onNext, onPrevious }: MedicationsRev
         </div>
 
         {/* Medication Categories */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-            <h4 className="font-semibold text-green-800 mb-3">
+        <div className="mt-6 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="bg-green-50 border border-green-200 rounded-lg p-3">
+            <h4 className="font-semibold text-green-800 mb-2 text-sm">
               Regular Medications ({getRegularMedications().length})
             </h4>
-            <div className="space-y-2">
+            <div className="space-y-1">
               {getRegularMedications().map((med, index) => (
-                <div key={index} className="text-sm text-green-700">
+                <div key={index} className="text-xs text-green-700">
                   {med.name} {med.strength && `(${med.strength})`}
                 </div>
               ))}
               {getRegularMedications().length === 0 && (
-                <div className="text-sm text-green-600 italic">No regular medications</div>
+                <div className="text-xs text-green-600 italic">No regular medications</div>
               )}
             </div>
           </div>
 
-          <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-            <h4 className="font-semibold text-orange-800 mb-3">
+          <div className="bg-orange-50 border border-orange-200 rounded-lg p-3">
+            <h4 className="font-semibold text-orange-800 mb-2 text-sm">
               PRN (As Needed) Medications ({getPRNMedications().length})
             </h4>
-            <div className="space-y-2">
+            <div className="space-y-1">
               {getPRNMedications().map((med, index) => (
-                <div key={index} className="text-sm text-orange-700">
+                <div key={index} className="text-xs text-orange-700">
                   {med.name} {med.strength && `(${med.strength})`}
                 </div>
               ))}
               {getPRNMedications().length === 0 && (
-                <div className="text-sm text-orange-600 italic">No PRN medications</div>
+                <div className="text-xs text-orange-600 italic">No PRN medications</div>
               )}
             </div>
           </div>
 
-          <div className="bg-purple-50 border border-purple-200 rounded-lg p-4">
-            <h4 className="font-semibold text-purple-800 mb-3">
+          <div className="bg-purple-50 border border-purple-200 rounded-lg p-3">
+            <h4 className="font-semibold text-purple-800 mb-2 text-sm">
               Limited Duration Medications ({getLimitedDurationMedications().length})
             </h4>
-            <div className="space-y-2">
+            <div className="space-y-1">
               {getLimitedDurationMedications().map((med, index) => (
-                <div key={index} className="text-sm text-purple-700">
+                <div key={index} className="text-xs text-purple-700">
                   {med.name} {med.strength && `(${med.strength})`}
                 </div>
               ))}
               {getLimitedDurationMedications().length === 0 && (
-                <div className="text-sm text-purple-600 italic">No limited duration medications</div>
+                <div className="text-xs text-purple-600 italic">No limited duration medications</div>
               )}
             </div>
           </div>
         </div>
 
         {/* Action Buttons */}
-        <div className="flex justify-between items-center pt-8 mt-8 border-t border-gray-200">
+        <div className="flex justify-between items-center pt-6 mt-6 border-t border-gray-200">
           <button
             onClick={onPrevious}
-            className="px-6 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+            className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors text-sm"
           >
             ← Back to Patient Info
           </button>
 
-          <div className="flex gap-4">
+          <div className="flex gap-3">
             <button
               onClick={handleSaveMedications}
-              className="px-6 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+              className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors text-sm"
             >
               Save All Changes
             </button>
             <button
               onClick={onNext}
-              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm"
             >
               Continue to Interview →
             </button>

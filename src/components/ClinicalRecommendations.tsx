@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useHMRSelectors } from '@/store/hmr-store';
 import { ClinicalRecommendation } from '@/store/hmr-store';
-import { Plus, X, Save, FileText, AlertTriangle, Clock, CheckCircle } from 'lucide-react';
+import { Plus, X, Save, FileText, AlertTriangle, Clock, CheckCircle, Eye, Edit } from 'lucide-react';
 
 interface ClinicalRecommendationsProps {
   onNext: () => void;
@@ -99,6 +99,7 @@ export default function ClinicalRecommendations({ onNext, onPrevious }: Clinical
   const [recommendations, setRecommendations] = useState<ClinicalRecommendation[]>([]);
   const [autoSuggestions, setAutoSuggestions] = useState<string[]>([]);
   const [showTemplates, setShowTemplates] = useState<{ [key: number]: boolean }>({});
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   const addNewRecommendation = useCallback(() => {
     const newRecommendation: ClinicalRecommendation = {
@@ -114,6 +115,7 @@ export default function ClinicalRecommendations({ onNext, onPrevious }: Clinical
     const updatedRecommendations = [...recommendations, newRecommendation];
     setRecommendations(updatedRecommendations);
     setCurrentClinicalRecommendations(updatedRecommendations);
+    setEditingIndex(updatedRecommendations.length - 1);
   }, [currentPatient?.id, recommendations, setCurrentClinicalRecommendations]);
 
   const generateAutoSuggestions = useCallback(() => {
@@ -226,6 +228,7 @@ export default function ClinicalRecommendations({ onNext, onPrevious }: Clinical
     
     setRecommendations(updatedRecommendations);
     setCurrentClinicalRecommendations(updatedRecommendations);
+    setEditingIndex(null);
   };
 
   const updateRecommendation = (index: number, field: keyof ClinicalRecommendation, value: string) => {
@@ -250,8 +253,16 @@ export default function ClinicalRecommendations({ onNext, onPrevious }: Clinical
     setShowTemplates({ ...showTemplates, [index]: false });
   };
 
+  const startEditing = (index: number) => {
+    setEditingIndex(index);
+  };
+
+  const finishEditing = () => {
+    setEditingIndex(null);
+  };
+
   return (
-    <div className="max-w-6xl mx-auto p-6">
+    <div className="max-w-7xl mx-auto p-6">
       {/* Header */}
       <div className="mb-8">
         <h2 className="text-3xl font-bold text-gray-900 mb-4">
@@ -260,7 +271,7 @@ export default function ClinicalRecommendations({ onNext, onPrevious }: Clinical
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
           <div className="flex flex-wrap items-center gap-4 text-sm">
             <span><strong>Patient:</strong> {currentPatient?.name || 'Unknown Patient'}</span>
-            <span><strong>Total Recommendations:</strong> {recommendations.length}</span>
+            <span><strong>Total:</strong> {recommendations.length}</span>
             <span><strong>High Priority:</strong> {recommendations.filter(r => r.priority_level === 'High').length}</span>
             <span><strong>Medium Priority:</strong> {recommendations.filter(r => r.priority_level === 'Medium').length}</span>
             <span><strong>Low Priority:</strong> {recommendations.filter(r => r.priority_level === 'Low').length}</span>
@@ -269,12 +280,12 @@ export default function ClinicalRecommendations({ onNext, onPrevious }: Clinical
       </div>
 
       {/* Auto-suggestions */}
-      {autoSuggestions.length > 0 && (
+      {autoSuggestions.length > 0 && editingIndex === null && (
         <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4">
-          <h3 className="text-sm font-medium text-amber-800 mb-2 flex items-center">
+          <h4 className="text-sm font-medium text-amber-800 mb-2 flex items-center">
             <AlertTriangle className="w-4 h-4 mr-2" />
             Suggested Areas for Review
-          </h3>
+          </h4>
           <ul className="text-sm text-amber-700 space-y-1">
             {autoSuggestions.map((suggestion, index) => (
               <li key={index} className="flex items-start">
@@ -286,201 +297,299 @@ export default function ClinicalRecommendations({ onNext, onPrevious }: Clinical
         </div>
       )}
 
-      <div className="space-y-6">
-        {/* Recommendations */}
-        {recommendations.map((recommendation, index) => {
-          const priorityConfig = getPriorityConfig(recommendation.priority_level);
-          const availableTemplates = SMART_TEMPLATES[recommendation.category] || [];
+      {/* Split Content Layout */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* LEFT SIDE - Form for Creating/Editing */}
+        <div className="bg-white border border-gray-200 rounded-lg">
+          <div className="p-6 border-b border-gray-200 bg-gray-50">
+            <h3 className="text-xl font-semibold text-gray-900">
+              {editingIndex !== null ? `Edit Issue #${editingIndex + 1}` : 'Create New Recommendation'}
+            </h3>
+          </div>
+          
+          <div className="p-6">
+            {editingIndex !== null && recommendations[editingIndex] ? (
+              // Edit form
+              <div className="space-y-6">
+                {(() => {
+                  const recommendation = recommendations[editingIndex];
+                  const priorityConfig = getPriorityConfig(recommendation.priority_level);
+                  const availableTemplates = SMART_TEMPLATES[recommendation.category] || [];
 
-          return (
-            <div 
-              key={index} 
-              className={`bg-white border-2 rounded-lg p-6 ${priorityConfig.borderColor} ${priorityConfig.bgColor}`}
-            >
-              {/* Header */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center space-x-3">
-                  <span className="text-lg font-semibold text-gray-900">
-                    Issue #{index + 1}
-                  </span>
-                  {getPriorityIcon(recommendation.priority_level)}
-                  <span className={`text-sm font-medium ${priorityConfig.color}`}>
-                    {recommendation.priority_level} Priority
-                  </span>
-                </div>
-                <div className="flex space-x-2">
-                  {availableTemplates.length > 0 && (
-                    <button
-                      onClick={() => setShowTemplates({ ...showTemplates, [index]: !showTemplates[index] })}
-                      className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
-                    >
-                      Load Template
-                    </button>
-                  )}
-                  {recommendations.length > 1 && (
-                    <button
-                      onClick={() => removeRecommendation(index)}
-                      className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  )}
-                </div>
-              </div>
+                  return (
+                    <>
+                      {/* Templates */}
+                      {availableTemplates.length > 0 && (
+                        <div className="bg-gray-50 rounded-lg p-4">
+                          <button
+                            onClick={() => setShowTemplates({ ...showTemplates, [editingIndex]: !showTemplates[editingIndex] })}
+                            className="text-sm bg-blue-100 text-blue-700 px-3 py-2 rounded hover:bg-blue-200 transition-colors"
+                          >
+                            {showTemplates[editingIndex] ? 'Hide Templates' : 'Show Templates'}
+                          </button>
+                          
+                          {showTemplates[editingIndex] && (
+                            <div className="mt-4 space-y-2">
+                              {availableTemplates.map((template, templateIndex) => (
+                                <button
+                                  key={templateIndex}
+                                  onClick={() => applyTemplate(editingIndex, template)}
+                                  className="block w-full text-left p-3 text-sm bg-white border border-gray-200 rounded hover:bg-gray-50 transition-colors"
+                                >
+                                  <p className="font-medium text-gray-800 truncate">
+                                    {template.issueTemplate.substring(0, 80)}...
+                                  </p>
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      )}
 
-              {/* Templates */}
-              {showTemplates[index] && availableTemplates.length > 0 && (
-                <div className="mb-4 p-3 bg-gray-50 rounded-md">
-                  <p className="text-sm font-medium text-gray-700 mb-2">Available Templates:</p>
-                  <div className="space-y-2">
-                    {availableTemplates.map((template, templateIndex) => (
-                      <button
-                        key={templateIndex}
-                        onClick={() => applyTemplate(index, template)}
-                        className="block w-full text-left p-2 text-xs bg-white border border-gray-200 rounded hover:bg-gray-50 transition-colors"
-                      >
-                        <p className="font-medium text-gray-800 truncate">
-                          {template.issueTemplate.substring(0, 80)}...
+                      {/* Issue Category */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Issue Category
+                        </label>
+                        <select
+                          value={recommendation.category}
+                          onChange={(e) => updateRecommendation(editingIndex, 'category', e.target.value)}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        >
+                          {ISSUE_CATEGORIES.map(category => (
+                            <option key={category} value={category}>{category}</option>
+                          ))}
+                        </select>
+                      </div>
+
+                      {/* Issue Identified */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Issue Identified <span className="text-red-500">*</span>
+                        </label>
+                        <textarea
+                          value={recommendation.issue_identified || ''}
+                          onChange={(e) => updateRecommendation(editingIndex, 'issue_identified', e.target.value)}
+                          rows={4}
+                          maxLength={500}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                          placeholder="Describe the medication-related problem..."
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          {(recommendation.issue_identified || '').length}/500 characters
                         </p>
+                      </div>
+
+                      {/* Suggested Action */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Suggested Action <span className="text-red-500">*</span>
+                        </label>
+                        <textarea
+                          value={recommendation.suggested_action || ''}
+                          onChange={(e) => updateRecommendation(editingIndex, 'suggested_action', e.target.value)}
+                          rows={5}
+                          maxLength={1000}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                          placeholder="Recommend specific actions for the GP..."
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          {(recommendation.suggested_action || '').length}/1000 characters
+                        </p>
+                      </div>
+
+                      {/* Priority Level */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Priority Level
+                        </label>
+                        <div className="flex space-x-4">
+                          {PRIORITY_LEVELS.map(priority => (
+                            <label key={priority.value} className="flex items-center">
+                              <input
+                                type="radio"
+                                name={`priority-edit`}
+                                value={priority.value}
+                                checked={recommendation.priority_level === priority.value}
+                                onChange={(e) => updateRecommendation(editingIndex, 'priority_level', e.target.value)}
+                                className="mr-2"
+                              />
+                              <span className={`text-sm font-medium ${priority.color}`}>
+                                {priority.value}
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Patient Counselling */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Patient Counselling Provided
+                        </label>
+                        <textarea
+                          value={(recommendation as ClinicalRecommendation & { patient_counselling?: string }).patient_counselling || ''}
+                          onChange={(e) => updateRecommendation(editingIndex, 'patient_counselling' as keyof ClinicalRecommendation, e.target.value)}
+                          rows={3}
+                          maxLength={500}
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                          placeholder="What education was provided to the patient..."
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          {((recommendation as ClinicalRecommendation & { patient_counselling?: string }).patient_counselling || '').length}/500 characters
+                        </p>
+                      </div>
+
+                      {/* Edit Form Actions */}
+                      <div className="flex justify-between pt-6 border-t border-gray-200">
+                        <button
+                          onClick={finishEditing}
+                          className="px-6 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+                        >
+                          Save Recommendation
+                        </button>
+                        <button
+                          onClick={() => removeRecommendation(editingIndex)}
+                          className="px-6 py-2 bg-red-100 text-red-700 rounded-md hover:bg-red-200 transition-colors"
+                          disabled={recommendations.length <= 1}
+                        >
+                          Delete Issue
+                        </button>
+                      </div>
+                    </>
+                  );
+                })()}
+              </div>
+            ) : (
+              // New recommendation prompt
+              <div className="text-center py-12">
+                <p className="text-gray-500 mb-6">Select a recommendation to edit or create a new one.</p>
+                <button
+                  onClick={addNewRecommendation}
+                  className="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center space-x-2 mx-auto"
+                >
+                  <Plus className="w-5 h-5" />
+                  <span>Add New Recommendation</span>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* RIGHT SIDE - Saved Recommendations View */}
+        <div className="bg-white border border-gray-200 rounded-lg">
+          <div className="p-6 border-b border-gray-200 bg-gray-50">
+            <h3 className="text-xl font-semibold text-gray-900">
+              Saved Recommendations ({recommendations.length})
+            </h3>
+          </div>
+          
+          <div className="p-6">
+            <div className="space-y-4 max-h-[800px] overflow-y-auto">
+              {recommendations.map((recommendation, index) => {
+                const priorityConfig = getPriorityConfig(recommendation.priority_level);
+                const isComplete = recommendation.issue_identified.trim() && recommendation.suggested_action.trim();
+
+                return (
+                  <div 
+                    key={index} 
+                    className={`border-2 rounded-lg p-4 ${priorityConfig.borderColor} ${priorityConfig.bgColor} ${editingIndex === index ? 'ring-2 ring-blue-500' : ''}`}
+                  >
+                    {/* Header */}
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center space-x-3">
+                        <span className="text-lg font-semibold text-gray-900">
+                          Issue #{index + 1}
+                        </span>
+                        {getPriorityIcon(recommendation.priority_level)}
+                        <span className={`text-sm font-medium ${priorityConfig.color}`}>
+                          {recommendation.priority_level} Priority
+                        </span>
+                        {!isComplete && (
+                          <span className="text-xs bg-yellow-100 text-yellow-800 px-2 py-1 rounded">
+                            Incomplete
+                          </span>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => startEditing(index)}
+                        className="text-gray-500 hover:text-blue-600 transition-colors p-1"
+                      >
+                        <Edit className="w-5 h-5" />
                       </button>
-                    ))}
+                    </div>
+
+                    {/* Category */}
+                    <div className="mb-3">
+                      <span className="text-sm font-medium text-gray-600 bg-gray-100 px-3 py-1 rounded">
+                        {recommendation.category}
+                      </span>
+                    </div>
+
+                    {/* Issue */}
+                    <div className="mb-3">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Issue:</p>
+                      <p className="text-sm text-gray-600 bg-white p-3 rounded border">
+                        {recommendation.issue_identified || 'Not specified'}
+                      </p>
+                    </div>
+
+                    {/* Action */}
+                    <div className="mb-3">
+                      <p className="text-sm font-medium text-gray-700 mb-2">Action:</p>
+                      <p className="text-sm text-gray-600 bg-white p-3 rounded border">
+                        {recommendation.suggested_action || 'Not specified'}
+                      </p>
+                    </div>
+
+                    {/* Counselling if present */}
+                    {(recommendation as ClinicalRecommendation & { patient_counselling?: string }).patient_counselling && (
+                      <div>
+                        <p className="text-sm font-medium text-gray-700 mb-2">Counselling:</p>
+                        <p className="text-sm text-gray-600 bg-white p-3 rounded border">
+                          {(recommendation as ClinicalRecommendation & { patient_counselling?: string }).patient_counselling}
+                        </p>
+                      </div>
+                    )}
                   </div>
+                );
+              })}
+
+              {recommendations.length === 0 && (
+                <div className="text-center py-12 text-gray-500">
+                  <p className="mb-2">No recommendations created yet.</p>
+                  <p className="text-sm">Use the left panel to create your first recommendation.</p>
                 </div>
               )}
-
-              <div className="space-y-4">
-                {/* Issue Category */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Issue Category
-                  </label>
-                  <select
-                    value={recommendation.category}
-                    onChange={(e) => updateRecommendation(index, 'category', e.target.value)}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {ISSUE_CATEGORIES.map(category => (
-                      <option key={category} value={category}>{category}</option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Issue Identified */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Issue Identified <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    value={recommendation.issue_identified || ''}
-                    onChange={(e) => updateRecommendation(index, 'issue_identified', e.target.value)}
-                    rows={3}
-                    maxLength={500}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                    placeholder="Describe the medication-related problem..."
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    {(recommendation.issue_identified || '').length}/500 characters
-                  </p>
-                </div>
-
-                {/* Suggested Action */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Suggested Action <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    value={recommendation.suggested_action || ''}
-                    onChange={(e) => updateRecommendation(index, 'suggested_action', e.target.value)}
-                    rows={4}
-                    maxLength={1000}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                    placeholder="Recommend specific actions for the GP..."
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    {(recommendation.suggested_action || '').length}/1000 characters
-                  </p>
-                </div>
-
-                {/* Priority Level */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Priority Level
-                  </label>
-                  <div className="flex space-x-4">
-                    {PRIORITY_LEVELS.map(priority => (
-                      <label key={priority.value} className="flex items-center">
-                        <input
-                          type="radio"
-                          name={`priority-${index}`}
-                          value={priority.value}
-                          checked={recommendation.priority_level === priority.value}
-                          onChange={(e) => updateRecommendation(index, 'priority_level', e.target.value)}
-                          className="mr-2"
-                        />
-                        <span className={`text-sm font-medium ${priority.color}`}>
-                          {priority.value}
-                        </span>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Patient Counselling Provided */}
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Patient Counselling Provided
-                  </label>
-                  <textarea
-                    value={(recommendation as ClinicalRecommendation & { patient_counselling?: string }).patient_counselling || ''}
-                    onChange={(e) => updateRecommendation(index, 'patient_counselling' as keyof ClinicalRecommendation, e.target.value)}
-                    rows={3}
-                    maxLength={500}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-                    placeholder="What education was provided to the patient..."
-                  />
-                  <p className="text-xs text-gray-500 mt-1">
-                    {((recommendation as ClinicalRecommendation & { patient_counselling?: string }).patient_counselling || '').length}/500 characters
-                  </p>
-                </div>
-              </div>
             </div>
-          );
-        })}
+          </div>
+        </div>
+      </div>
 
-        {/* Add New Recommendation Button */}
+      {/* Action Buttons */}
+      <div className="flex justify-between items-center pt-8 mt-8 border-t border-gray-200">
         <button
-          onClick={addNewRecommendation}
-          className="w-full py-4 border-2 border-dashed border-gray-300 rounded-lg text-gray-600 hover:border-blue-400 hover:text-blue-600 transition-colors flex items-center justify-center space-x-2"
+          onClick={onPrevious}
+          className="px-6 py-2 text-gray-600 hover:text-gray-800 transition-colors"
         >
-          <Plus className="w-5 h-5" />
-          <span>Add New Issue/Recommendation</span>
+          ← Back to Interview
         </button>
 
-        {/* Action Buttons */}
-        <div className="flex justify-between items-center pt-8 border-t border-gray-200">
+        <div className="flex gap-4">
           <button
-            onClick={onPrevious}
-            className="px-6 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+            onClick={handleSave}
+            className="px-6 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors flex items-center space-x-2"
           >
-            ← Back to Interview
+            <Save className="w-4 h-4" />
+            <span>Save Recommendations</span>
           </button>
-
-          <div className="flex gap-4">
-            <button
-              onClick={handleSave}
-              className="px-6 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors flex items-center space-x-2"
-            >
-              <Save className="w-4 h-4" />
-              <span>Save Recommendations</span>
-            </button>
-            <button
-              onClick={handleContinue}
-              className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center space-x-2"
-            >
-              <FileText className="w-4 h-4" />
-              <span>Continue to Review →</span>
-            </button>
-          </div>
+          <button
+            onClick={handleContinue}
+            className="px-6 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center space-x-2"
+          >
+            <FileText className="w-4 h-4" />
+            <span>Continue to Review →</span>
+          </button>
         </div>
       </div>
     </div>

@@ -139,20 +139,22 @@ Email: avishkarlal01@gmail.com`;
     }
   }, [currentPatient, currentMedications, currentInterviewResponse, currentClinicalRecommendations, pdfUrl]);
 
-  const handleGeneratePDF = async () => {
+  const handleGeneratePDF = async (useEditableData = false) => {
     setLoading(true);
     try {
+      const reportData = {
+        patient: currentPatient,
+        medications: currentMedications,
+        interview: currentInterviewResponse,
+        recommendations: currentClinicalRecommendations
+      };
+
       const response = await fetch('/api/generate-hmr-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           patientId: currentPatient?.id,
-          reviewData: {
-            patient: currentPatient,
-            medications: currentMedications,
-            interview: currentInterviewResponse,
-            recommendations: currentClinicalRecommendations
-          },
+          reviewData: reportData,
           options: {
             includeAppendices: sendOptions.includeEducationSheet || sendOptions.includeMedicationList,
             watermark: validationIssues.length > 0 ? 'Draft' : 'Final',
@@ -181,6 +183,8 @@ Email: avishkarlal01@gmail.com`;
     }
   };
 
+  const handleStandardPDFGeneration = () => handleGeneratePDF(false);
+
   const handleMobilePreview = () => {
     setShowMobilePreview(true);
   };
@@ -199,10 +203,8 @@ Email: avishkarlal01@gmail.com`;
   };
 
   const navigateToStep = (step: string) => {
-    // Save current progress before navigating
     saveDraft();
     
-    // Navigate to the appropriate workflow step
     switch (step) {
       case 'patient':
         setCurrentStep('patient-info');
@@ -258,7 +260,6 @@ Email: avishkarlal01@gmail.com`;
           setIsEditingPharmacist(false);
         }
       } else {
-        // Create a new interview response if one doesn't exist
         const newInterview = {
           patient_id: currentPatient?.id,
           interview_date: new Date().toISOString().split('T')[0],
@@ -287,85 +288,16 @@ Email: avishkarlal01@gmail.com`;
   };
   
   const handleFixIssue = (issue: string) => {
-    // Navigate to the appropriate step based on the issue
-    if (issue.includes('Patient name')) {
-      navigateToStep('patient');
+    if (issue.includes('Patient name') || issue.includes('GP email')) {
+      navigateToStep('patient-info');
     } else if (issue.includes('medications')) {
-      navigateToStep('medications');
-    } else if (issue.includes('Interview')) {
+      navigateToStep('medications-review');
+    } else if (issue.includes('Interview') || issue.includes('Pharmacist name')) {
       navigateToStep('interview');
     } else if (issue.includes('recommendations')) {
       navigateToStep('recommendations');
-    } else if (issue.includes('Pharmacist name')) {
-      setIsEditingPharmacist(true);
-    } else if (issue.includes('GP email')) {
-      navigateToStep('patient');
     }
   };
-
-  const renderTemplateTab = () => (
-    <div className="space-y-6">
-      {/* Email Template */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Email Template</h3>
-          <button
-            onClick={copyEmailTemplate}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center space-x-2"
-            disabled={!emailTemplate}
-          >
-            <Mail className="w-4 h-4" />
-            <span>Copy Template</span>
-          </button>
-        </div>
-        
-        <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Ready-to-Use Email Template
-            </label>
-            <p className="text-sm text-gray-600 mb-4">
-              This template includes the subject line and email body. Copy and paste directly into your email client.
-            </p>
-            <textarea
-              value={emailTemplate}
-              readOnly
-              rows={20}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm bg-gray-50"
-              placeholder="Email template will appear here once patient and review data is available..."
-            />
-          </div>
-          
-          <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
-            <h4 className="font-medium text-blue-900 mb-2">Instructions:</h4>
-            <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
-              <li>Generate the PDF report from the Preview tab</li>
-              <li>Click &quot;Copy Template&quot; to copy the email text</li>
-              <li>Open your email client (Outlook, Gmail, etc.)</li>
-              <li>Paste the template - the subject line will be at the top</li>
-              <li>Attach the generated PDF report</li>
-              <li>Send to the referring doctor</li>
-            </ol>
-          </div>
-          
-          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
-            <h4 className="font-medium text-yellow-900 mb-2">Email Details:</h4>
-            <div className="text-sm text-yellow-800 space-y-1">
-              <div><strong>To:</strong> {currentPatient?.doctor_email || 'Doctor email not provided'}</div>
-              <div><strong>BCC:</strong> avishkarlal01@gmail.com (for records)</div>
-              <div><strong>Attachments:</strong> HMR Report PDF</div>
-              {sendOptions.includeEducationSheet && (
-                <div><strong>Additional:</strong> Patient Education Sheet</div>
-              )}
-              {sendOptions.includeMedicationList && (
-                <div><strong>Additional:</strong> Medication List Summary</div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 
   const renderSummaryTab = () => (
     <div className="space-y-6">
@@ -427,7 +359,7 @@ Email: avishkarlal01@gmail.com`;
         </div>
       </div>
 
-      {/* Pharmacist Details Card - NEW */}
+      {/* Pharmacist Details Card */}
       <div className="bg-white border border-gray-200 rounded-lg p-6">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-lg font-semibold text-gray-900">Pharmacist Details</h3>
@@ -643,7 +575,7 @@ Email: avishkarlal01@gmail.com`;
         
         <div className="flex space-x-4 mt-6">
           <button
-            onClick={handleGeneratePDF}
+            onClick={handleStandardPDFGeneration}
             className={`px-4 py-2 ${isPdfOutdated ? 'bg-orange-600 hover:bg-orange-700' : 'bg-blue-600 hover:bg-blue-700'} text-white rounded-md transition-colors flex items-center space-x-2`}
           >
             <Eye className="w-4 h-4" />
@@ -720,6 +652,70 @@ Email: avishkarlal01@gmail.com`;
           </div>
         </div>
       )}
+    </div>
+  );
+
+  const renderTemplateTab = () => (
+    <div className="space-y-6">
+      {/* Email Template */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Email Template</h3>
+          <button
+            onClick={copyEmailTemplate}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors flex items-center space-x-2"
+            disabled={!emailTemplate}
+          >
+            <Mail className="w-4 h-4" />
+            <span>Copy Template</span>
+          </button>
+        </div>
+        
+        <div className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Ready-to-Use Email Template
+            </label>
+            <p className="text-sm text-gray-600 mb-4">
+              This template includes the subject line and email body. Copy and paste directly into your email client.
+            </p>
+            <textarea
+              value={emailTemplate}
+              readOnly
+              rows={20}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono text-sm bg-gray-50"
+              placeholder="Email template will appear here once patient and review data is available..."
+            />
+          </div>
+          
+          <div className="bg-blue-50 border border-blue-200 rounded-md p-4">
+            <h4 className="font-medium text-blue-900 mb-2">Instructions:</h4>
+            <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
+              <li>Generate the PDF report from the Preview tab</li>
+              <li>Click &quot;Copy Template&quot; to copy the email text</li>
+              <li>Open your email client (Outlook, Gmail, etc.)</li>
+              <li>Paste the template - the subject line will be at the top</li>
+              <li>Attach the generated PDF report</li>
+              <li>Send to the referring doctor</li>
+            </ol>
+          </div>
+          
+          <div className="bg-yellow-50 border border-yellow-200 rounded-md p-4">
+            <h4 className="font-medium text-yellow-900 mb-2">Email Details:</h4>
+            <div className="text-sm text-yellow-800 space-y-1">
+              <div><strong>To:</strong> {currentPatient?.doctor_email || 'Doctor email not provided'}</div>
+              <div><strong>BCC:</strong> avishkarlal01@gmail.com (for records)</div>
+              <div><strong>Attachments:</strong> HMR Report PDF</div>
+              {sendOptions.includeEducationSheet && (
+                <div><strong>Additional:</strong> Patient Education Sheet</div>
+              )}
+              {sendOptions.includeMedicationList && (
+                <div><strong>Additional:</strong> Medication List Summary</div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   );
 

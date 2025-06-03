@@ -34,6 +34,8 @@ SUPABASE_SERVICE_ROLE_KEY=your_service_role_key_here
 
 # Database URL for migrations (if needed)
 DATABASE_URL=postgresql://postgres:[YOUR-PASSWORD]@db.[YOUR-PROJECT-REF].supabase.co:5432/postgres
+
+GEMINI_API_KEY=your_gemini_api_key_here
 ```
 
 ## Phase 2: Database Schema Migration

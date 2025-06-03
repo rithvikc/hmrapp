@@ -19,24 +19,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [pharmacist, setPharmacist] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
+  const [initialLoad, setInitialLoad] = useState(true)
   
-  // Always complete loading after 10 seconds max
+  // Always complete loading after 3 seconds max (reduced from 5)
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (loading) {
-        console.log('AuthContext: Forcing loading state to complete after timeout');
+      if (loading && initialLoad) {
+        console.log('AuthContext: Forcing initial loading state to complete after timeout');
         setLoading(false);
+        setInitialLoad(false);
       }
-    }, 10000);
+    }, 3000);
     
     return () => clearTimeout(timer);
-  }, [loading]);
+  }, [loading, initialLoad]);
   
   // Check for required environment variables
   useEffect(() => {
     if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       console.error('AuthContext: Missing Supabase environment variables');
       setLoading(false);
+      setInitialLoad(false);
       return;
     }
   }, []);
@@ -44,25 +47,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const supabase = createClient()
 
   useEffect(() => {
-    setLoading(true); // Explicitly set loading to true at the start of the effect
     // Get initial session
     const getInitialSession = async () => {
       try {
+        console.log('AuthContext: Getting initial session...');
         const { data: { session } } = await supabase.auth.getSession();
+        console.log('AuthContext: Initial session exists:', !!session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
           await fetchPharmacist(session.user.id);
         } else {
-          // If no session, ensure pharmacist is also null
           setPharmacist(null);
         }
       } catch (error) {
         console.error("AuthContext: Error during initial session fetch:", error);
-        // setUser(null); // This was incorrect, user state is set based on session above
+        setUser(null);
         setPharmacist(null);
       } finally {
         setLoading(false);
+        setInitialLoad(false);
       }
     };
 
@@ -71,7 +75,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event, session) => {
-        setLoading(true); // Set loading to true when auth state changes
+        console.log('AuthContext: Auth state changed:', event, 'Session exists:', !!session);
+        
+        // Only set loading for actual sign-in/sign-out events, not for token refreshes
+        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+          setLoading(true);
+        }
+        
         try {
           setUser(session?.user ?? null);
           
@@ -82,27 +92,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           }
         } catch (error) {
           console.error("AuthContext: Error during auth state change:", error);
-          // Reset user and pharmacist on error during auth state change
           setPharmacist(null);
         } finally {
-          setLoading(false);
+          // Only set loading to false for sign-in/sign-out events
+          if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+            setLoading(false);
+          }
         }
       }
     );
 
     return () => {
       subscription.unsubscribe();
-      setLoading(false); // Ensure loading is false on cleanup if component unmounts
     }
   }, [])
 
   const fetchPharmacist = async (userId: string) => {
-    // Create a timeout promise that resolves after 5 seconds
+    // Create a timeout promise that resolves after 3 seconds (reduced from 5)
     const timeoutPromise = new Promise<void>((resolve) => {
       setTimeout(() => {
         console.log('AuthContext: fetchPharmacist timed out');
         resolve();
-      }, 5000);
+      }, 3000);
     });
     
     try {

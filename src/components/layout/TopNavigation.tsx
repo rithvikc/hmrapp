@@ -11,7 +11,8 @@ import {
   Clock,
   Pill,
   User,
-  FileText
+  FileText,
+  LogOut
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHMRSelectors, Patient } from '@/store/hmr-store';
@@ -36,7 +37,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
   const [showPatientSearch, setShowPatientSearch] = useState(false);
-  const { pharmacist, user } = useAuth();
+  const { pharmacist, user, signOut } = useAuth();
   const { pendingReviews, patients } = useHMRSelectors();
 
   // Mock notifications for demonstration
@@ -99,6 +100,16 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
   const formatPatientContext = (patient: Patient) => {
     const age = patient.dob ? new Date().getFullYear() - new Date(patient.dob).getFullYear() : 'Unknown';
     return `${patient.name} • ${patient.gender} • ${age}y • MRN: ${patient.medicare_number || 'N/A'}`;
+  };
+
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      // Redirect to login page
+      window.location.href = '/auth/signin';
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
   };
 
   return (
@@ -323,18 +334,25 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
             </div>
 
             {/* User Profile */}
-            <div className="flex items-center space-x-3 bg-gray-50 px-3 py-2 rounded-lg">
-              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
-                <User className="h-4 w-4 text-blue-600" />
-              </div>
+            <div className="flex items-center space-x-4">
               <div className="text-right">
-                <p className="text-xs font-semibold text-gray-900">
+                <p className="text-sm font-semibold text-gray-900">
                   {pharmacist?.name || user?.user_metadata?.name || 'Healthcare Professional'}
                 </p>
                 <p className="text-xs text-gray-500">
                   {pharmacist?.registration_number ? `MRN: ${pharmacist.registration_number}` : 'Pharmacist'}
                 </p>
               </div>
+              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                <User className="h-4 w-4 text-blue-600" />
+              </div>
+              <button
+                onClick={handleLogout}
+                className="px-3 py-2 text-sm text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg transition-colors"
+                title="Sign out"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
             </div>
           </div>
         </div>
