@@ -145,6 +145,7 @@ interface ExtractedData {
   phone?: string;
   referringDoctor?: string;
   doctorEmail?: string;
+  practiceName?: string;
   currentConditions?: string;
   pastMedicalHistory?: string;
   allergies?: string;
@@ -226,6 +227,7 @@ export interface HMRWorkflowState {
   
   // Workflow operations
   resetWorkflow: () => void;
+  clearAllData: () => void;
   saveDraft: () => void;
   loadDraft: () => void;
   completeReview: () => void;
@@ -344,6 +346,18 @@ export const useHMRStore = create<HMRWorkflowState>()(
           interviewResponses: get().interviewResponses,
           reviews: get().reviews,
         }),
+        
+        clearAllData: () => {
+          // Clear localStorage
+          localStorage.removeItem('hmr-draft');
+          localStorage.removeItem('hmr-store');
+          
+          // Reset to initial state
+          set({
+            ...initialState,
+            currentStep: 'dashboard'
+          });
+        },
         
         saveDraft: () => {
           const state = get();

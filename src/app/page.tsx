@@ -77,13 +77,15 @@ export default function HomePage() {
   console.log("[DEBUG] HomePage: Rendering main content, user =", !!user)
   return (
     <div className="min-h-screen bg-gray-50">
-      <Header />
       {user ? (
         <ErrorBoundary>
           <MainApp />
         </ErrorBoundary>
       ) : (
-        <LandingPage />
+        <>
+          <Header />
+          <LandingPage />
+        </>
       )}
     </div>
   )

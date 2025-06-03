@@ -43,10 +43,12 @@ interface PDFUploadProps {
 const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
+  const [rawExtractedText, setRawExtractedText] = useState<string>('');
   const [editMode, setEditMode] = useState(false);
   const [editedData, setEditedData] = useState<ExtractedData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [issues, setIssues] = useState<string[]>([]);
+  const [showRawText, setShowRawText] = useState(false);
 
   const {
     setUploadedFile,
@@ -67,12 +69,19 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
       return;
     }
 
+    // Clear any existing data before processing new file
+    setExtractedData(null);
+    setEditedData(null);
+    setStoreExtractedData(null);
+    
     setIsProcessing(true);
     setError(null);
     setUploadedFile(file);
     setLoading(true);
 
     try {
+      console.log('📄 Processing new PDF file:', file.name);
+      
       // Process PDF with OCR
       const formData = new FormData();
       formData.append('pdf', file);
@@ -87,14 +96,24 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
       }
 
       const apiResponse = await response.json();
+      console.log('📄 API Response:', apiResponse);
+      
+      // Store raw extracted text if available
+      if (apiResponse.rawText || apiResponse.extractedText) {
+        setRawExtractedText(apiResponse.rawText || apiResponse.extractedText || '');
+      }
+      
       // Extract the actual data from the API response
       const data = apiResponse.data || apiResponse;
+      console.log('📄 Extracted Data:', data);
       
       // Ensure medications array exists
       const normalizedData = {
         ...data,
         medications: data.medications || []
       };
+      
+      console.log('📄 Normalized Data:', normalizedData);
       
       setExtractedData(normalizedData);
       setEditedData(normalizedData);
@@ -103,6 +122,7 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
 
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to process PDF';
+      console.error('📄 PDF Processing Error:', error);
       setError(errorMessage);
       setStoreError(errorMessage);
     } finally {
@@ -368,19 +388,51 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
           </div>
 
           <div className="p-6">
-            {/* Validation Issues - NEW */}
+            {/* Raw Text Preview Toggle */}
+            {rawExtractedText && (
+              <div className="mb-6">
+                <button
+                  onClick={() => setShowRawText(!showRawText)}
+                  className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                >
+                  <span className="text-sm font-medium">
+                    {showRawText ? 'Hide' : 'Show'} Raw Extracted Text
+                  </span>
+                  <span className="text-xs text-gray-500">({rawExtractedText.length} characters)</span>
+                </button>
+                
+                {showRawText && (
+                  <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                    <h5 className="text-sm font-semibold text-gray-900 mb-2">Raw OCR Text:</h5>
+                    <div className="max-h-64 overflow-y-auto">
+                      <pre className="text-xs text-gray-700 whitespace-pre-wrap font-mono">
+                        {rawExtractedText}
+                      </pre>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-2">
+                      This is the raw text extracted from your PDF. Review it to ensure the mapped fields below are correct.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Validation Issues - Enhanced */}
             {issues.length > 0 && (
               <div className="mb-8 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
                 <div className="flex items-center mb-3">
                   <AlertCircle className="w-5 h-5 text-yellow-500 mr-3" />
                   <h4 className="text-md font-semibold text-yellow-800">
-                    {issues.length} {issues.length === 1 ? 'Issue' : 'Issues'} Found
+                    {issues.length} {issues.length === 1 ? 'Issue' : 'Issues'} Found - Please Review & Correct
                   </h4>
+                </div>
+                <div className="mb-3 text-sm text-yellow-700">
+                  The following fields need attention. Click "Edit" to correct them or review the raw text above to verify the extraction.
                 </div>
                 <ul className="space-y-2">
                   {issues.map((issue, index) => (
                     <li key={index} className="flex items-center justify-between">
-                      <span className="text-sm text-yellow-700 mr-4">{issue}</span>
+                      <span className="text-sm text-yellow-700 mr-4">• {issue}</span>
                       <button
                         onClick={() => setEditMode(true)}
                         className="px-3 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors ml-4"
@@ -390,6 +442,27 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
                     </li>
                   ))}
                 </ul>
+              </div>
+            )}
+
+            {/* Field Mapping Guidance */}
+            {editMode && (
+              <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start">
+                  <div className="flex-shrink-0">
+                    <CheckCircle className="w-5 h-5 text-blue-500 mt-0.5" />
+                  </div>
+                  <div className="ml-3">
+                    <h4 className="text-sm font-semibold text-blue-900">Field Mapping Tips</h4>
+                    <ul className="text-sm text-blue-800 mt-2 space-y-1">
+                      <li>• Review the raw text above to find missing information</li>
+                      <li>• Check that medication names don't include dosage instructions</li>
+                      <li>• Verify that doctor names are complete and correctly formatted</li>
+                      <li>• Ensure dates are in the correct format (YYYY-MM-DD)</li>
+                      <li>• Separate multiple medications if they were combined</li>
+                    </ul>
+                  </div>
+                </div>
               </div>
             )}
 
@@ -495,15 +568,31 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
                 <h4 className="text-lg font-semibold text-gray-900">
                   Medications ({editMode ? editedData?.medications?.length || 0 : extractedData.medications?.length || 0})
                 </h4>
-                {editMode && (
-                  <button
-                    onClick={addMedication}
-                    className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
-                  >
-                    Add Medication
-                  </button>
-                )}
+                <div className="flex items-center space-x-3">
+                  {!editMode && extractedData.medications && extractedData.medications.length > 0 && (
+                    <div className="text-xs text-gray-500">
+                      Confidence: {Math.round((extractedData.medications.reduce((acc, med) => acc + (med.confidence || 0), 0) / extractedData.medications.length) * 100)}% avg
+                    </div>
+                  )}
+                  {editMode && (
+                    <button
+                      onClick={addMedication}
+                      className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition-colors"
+                    >
+                      Add Medication
+                    </button>
+                  )}
+                </div>
               </div>
+
+              {editMode && (
+                <div className="mb-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                  <p className="text-sm text-amber-800">
+                    <strong>Review each medication carefully:</strong> Ensure names are correct, dosages are separated from instructions, 
+                    and frequencies are properly formatted. Check the raw text above if you need to find missing medications.
+                  </p>
+                </div>
+              )}
 
               {(editMode ? editedData?.medications : extractedData.medications)?.map((medication: {
                 name: string;
@@ -512,11 +601,32 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
                 prnStatus: string;
                 confidence: number;
               }, index: number) => (
-                <div key={index} className="mb-4 p-4 border border-gray-200 rounded-lg">
+                <div key={index} className={`mb-4 p-4 border rounded-lg ${
+                  medication.confidence && medication.confidence < 0.7 ? 'border-orange-300 bg-orange-50' : 'border-gray-200'
+                }`}>
+                  {/* Confidence Indicator */}
+                  {!editMode && medication.confidence && (
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-xs font-medium text-gray-700">Medication #{index + 1}</span>
+                      <div className="flex items-center space-x-2">
+                        <span className={`px-2 py-1 text-xs rounded-full ${
+                          medication.confidence >= 0.8 ? 'bg-green-100 text-green-800' :
+                          medication.confidence >= 0.6 ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-red-100 text-red-800'
+                        }`}>
+                          {Math.round(medication.confidence * 100)}% confidence
+                        </span>
+                        {medication.confidence < 0.7 && (
+                          <span className="text-xs text-orange-600">⚠ Needs review</span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Medication Name
+                        Medication Name {medication.confidence && medication.confidence < 0.7 && <span className="text-orange-500">*</span>}
                       </label>
                       {editMode ? (
                         <input
@@ -525,9 +635,12 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
                           onChange={(e) => handleMedicationChange(index, 'name', e.target.value)}
                           className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:border-blue-500 text-gray-900 bg-white"
                           style={{ color: '#1f2937' }}
+                          placeholder="Enter medication name"
                         />
                       ) : (
-                        <p className="p-2 bg-gray-50 rounded">{medication.name}</p>
+                        <p className={`p-2 rounded ${medication.confidence && medication.confidence < 0.7 ? 'bg-orange-50' : 'bg-gray-50'}`}>
+                          {medication.name || 'Not detected'}
+                        </p>
                       )}
                     </div>
 
@@ -613,19 +726,41 @@ const PDFUpload: React.FC<PDFUploadProps> = ({ onDataExtracted, onNext }) => {
             {/* Actions */}
             <div className="flex justify-between items-center pt-6 border-t border-gray-200">
               <button
-                onClick={() => setExtractedData(null)}
+                onClick={() => {
+                  setExtractedData(null);
+                  setRawExtractedText('');
+                  setEditMode(false);
+                  setIssues([]);
+                }}
                 className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
               >
                 Upload Different File
               </button>
               
-              <button
-                onClick={proceedToNext}
-                disabled={!extractedData || editMode || issues.length > 0}
-                className="px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              >
-                Continue to Patient Review
-              </button>
+              <div className="flex items-center space-x-4">
+                {/* Validation Status */}
+                <div className="text-sm">
+                  {editMode ? (
+                    <span className="text-amber-600">⚠ Save changes before continuing</span>
+                  ) : issues.length > 0 ? (
+                    <span className="text-red-600">❌ {issues.length} issue(s) need fixing</span>
+                  ) : (
+                    <span className="text-green-600">✅ Ready to proceed</span>
+                  )}
+                </div>
+                
+                <button
+                  onClick={proceedToNext}
+                  disabled={!extractedData || editMode || issues.length > 0}
+                  className={`px-6 py-2 rounded font-medium transition-colors ${
+                    !extractedData || editMode || issues.length > 0
+                      ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      : 'bg-blue-600 text-white hover:bg-blue-700'
+                  }`}
+                >
+                  {editMode ? 'Save Changes First' : 'Continue to Patient Review'}
+                </button>
+              </div>
             </div>
           </div>
         </div>

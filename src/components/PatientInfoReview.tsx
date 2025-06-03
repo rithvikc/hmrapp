@@ -42,8 +42,7 @@ export default function PatientInfoReview({ onNext, onPrevious }: PatientInfoRev
     if (currentPatient) {
       setFormData(currentPatient);
     } else if (extractedData) {
-      setFormData(prev => ({
-        ...prev,
+      const newFormData = {
         name: extractedData.name || '',
         dob: extractedData.dob || '',
         gender: extractedData.gender || '',
@@ -52,10 +51,15 @@ export default function PatientInfoReview({ onNext, onPrevious }: PatientInfoRev
         phone: extractedData.phone || '',
         referring_doctor: extractedData.referringDoctor || '',
         doctor_email: extractedData.doctorEmail || '',
+        practice_name: extractedData.practiceName || '',
+        practice_address: '',
+        practice_phone: '',
         known_allergies: extractedData.allergies || '',
         current_conditions: extractedData.currentConditions || '',
         past_medical_history: extractedData.pastMedicalHistory || ''
-      }));
+      };
+      
+      setFormData(newFormData);
     }
   }, [currentPatient, extractedData]);
 

@@ -6,6 +6,31 @@
   --foreground-rgb: 0, 0, 0;
   --background-start-rgb: 214, 219, 220;
   --background-end-rgb: 255, 255, 255;
+  
+  /* Healthcare color palette */
+  --clinical-blue: #3b82f6;
+  --clinical-blue-light: #60a5fa;
+  --clinical-blue-dark: #1d4ed8;
+  --clinical-green: #10b981;
+  --clinical-red: #ef4444;
+  --clinical-amber: #f59e0b;
+  --clinical-gray: #6b7280;
+  
+  /* Clinical spacing */
+  --clinical-spacing-xs: 0.25rem;
+  --clinical-spacing-sm: 0.5rem;
+  --clinical-spacing-md: 1rem;
+  --clinical-spacing-lg: 1.5rem;
+  --clinical-spacing-xl: 2rem;
+  
+  /* Clinical typography */
+  --clinical-font-size-xs: 0.75rem;
+  --clinical-font-size-sm: 0.875rem;
+  --clinical-font-size-base: 1rem;
+  --clinical-font-size-lg: 1.125rem;
+  --clinical-font-size-xl: 1.25rem;
+  --clinical-font-size-2xl: 1.5rem;
+  --clinical-font-size-3xl: 1.875rem;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -41,6 +66,7 @@ body {
   max-width: 100vw;
   overflow-x: hidden;
   font-family: var(--font-plus-jakarta-sans), -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+  letter-spacing: -0.025em; /* Improved readability for healthcare text */
 }
 
 body {
@@ -84,9 +110,34 @@ a {
   animation: spin 1s linear infinite;
 }
 
+/* Healthcare-specific animations */
+@keyframes pulse-clinical {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(10px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
 /* Custom styles for the HMR application */
 .hmr-gradient {
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.clinical-gradient {
+  background: linear-gradient(135deg, var(--clinical-blue) 0%, var(--clinical-blue-dark) 100%);
 }
 
 .hmr-shadow {
@@ -94,6 +145,18 @@ a {
 }
 
 .hmr-shadow-lg {
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+.clinical-shadow {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1), 0 1px 2px 0 rgba(0, 0, 0, 0.06);
+}
+
+.clinical-shadow-md {
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.clinical-shadow-lg {
   box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
 }
 
@@ -106,9 +169,25 @@ a {
   @apply bg-gray-100 text-gray-700 px-4 py-2 rounded-md hover:bg-gray-200 focus:outline-none transition-colors duration-200;
 }
 
+.btn-clinical {
+  @apply bg-blue-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200;
+}
+
+.btn-clinical-secondary {
+  @apply bg-white text-gray-700 px-4 py-2 rounded-lg font-medium border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-all duration-200;
+}
+
+.btn-clinical-danger {
+  @apply bg-red-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-all duration-200;
+}
+
 /* Card styles */
 .card {
   @apply bg-white rounded-lg shadow-sm border border-gray-200;
+}
+
+.card-clinical {
+  @apply bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow duration-200;
 }
 
 .card-header {
@@ -126,8 +205,18 @@ a {
   background-color: white !important;
 }
 
+.form-input-clinical {
+  @apply w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-gray-900 transition-colors duration-200;
+  color: #1f2937 !important;
+  background-color: white !important;
+}
+
 .form-label {
   @apply block text-sm font-medium text-gray-700 mb-1;
+}
+
+.form-label-clinical {
+  @apply block text-sm font-semibold text-gray-700 mb-2;
 }
 
 /* Fix for input text visibility */
@@ -178,6 +267,87 @@ textarea {
   @apply bg-blue-100 text-blue-800;
 }
 
+/* Clinical status indicators */
+.status-high-risk {
+  @apply bg-red-100 text-red-800 border border-red-200;
+}
+
+.status-medium-risk {
+  @apply bg-amber-100 text-amber-800 border border-amber-200;
+}
+
+.status-low-risk {
+  @apply bg-green-100 text-green-800 border border-green-200;
+}
+
+.status-pending {
+  @apply bg-blue-100 text-blue-800 border border-blue-200;
+}
+
+.status-completed {
+  @apply bg-green-100 text-green-800 border border-green-200;
+}
+
+/* Clinical data display */
+.clinical-data-table {
+  @apply w-full border-collapse;
+}
+
+.clinical-data-table th {
+  @apply px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-200 bg-gray-50;
+}
+
+.clinical-data-table td {
+  @apply px-4 py-3 text-sm text-gray-900 border-b border-gray-200;
+}
+
+.clinical-data-table tr:hover {
+  @apply bg-gray-50;
+}
+
+/* Patient card styling */
+.patient-card {
+  @apply bg-white rounded-lg border border-gray-200 p-4 hover:shadow-md transition-shadow duration-200;
+}
+
+.patient-card-high-risk {
+  @apply border-red-200 bg-red-50;
+}
+
+.patient-card-medium-risk {
+  @apply border-amber-200 bg-amber-50;
+}
+
+/* Medication list styling */
+.medication-item {
+  @apply bg-white border border-gray-200 rounded-lg p-4 mb-3;
+}
+
+.medication-item:hover {
+  @apply shadow-sm;
+}
+
+.medication-name {
+  @apply font-semibold text-gray-900;
+}
+
+.medication-details {
+  @apply text-sm text-gray-600;
+}
+
+/* Navigation styling */
+.nav-item {
+  @apply flex items-center px-3 py-2 rounded-lg text-sm font-medium transition-colors duration-200;
+}
+
+.nav-item-active {
+  @apply bg-blue-100 text-blue-700;
+}
+
+.nav-item-inactive {
+  @apply text-gray-600 hover:text-gray-900 hover:bg-gray-50;
+}
+
 @layer utilities {
   .text-balance {
     text-wrap: balance;
@@ -189,5 +359,56 @@ textarea {
   
   .animate-pulse-slow {
     animation: pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  .animate-pulse-clinical {
+    animation: pulse-clinical 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+  }
+  
+  .animate-slide-up {
+    animation: slide-up 0.3s ease-out;
+  }
+  
+  /* Clinical typography utilities */
+  .text-clinical-xs { font-size: var(--clinical-font-size-xs); }
+  .text-clinical-sm { font-size: var(--clinical-font-size-sm); }
+  .text-clinical-base { font-size: var(--clinical-font-size-base); }
+  .text-clinical-lg { font-size: var(--clinical-font-size-lg); }
+  .text-clinical-xl { font-size: var(--clinical-font-size-xl); }
+  .text-clinical-2xl { font-size: var(--clinical-font-size-2xl); }
+  .text-clinical-3xl { font-size: var(--clinical-font-size-3xl); }
+  
+  /* Clinical spacing utilities */
+  .space-clinical-xs { margin: var(--clinical-spacing-xs); }
+  .space-clinical-sm { margin: var(--clinical-spacing-sm); }
+  .space-clinical-md { margin: var(--clinical-spacing-md); }
+  .space-clinical-lg { margin: var(--clinical-spacing-lg); }
+  .space-clinical-xl { margin: var(--clinical-spacing-xl); }
+}
+
+/* Responsive design improvements for healthcare workflows */
+@media (max-width: 768px) {
+  .clinical-sidebar {
+    @apply w-16;
+  }
+  
+  .clinical-main-content {
+    @apply ml-16;
+  }
+  
+  .clinical-top-nav {
+    @apply left-16;
+  }
+}
+
+@media (max-width: 640px) {
+  .card-clinical {
+    @apply rounded-lg;
+  }
+  
+  .btn-clinical,
+  .btn-clinical-secondary,
+  .btn-clinical-danger {
+    @apply text-sm px-3 py-2;
   }
 }

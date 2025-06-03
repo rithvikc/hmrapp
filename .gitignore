@@ -30,6 +30,13 @@ yarn-error.log*
 .env
 .env.production
 
+# Google Cloud credentials (NEVER COMMIT THESE!)
+google-service-account.json
+*-service-account.json
+service-account*.json
+*.json.key
+gcloud-credentials.json
+
 # vercel
 .vercel
 

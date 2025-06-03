@@ -13,6 +13,12 @@ export interface ExtractedPatientData {
   pastMedicalHistory?: string;
   allergies?: string;
   medications: ExtractedMedication[];
+  practiceName?: string;
+}
+
+export interface OCRResult {
+  data: ExtractedPatientData;
+  rawText: string;
 }
 
 export interface ExtractedMedication {
@@ -27,56 +33,192 @@ class OCRProcessor {
   private worker: Tesseract.Worker | null = null;
   private isProduction = process.env.NODE_ENV === 'production';
 
-  async initTesseract() {
-    if (!this.worker) {
-      try {
-        // Configure Tesseract for production environments - use simple API
-        this.worker = await Tesseract.createWorker('eng');
-        
-      } catch (error) {
-        console.warn('Failed to initialize Tesseract worker:', error);
-        // Don't throw here, let the extractWithOCR handle the fallback
-        this.worker = null;
-      }
-    }
-    return this.worker;
-  }
-
-  async extractFromPDF(buffer: Buffer): Promise<ExtractedPatientData> {
+  async extractFromPDF(buffer: Buffer): Promise<OCRResult> {
     try {
       console.log('Processing PDF with OCR...');
       
-      // Convert PDF to images and then extract text with OCR
-      const text = await this.extractWithOCR(buffer);
+      // Try Google Document AI first if API key is available
+      if (process.env.GOOGLE_CLOUD_API_KEY) {
+        try {
+          const text = await this.extractWithGoogleDocumentAI(buffer);
+          return {
+            rawText: text,
+            data: this.parseExtractedText(text)
+          };
+        } catch (error) {
+          console.warn('Google Document AI failed, falling back to other methods:', error);
+        }
+      }
+
+      // Fallback to pdf-parse, then Tesseract, then mock data
+      const text = await this.extractWithFallbacks(buffer);
+      return {
+        rawText: text,
+        data: this.parseExtractedText(text)
+      };
       
-      return this.parseExtractedText(text);
     } catch (error) {
       console.error('PDF extraction error:', error);
       throw new Error('Failed to extract data from PDF');
     }
   }
 
-  private async extractWithOCR(buffer: Buffer): Promise<string> {
+  private async extractWithGoogleDocumentAI(buffer: Buffer): Promise<string> {
+    const projectId = process.env.GOOGLE_CLOUD_PROJECT_ID;
+    const processorId = process.env.GOOGLE_DOCUMENT_AI_PROCESSOR_ID;
+    
+    if (!projectId) {
+      throw new Error('Google Cloud Project ID not configured');
+    }
+
+    if (!processorId) {
+      throw new Error('Google Document AI Processor ID not configured');
+    }
+
     try {
-      const worker = await this.initTesseract();
+      // Import Google Document AI client library
+      const { DocumentProcessorServiceClient } = await import('@google-cloud/documentai');
       
-      // Check if worker was successfully initialized
-      if (!worker) {
-        console.warn('Tesseract worker not available, using fallback data extraction');
-        return this.getFallbackMockData();
+      // Initialize the client with credentials
+      let client;
+      
+      // Check if we have service account credentials
+      if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+        // Use service account file path
+        client = new DocumentProcessorServiceClient();
+      } else if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+        // Use service account JSON string
+        const serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
+        client = new DocumentProcessorServiceClient({
+          credentials: serviceAccount,
+          projectId: serviceAccount.project_id
+        });
+      } else {
+        throw new Error('Google Document AI credentials not configured. Set GOOGLE_APPLICATION_CREDENTIALS or GOOGLE_SERVICE_ACCOUNT_KEY');
+      }
+
+      // Prepare the document for processing
+      const document = {
+        content: buffer,
+        mimeType: 'application/pdf'
+      };
+
+      // Create the processor resource name
+      const name = `projects/${projectId}/locations/us/processors/${processorId}`;
+
+      console.log('🔄 Sending document to Google Document AI...');
+      
+      // Process the document
+      const [result] = await client.processDocument({
+        name,
+        rawDocument: document,
+      });
+
+      if (result.document && result.document.text) {
+        console.log('✅ Successfully extracted text using Google Document AI');
+        console.log(`📄 Extracted ${result.document.text.length} characters`);
+        return result.document.text;
+      } else {
+        throw new Error('No text found in Document AI response');
       }
       
-      // For now, try to process the PDF buffer directly with Tesseract
-      // In a production setup, you'd want to convert PDF pages to images first
-      console.log('Running OCR on PDF...');
-      const { data: { text } } = await worker.recognize(buffer);
-      
-      return text;
     } catch (error) {
-      console.error('OCR error:', error);
-      console.log('Falling back to mock data extraction');
+      console.error('Google Document AI error:', error);
+      
+      // Provide more specific error messages
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      
+      if (errorMessage.includes('UNAUTHENTICATED')) {
+        throw new Error('Google Document AI authentication failed. Check your credentials.');
+      } else if (errorMessage.includes('PERMISSION_DENIED')) {
+        throw new Error('Google Document AI permission denied. Check service account roles.');
+      } else if (errorMessage.includes('NOT_FOUND')) {
+        throw new Error('Google Document AI processor not found. Check your processor ID.');
+      } else if (errorMessage.includes('QUOTA_EXCEEDED')) {
+        throw new Error('Google Document AI quota exceeded. Check your usage limits.');
+      }
+      
+      throw error;
+    }
+  }
+
+  private async extractWithFallbacks(buffer: Buffer): Promise<string> {
+    // Check if buffer looks like a valid PDF or has sufficient content for processing
+    if (!buffer || buffer.length < 100) {
+      console.log('Buffer too small or invalid, using mock data');
       return this.getFallbackMockData();
     }
+
+    // Try pdf-parse first
+    try {
+      const text = await this.extractWithPdfParse(buffer);
+      if (text && text.length > 100) {
+        console.log('Successfully extracted text with pdf-parse');
+        return text;
+      }
+    } catch (error) {
+      console.warn('pdf-parse failed:', error instanceof Error ? error.message : String(error));
+    }
+
+    // Try Tesseract only if buffer seems to be image-like or contains PDF magic bytes
+    const isValidPDF = buffer.toString('ascii', 0, 4) === '%PDF';
+    if (isValidPDF) {
+      console.log('Valid PDF detected, but pdf-parse failed. Skipping Tesseract for PDF.');
+    } else {
+      try {
+        const worker = await this.initTesseract();
+        if (worker) {
+          console.log('Trying Tesseract OCR...');
+          const { data: { text: ocrText } } = await worker.recognize(buffer);
+          if (ocrText && ocrText.length > 50) {
+            return ocrText;
+          }
+        }
+      } catch (error) {
+        console.warn('Tesseract OCR failed:', error instanceof Error ? error.message : String(error));
+      }
+    }
+
+    // Final fallback to mock data
+    console.log('All extraction methods failed, using mock data');
+    return this.getFallbackMockData();
+  }
+
+  private async extractWithPdfParse(buffer: Buffer): Promise<string> {
+    try {
+      // Try to detect if this is actually a PDF file
+      const isPDF = buffer.toString('ascii', 0, 4) === '%PDF';
+      if (!isPDF) {
+        throw new Error('Not a valid PDF file');
+      }
+
+      // Use dynamic import with better error handling
+      let pdfParse;
+      try {
+        pdfParse = (await import('pdf-parse')).default;
+      } catch (importError) {
+        console.warn('Failed to import pdf-parse:', importError instanceof Error ? importError.message : String(importError));
+        throw new Error('pdf-parse not available');
+      }
+
+      const data = await pdfParse(buffer);
+      return data.text || '';
+    } catch (error) {
+      console.warn('pdf-parse extraction failed:', error instanceof Error ? error.message : String(error));
+      throw error;
+    }
+  }
+
+  async initTesseract() {
+    if (!this.worker) {
+      try {
+        this.worker = await Tesseract.createWorker('eng');
+      } catch (error) {
+        console.warn('Failed to initialize Tesseract worker:', error);
+        this.worker = null;
+      }
+    }
+    return this.worker;
   }
 
   private getFallbackMockData(): string {
@@ -213,18 +355,53 @@ class OCRProcessor {
       result.phone = phoneMatch[1].trim();
     }
 
-    // Extract referring doctor - handle signature format
+    // Extract referring doctor - handle signature format with improved patterns
     const doctorPatterns = [
-      /Yours sincerely[^\n\r]*\n\s*([^\n\r]+)/i,
-      /Dr\s+([A-Z][a-z]+\s+[A-Z][a-z]+)/,
-      /Provider\s+No[^\n\r]*\n\s*([^\n\r]+)/i
+      // Match after "Yours sincerely" - most common format
+      /Yours\s+sincerely[^\n\r]*[\n\r]+\s*([^\n\r]+)/i,
+      // Direct Dr pattern - handle both name formats
+      /\bDr\.?\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)+)/,
+      // Pattern for doctor name in signature block
+      /Doctor[^\n\r]*[\n\r]+\s*([^\n\r]+)/i,
+      // Pattern after Provider No line (less reliable)
+      /Provider\s+No[^\n\r]*[\n\r]+\s*([A-Za-z\s]+)/i,
+      // Fallback: look for "Dr Name" pattern anywhere
+      /Dr\.?\s+([A-Z][a-z]+\s+[A-Z][a-z]+)/
     ];
     
     for (const pattern of doctorPatterns) {
       const match = text.match(pattern);
-      if (match) {
-        result.referringDoctor = match[1].trim();
-        break;
+      if (match && match[1]) {
+        const doctorName = match[1].trim();
+        // Clean up the extracted name - remove non-alphabetic characters except spaces and periods
+        const cleanName = doctorName.replace(/[^\w\s\.]/g, '').trim();
+        if (cleanName.length > 2 && /^[A-Za-z\s\.]+$/.test(cleanName)) {
+          result.referringDoctor = cleanName;
+          break;
+        }
+      }
+    }
+
+    // Extract practice/clinic name
+    const practicePatterns = [
+      // Medical center/clinic at the top of the document
+      /^([A-Z\s]+(?:MEDICAL|CLINIC|CENTRE|CENTER|HEALTH)[A-Z\s]*)/mi,
+      // Practice name pattern
+      /Practice[:\s]*([^\n\r]+)/i,
+      // Clinic name pattern
+      /Clinic[:\s]*([^\n\r]+)/i
+    ];
+    
+    for (const pattern of practicePatterns) {
+      const match = text.match(pattern);
+      if (match && match[1]) {
+        const practiceName = match[1].trim();
+        // Clean practice name
+        const cleanPractice = practiceName.replace(/[^\w\s]/g, '').trim();
+        if (cleanPractice.length > 3) {
+          result.practiceName = cleanPractice;
+          break;
+        }
       }
     }
 
@@ -332,30 +509,57 @@ class OCRProcessor {
 
     // Parse individual medications
     const lines = medicationSection.split('\n');
+    let currentMedication: ExtractedMedication | null = null;
     
     for (const line of lines) {
       const trimmedLine = line.trim();
-      if (trimmedLine && this.isMedicationLine(trimmedLine)) {
-        const medication = this.parseMedicationLine(trimmedLine);
-        if (medication) {
-          medications.push(medication);
+      if (!trimmedLine) continue;
+      
+      if (this.isMedicationLine(trimmedLine)) {
+        // If we have a current medication, save it before starting a new one
+        if (currentMedication) {
+          medications.push(currentMedication);
+        }
+        
+        currentMedication = this.parseMedicationLine(trimmedLine);
+      } else if (currentMedication && this.isInstructionLine(trimmedLine)) {
+        // This is an instruction line that belongs to the current medication
+        if (!currentMedication.frequency) {
+          currentMedication.frequency = trimmedLine;
+        } else {
+          currentMedication.frequency += ' ' + trimmedLine;
         }
       }
+    }
+    
+    // Don't forget the last medication
+    if (currentMedication) {
+      medications.push(currentMedication);
     }
 
     return medications;
   }
 
   private isMedicationLine(line: string): boolean {
+    // First, exclude lines that are obviously just instructions
+    const instructionOnlyPatterns = [
+      /^(Apply|Take|Insert|Use|Administer)\s*$/i,
+      /^(daily|twice daily|morning|evening|night|nocte|bd|tds|qds)$/i,
+      /^\d+\/\d+\s*$/i, // Just fractions like "1/2"
+      /^(apply|take|insert|use)$/i
+    ];
+    
+    for (const pattern of instructionOnlyPatterns) {
+      if (pattern.test(line.trim())) {
+        return false;
+      }
+    }
+
     // Enhanced medication indicators for real medical documents
     const medicationIndicators = [
       /\d+(?:\.\d+)?%/i, // Percentage concentrations like 0.05%, 1%
       /\d+mg/i, /\d+mcg/i, /\d+IU/i, /\d+g\/mL/i, /\d+mg\/mL/i,
-      /tablet/i, /capsule/i, /cream/i, /gel/i, /injection/i, /pessaries/i, /drops/i,
-      /daily/i, /twice/i, /morning/i, /evening/i, /night/i, /nocte/i,
-      /\d+\s*times?\s*(?:daily|day)/i,
-      /bd/i, /tds/i, /qds/i, /prn/i, /as needed/i,
-      /Apply/i, /Take/i, /Insert/i, /inj/i, /every \d+ months/i
+      /tablet/i, /capsule/i, /cream/i, /gel/i, /injection/i, /pessaries/i, /drops/i
     ];
 
     // Enhanced medication name patterns including from the PDF
@@ -365,8 +569,25 @@ class OCRProcessor {
       /Metformin/i, /Atorvastatin/i, /Ramipril/i, /Aspirin/i, /Paracetamol/i
     ];
 
-    return medicationIndicators.some(pattern => pattern.test(line)) ||
-           commonMedications.some(pattern => pattern.test(line));
+    // A line is a medication if it contains medication indicators OR known medication names
+    // But NOT if it's just an instruction word
+    return (medicationIndicators.some(pattern => pattern.test(line)) ||
+           commonMedications.some(pattern => pattern.test(line))) &&
+           line.split(' ').length > 1; // Must be more than just one word
+  }
+
+  private isInstructionLine(line: string): boolean {
+    // Lines that are instructions for the previous medication
+    const instructionPatterns = [
+      /^(Apply|Take|Insert|Use|Administer)/i,
+      /^(daily|twice daily|morning|evening|night|nocte|bd|tds|qds)/i,
+      /^\d+\/\d+/i, // Fractions like "1/2"
+      /^(apply|take|insert|use)/i,
+      /^(every \d+ months?)/i,
+      /^(as needed|prn|when required)/i
+    ];
+    
+    return instructionPatterns.some(pattern => pattern.test(line.trim()));
   }
 
   private parseMedicationLine(line: string): ExtractedMedication | null {
@@ -393,9 +614,18 @@ class OCRProcessor {
           name = standardMatch[1].trim();
           dosage = standardMatch[2].trim();
         } else {
-          // Fallback: just extract the first word(s)
+          // For lines without clear dosage, extract the medication name more carefully
           const words = line.split(' ');
-          name = words[0];
+          // Take the first 1-3 words as medication name, avoiding instruction words
+          const medicationWords = [];
+          for (const word of words) {
+            if (!/^(apply|take|insert|use|daily|twice|morning|evening|night|bd|tds|qds|prn)$/i.test(word)) {
+              medicationWords.push(word);
+              if (medicationWords.length >= 2) break; // Limit to reasonable medication name length
+            }
+          }
+          name = medicationWords.join(' ');
+          
           const dosageMatch = line.match(/(\d+(?:\.\d+)?\s*(?:mg|mcg|g|ml|units?|%|IU))/i);
           dosage = dosageMatch ? dosageMatch[1] : '';
         }
@@ -411,8 +641,7 @@ class OCRProcessor {
       /(morning|evening|night|bedtime|nocte)/i,
       /(every \d+ months?)/i,
       /(apply.*?(?:daily|twice|as directed))/i,
-      /(insert.*?(?:twice per week|nocte))/i,
-      /(\d+\/\d+.*?(?:morning|daily))/i // For "1/2 In the morning"
+      /(insert.*?(?:twice per week|nocte))/i
     ];
 
     for (const pattern of frequencyPatterns) {
@@ -447,20 +676,19 @@ class OCRProcessor {
     // Increase confidence based on medication indicators
     if (/\d+\s*(?:mg|mcg|g|ml|%|IU)/i.test(line)) confidence += 0.2;
     if (/\b(?:daily|bd|tds|qds|morning|evening|nocte|twice|apply)\b/i.test(line)) confidence += 0.2;
-    if (/\b(?:tablet|capsule|liquid|cream|drops|gel|injection|pessaries)\b/i.test(line)) confidence += 0.1;
-    if (/\b(?:Apply|Take|Insert|inj)\b/i.test(line)) confidence += 0.1;
+    if (/\b(?:tablet|capsule|cream|gel|injection|drops)\b/i.test(line)) confidence += 0.1;
 
     return Math.min(confidence, 1.0);
   }
 
   private normalizeDateFormat(dateStr: string): string {
-    // Convert various date formats to YYYY-MM-DD
-    const parts = dateStr.split(/[-\/]/);
+    // Convert DD/MM/YYYY to YYYY-MM-DD for HTML date inputs
+    const parts = dateStr.split('/');
     if (parts.length === 3) {
-      // Assume DD/MM/YYYY or DD-MM-YYYY format
-      const [day, month, year] = parts;
-      const fullYear = year.length === 2 ? `20${year}` : year;
-      return `${fullYear}-${month.padStart(2, '0')}-${day.padStart(2, '0')}`;
+      const day = parts[0].padStart(2, '0');
+      const month = parts[1].padStart(2, '0');
+      const year = parts[2];
+      return `${year}-${month}-${day}`;
     }
     return dateStr;
   }
@@ -472,35 +700,23 @@ class OCRProcessor {
         this.worker = null;
       } catch (error) {
         console.warn('Error terminating Tesseract worker:', error);
-        this.worker = null;
       }
     }
   }
 
   async processImage(imagePath: string): Promise<Record<string, string | number>> {
-    // Implementation of processImage method
     const worker = await this.initTesseract();
-    
     if (!worker) {
-      // Return fallback data if worker is not available
-      const fallbackText = this.getFallbackMockData();
-      const extractedData = this.parseExtractedText(fallbackText);
-      
-      return {
-        text: fallbackText,
-        confidence: 0.6, // Lower confidence for fallback data
-        medicationCount: extractedData.medications.length
-      };
+      throw new Error('Failed to initialize OCR worker');
     }
-    
-    const { data: { text } } = await worker.recognize(imagePath);
-    const extractedData = this.parseExtractedText(text);
-    
-    return {
-      text,
-      confidence: 0.8,
-      medicationCount: extractedData.medications.length
-    };
+
+    try {
+      const { data: { text } } = await worker.recognize(imagePath);
+      return { extractedText: text, confidence: 0.8 };
+    } catch (error) {
+      console.error('Image processing error:', error);
+      throw error;
+    }
   }
 }
 

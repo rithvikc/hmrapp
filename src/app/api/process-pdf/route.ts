@@ -28,14 +28,15 @@ export async function POST(request: NextRequest) {
     const processor = new OCRProcessor();
     
     try {
-      const extractedData = await processor.extractFromPDF(buffer);
+      const result = await processor.extractFromPDF(buffer);
       
       // Clean up the processor
       await processor.cleanup();
       
       return NextResponse.json({
         success: true,
-        data: extractedData,
+        data: result.data,
+        rawText: result.rawText,
         message: 'PDF processed successfully'
       });
       
