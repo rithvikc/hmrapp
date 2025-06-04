@@ -36,6 +36,7 @@ google-service-account.json
 service-account*.json
 *.json.key
 gcloud-credentials.json
+hmrautomation-*.json
 
 # vercel
 .vercel
