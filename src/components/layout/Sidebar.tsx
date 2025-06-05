@@ -16,7 +16,8 @@ import {
   AlertTriangle,
   Heart,
   Activity,
-  User
+  User,
+  Plus
 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -53,7 +54,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { 
           id: 'patients-view', 
-          label: 'Patient Roster', 
+          label: 'Patients', 
           icon: Users, 
           badge: null,
           description: 'View and manage all patients'
@@ -142,17 +143,16 @@ const Sidebar: React.FC<SidebarProps> = ({
 
   const quickActions = [
     { 
-      id: 'urgent-review', 
-      label: 'Urgent Review', 
-      icon: Activity, 
-      color: 'bg-red-100 text-red-700 hover:bg-red-200' 
+      id: 'new-review', 
+      label: 'New Review', 
+      icon: Plus, 
+      color: 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
     },
     { 
-      id: 'medication-alert', 
-      label: 'Safety Alerts', 
-      icon: AlertTriangle, 
-      color: 'bg-amber-100 text-amber-700 hover:bg-amber-200',
-      badge: 2
+      id: 'schedule', 
+      label: 'Schedule Review', 
+      icon: Calendar, 
+      color: 'bg-green-100 text-green-700 hover:bg-green-200'
     }
   ];
 
@@ -226,11 +226,6 @@ const Sidebar: React.FC<SidebarProps> = ({
               >
                 <action.icon className="h-4 w-4" />
                 <span className="flex-1 text-left">{action.label}</span>
-                {action.badge && (
-                  <span className="bg-white bg-opacity-80 text-xs px-1.5 py-0.5 rounded-full">
-                    {action.badge}
-                  </span>
-                )}
               </button>
             ))}
           </div>

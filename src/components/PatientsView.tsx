@@ -46,6 +46,10 @@ const PatientsView: React.FC<PatientsViewProps> = ({
   const [selectedDoctor, setSelectedDoctor] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'name' | 'age' | 'doctor' | 'created'>('name');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  
+  // Patient selection state
+  const [selectedPatients, setSelectedPatients] = useState<Set<number>>(new Set());
+  const [selectAll, setSelectAll] = useState(false);
 
   // Load patients on mount
   useEffect(() => {
@@ -161,6 +165,38 @@ const PatientsView: React.FC<PatientsViewProps> = ({
     setSelectedDoctor('all');
   };
 
+  // Patient selection functions
+  const handleSelectPatient = (patientId: number) => {
+    const newSelected = new Set(selectedPatients);
+    if (newSelected.has(patientId)) {
+      newSelected.delete(patientId);
+    } else {
+      newSelected.add(patientId);
+    }
+    setSelectedPatients(newSelected);
+    setSelectAll(newSelected.size === filteredPatients.length);
+  };
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedPatients(new Set());
+      setSelectAll(false);
+    } else {
+      const allIds = new Set(filteredPatients.map((p: Patient) => p.id!));
+      setSelectedPatients(allIds);
+      setSelectAll(true);
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedPatients(new Set());
+    setSelectAll(false);
+  };
+
+  const getSelectedPatientsData = () => {
+    return filteredPatients.filter((p: Patient) => selectedPatients.has(p.id!));
+  };
+
   const formatDate = (dateString: string) => {
     try {
       return format(new Date(dateString), 'dd/MM/yyyy');
@@ -170,8 +206,15 @@ const PatientsView: React.FC<PatientsViewProps> = ({
   };
 
   // Export functions
-  const exportToCSV = () => {
+  const exportToCSV = (selectedOnly = false) => {
     try {
+      const patientsToExport = selectedOnly ? getSelectedPatientsData() : filteredPatients;
+      
+      if (selectedOnly && patientsToExport.length === 0) {
+        alert('Please select patients to export.');
+        return;
+      }
+
       // Define CSV headers
       const headers = [
         'ID',
@@ -194,7 +237,7 @@ const PatientsView: React.FC<PatientsViewProps> = ({
       // Convert patients to CSV rows
       const csvRows = [
         headers.join(','), // Header row
-        ...filteredPatients.map((patient: Patient) => [
+        ...patientsToExport.map((patient: Patient) => [
           patient.id,
           `"${patient.name}"`,
           patient.gender,
@@ -221,25 +264,35 @@ const PatientsView: React.FC<PatientsViewProps> = ({
       if (link.download !== undefined) {
         const url = URL.createObjectURL(blob);
         link.setAttribute('href', url);
-        link.setAttribute('download', `patients_export_${new Date().toISOString().split('T')[0]}.csv`);
+        const filename = selectedOnly 
+          ? `selected_patients_export_${new Date().toISOString().split('T')[0]}.csv`
+          : `patients_export_${new Date().toISOString().split('T')[0]}.csv`;
+        link.setAttribute('download', filename);
         link.style.visibility = 'hidden';
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
       }
       
-      console.log(`Exported ${filteredPatients.length} patients to CSV`);
+      console.log(`Exported ${patientsToExport.length} patients to CSV`);
     } catch (error) {
       console.error('Error exporting CSV:', error);
       alert('Failed to export CSV file. Please try again.');
     }
   };
 
-  const exportToPDF = async () => {
+  const exportToPDF = async (selectedOnly = false) => {
     try {
+      const patientsToExport = selectedOnly ? getSelectedPatientsData() : filteredPatients;
+      
+      if (selectedOnly && patientsToExport.length === 0) {
+        alert('Please select patients to export.');
+        return;
+      }
+
       // Create PDF content for patients list
       const pdfData = {
-        title: 'Patients List Report',
+        title: selectedOnly ? 'Selected Patients Report' : 'Patients List Report',
         generated: new Date().toISOString(),
         filters: {
           search: searchTerm || 'None',
@@ -248,7 +301,7 @@ const PatientsView: React.FC<PatientsViewProps> = ({
           condition: selectedCondition === 'all' ? 'All' : selectedCondition,
           doctor: selectedDoctor === 'all' ? 'All' : selectedDoctor
         },
-        patients: filteredPatients.map((patient: Patient) => ({
+        patients: patientsToExport.map((patient: Patient) => ({
           id: patient.id,
           name: patient.name,
           gender: patient.gender,
@@ -264,17 +317,17 @@ const PatientsView: React.FC<PatientsViewProps> = ({
           past_medical_history: patient.past_medical_history || ''
         })),
         summary: {
-          totalPatients: filteredPatients.length,
+          totalPatients: patientsToExport.length,
           genderDistribution: {
-            male: filteredPatients.filter((p: Patient) => p.gender?.toLowerCase() === 'male').length,
-            female: filteredPatients.filter((p: Patient) => p.gender?.toLowerCase() === 'female').length,
-            other: filteredPatients.filter((p: Patient) => p.gender && !['male', 'female'].includes(p.gender.toLowerCase())).length
+            male: patientsToExport.filter((p: Patient) => p.gender?.toLowerCase() === 'male').length,
+            female: patientsToExport.filter((p: Patient) => p.gender?.toLowerCase() === 'female').length,
+            other: patientsToExport.filter((p: Patient) => p.gender && !['male', 'female'].includes(p.gender.toLowerCase())).length
           },
           ageGroups: {
-            '18-30': filteredPatients.filter((p: Patient) => { const age = calculateAge(p.dob); return age >= 18 && age <= 30; }).length,
-            '31-50': filteredPatients.filter((p: Patient) => { const age = calculateAge(p.dob); return age >= 31 && age <= 50; }).length,
-            '51-70': filteredPatients.filter((p: Patient) => { const age = calculateAge(p.dob); return age >= 51 && age <= 70; }).length,
-            '70+': filteredPatients.filter((p: Patient) => calculateAge(p.dob) > 70).length
+            '18-30': patientsToExport.filter((p: Patient) => { const age = calculateAge(p.dob); return age >= 18 && age <= 30; }).length,
+            '31-50': patientsToExport.filter((p: Patient) => { const age = calculateAge(p.dob); return age >= 31 && age <= 50; }).length,
+            '51-70': patientsToExport.filter((p: Patient) => { const age = calculateAge(p.dob); return age >= 51 && age <= 70; }).length,
+            '70+': patientsToExport.filter((p: Patient) => calculateAge(p.dob) > 70).length
           }
         }
       };
@@ -297,13 +350,16 @@ const PatientsView: React.FC<PatientsViewProps> = ({
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `patients_report_${new Date().toISOString().split('T')[0]}.pdf`;
+      const filename = selectedOnly 
+        ? `selected_patients_report_${new Date().toISOString().split('T')[0]}.pdf`
+        : `patients_report_${new Date().toISOString().split('T')[0]}.pdf`;
+      link.download = filename;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
       
-      console.log(`Exported ${filteredPatients.length} patients to PDF`);
+      console.log(`Exported ${patientsToExport.length} patients to PDF`);
     } catch (error) {
       console.error('Error exporting PDF:', error);
       alert('Failed to export PDF file. Please try again.');
@@ -321,16 +377,29 @@ const PatientsView: React.FC<PatientsViewProps> = ({
   if (error) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="text-center">
+        <div className="text-center max-w-md">
           <Users className="w-16 h-16 text-red-500 mx-auto mb-4" />
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Patients</h2>
-          <p className="text-gray-600 mb-4">{error}</p>
-          <button 
-            onClick={loadPatients}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-          >
-            Try Again
-          </button>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
+            <p className="text-red-700 text-sm">{error}</p>
+          </div>
+          <div className="space-y-3">
+            <button 
+              onClick={() => {
+                console.log('[DEBUG] Retrying loadPatients...');
+                loadPatients();
+              }}
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Try Again
+            </button>
+            <button 
+              onClick={onBack}
+              className="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 transition-colors"
+            >
+              Back to Dashboard
+            </button>
+          </div>
         </div>
       </div>
     );
@@ -368,8 +437,39 @@ const PatientsView: React.FC<PatientsViewProps> = ({
               </h1>
               <p className="text-gray-600">
                 Manage and view all patients in the system ({filteredPatients.length} of {patients.length} patients)
+                {selectedPatients.size > 0 && (
+                  <span className="ml-2 text-blue-600 font-medium">
+                    • {selectedPatients.size} selected
+                  </span>
+                )}
               </p>
             </div>
+            
+            {/* Selection Controls */}
+            {filteredPatients.length > 0 && (
+              <div className="flex items-center space-x-4">
+                <div className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    id="select-all"
+                    checked={selectAll}
+                    onChange={handleSelectAll}
+                    className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                  />
+                  <label htmlFor="select-all" className="text-sm text-gray-700">
+                    Select All ({filteredPatients.length})
+                  </label>
+                </div>
+                {selectedPatients.size > 0 && (
+                  <button
+                    onClick={clearSelection}
+                    className="text-sm text-gray-600 hover:text-gray-800 underline"
+                  >
+                    Clear Selection
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
@@ -528,13 +628,26 @@ const PatientsView: React.FC<PatientsViewProps> = ({
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
             {filteredPatients.map((patient: Patient) => (
-              <div key={patient.id} className="bg-white rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+              <div key={patient.id} className={`bg-white rounded-lg shadow-sm border transition-all ${
+                selectedPatients.has(patient.id!) 
+                  ? 'border-blue-500 ring-2 ring-blue-200' 
+                  : 'border-gray-200 hover:shadow-md'
+              }`}>
                 <div className="p-6">
-                  {/* Patient Header */}
+                  {/* Patient Header with Selection */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex items-center space-x-3">
-                      <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                        <User className="w-6 h-6 text-blue-600" />
+                      <div className="flex items-center">
+                        <input
+                          type="checkbox"
+                          id={`patient-${patient.id}`}
+                          checked={selectedPatients.has(patient.id!)}
+                          onChange={() => handleSelectPatient(patient.id!)}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500 mr-3"
+                        />
+                        <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
+                          <User className="w-6 h-6 text-blue-600" />
+                        </div>
                       </div>
                       <div>
                         <h3 className="font-semibold text-gray-900">{patient.name}</h3>
@@ -610,18 +723,32 @@ const PatientsView: React.FC<PatientsViewProps> = ({
               </div>
               <div className="flex space-x-3">
                 <button
-                  onClick={exportToCSV}
+                  onClick={() => exportToCSV(true)}
                   className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
                 >
                   <Download className="w-5 h-5" />
-                  <span>Export CSV</span>
+                  <span>Export Selected Patients</span>
                 </button>
                 <button
-                  onClick={exportToPDF}
+                  onClick={() => exportToCSV()}
+                  className="flex items-center space-x-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                >
+                  <Download className="w-5 h-5" />
+                  <span>Export All Patients</span>
+                </button>
+                <button
+                  onClick={() => exportToPDF(true)}
                   className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                 >
                   <Download className="w-5 h-5" />
-                  <span>Export PDF</span>
+                  <span>Export Selected Patients PDF</span>
+                </button>
+                <button
+                  onClick={() => exportToPDF()}
+                  className="flex items-center space-x-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                >
+                  <Download className="w-5 h-5" />
+                  <span>Export All Patients PDF</span>
                 </button>
               </div>
             </div>

@@ -161,7 +161,7 @@ interface ExtractedData {
 
 export interface HMRWorkflowState {
   // Current workflow step
-  currentStep: 'dashboard' | 'patients-view' | 'upload' | 'patient-info' | 'medications-review' | 'interview' | 'recommendations' | 'review';
+  currentStep: 'dashboard' | 'patients-view' | 'upload' | 'patient-info' | 'medications-review' | 'interview' | 'recommendations' | 'review' | 'add-patient' | 'patient-view-detail' | 'patient-edit' | 'scheduled-reviews' | 'medications' | 'clinical-guidelines' | 'drug-interactions' | 'risk-assessment' | 'analytics' | 'reports' | 'settings';
   
   // Current data being worked on
   currentPatient: Patient | null;
@@ -481,22 +481,42 @@ export const useHMRStore = create<HMRWorkflowState>()(
         loadPatients: async () => {
           set({ isLoading: true, error: null });
           try {
+            console.log('[DEBUG] Starting loadPatients...');
             const response = await fetch('/api/patients');
+            console.log('[DEBUG] Response status:', response.status);
+            
             if (!response.ok) {
-              throw new Error('Failed to fetch patients');
+              const errorText = await response.text();
+              console.error('[DEBUG] API error response:', errorText);
+              throw new Error(`HTTP ${response.status}: ${errorText}`);
             }
+            
             const patients = await response.json();
+            console.log('[DEBUG] Successfully loaded patients:', patients.length);
             
             set({
               patients,
-              isLoading: false
+              isLoading: false,
+              error: null
             });
           } catch (error) {
-            console.error('Error loading patients:', error);
-            set({ 
-              error: error instanceof Error ? error.message : 'Failed to load patients',
-              isLoading: false 
-            });
+            console.error('[DEBUG] Error in loadPatients:', error);
+            const errorMessage = error instanceof Error ? error.message : 'Failed to load patients';
+            
+            // Check if it's a network error
+            if (error instanceof TypeError && error.message.includes('fetch')) {
+              set({ 
+                error: 'Network error: Please check your connection and try again',
+                isLoading: false,
+                patients: [] // Keep empty array as fallback
+              });
+            } else {
+              set({ 
+                error: `API Error: ${errorMessage}`,
+                isLoading: false,
+                patients: [] // Keep empty array as fallback
+              });
+            }
           }
         },
         

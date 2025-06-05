@@ -22,7 +22,7 @@ interface TopNavigationProps {
   currentPatient?: Patient | null;
   onNewReview: () => void;
   onScheduleReview: () => void;
-  onGenerateReport: () => void;
+  onResumeReview?: () => void;
   onSearch: (query: string) => void;
 }
 
@@ -31,66 +31,59 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
   currentPatient,
   onNewReview,
   onScheduleReview,
-  onGenerateReport,
+  onResumeReview,
   onSearch
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
   const [showPatientSearch, setShowPatientSearch] = useState(false);
+  const [recentPatients, setRecentPatients] = useState<Patient[]>([]);
   const { pharmacist, user, signOut } = useAuth();
   const { pendingReviews, patients } = useHMRSelectors();
 
-  // Mock notifications for demonstration
+  useEffect(() => {
+    const fetchRecentPatients = async () => {
+      try {
+        const response = await fetch('/api/patients');
+        if (response.ok) {
+          const patients = await response.json();
+          setRecentPatients(patients.slice(0, 5));
+        }
+      } catch (error) {
+        console.error('Error fetching recent patients:', error);
+      }
+    };
+
+    fetchRecentPatients();
+  }, []);
+
+  // Updated notifications without urgent/critical alerts
   const notifications = [
     {
       id: 1,
-      type: 'safety',
-      icon: AlertTriangle,
-      title: 'CRITICAL: Drug Interaction Alert',
-      message: 'Patient M. Johnson: Warfarin + Aspirin interaction detected - Immediate review required',
-      time: '2 minutes ago',
-      severity: 'high',
-      color: 'bg-red-50 border-l-4 border-l-red-500',
-      urgent: true
+      title: 'Review Scheduled',
+      message: 'Patient John Smith has a follow-up review scheduled for tomorrow at 2 PM',
+      time: '2 hours ago',
+      icon: Calendar,
+      color: 'text-blue-600'
     },
     {
       id: 2,
-      type: 'safety',
-      icon: AlertTriangle,
-      title: 'HIGH PRIORITY: Patient Safety Warning',
-      message: 'Patient R. Chen: Metformin contraindication detected - Hold medication before procedure',
-      time: '5 minutes ago',
-      severity: 'high',
-      color: 'bg-red-50 border-l-4 border-l-red-500',
-      urgent: true
+      title: 'Report Generated',
+      message: 'HMR report for Sarah Johnson has been successfully generated and sent',
+      time: '4 hours ago',
+      icon: CheckCircle,
+      color: 'text-green-600'
     },
     {
       id: 3,
-      type: 'review',
-      icon: Clock,
-      title: 'Review Due Today',
-      message: 'Home Medicine Review for S. Williams scheduled for 2:00 PM',
-      time: '1 hour ago',
-      severity: 'medium',
-      color: 'bg-amber-50 border-l-4 border-l-amber-500',
-      urgent: false
-    },
-    {
-      id: 4,
-      type: 'completion',
-      icon: CheckCircle,
-      title: 'Review Completed',
-      message: 'HMR report for A. Thompson has been generated',
-      time: '3 hours ago',
-      severity: 'low',
-      color: 'bg-green-50 border-l-4 border-l-green-500',
-      urgent: false
+      title: 'New Patient Added',
+      message: 'Michael Brown has been added to the patient database',
+      time: '1 day ago',
+      icon: User,
+      color: 'text-gray-600'
     }
   ];
-
-  const criticalAlerts = notifications.filter(n => n.severity === 'high').length;
-  const urgentNotifications = notifications.filter(n => n.urgent);
-  const regularNotifications = notifications.filter(n => !n.urgent);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -124,19 +117,23 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
           <div className="flex items-center space-x-6 flex-1">
             {/* Current Patient Context */}
             {currentPatient && (
-              <div className="flex items-center space-x-3 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200">
+              <button 
+                onClick={onResumeReview}
+                className="flex items-center space-x-3 bg-blue-50 px-4 py-2 rounded-lg border border-blue-200 hover:bg-blue-100 transition-colors cursor-pointer"
+                title="Click to resume HMR workflow"
+              >
                 <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center">
                   <User className="h-4 w-4 text-blue-600" />
                 </div>
-                <div>
+                <div className="text-left">
                   <p className="text-sm font-semibold text-blue-900">
                     Current Patient
                   </p>
                   <p className="text-xs text-blue-700">
-                    {formatPatientContext(currentPatient)}
+                    {formatPatientContext(currentPatient)} • Click to resume
                   </p>
                 </div>
-              </div>
+              </button>
             )}
 
             {/* Global Search */}
@@ -200,15 +197,6 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
                 <Calendar className="h-4 w-4" />
                 <span>Schedule</span>
               </button>
-              
-              <button
-                onClick={onGenerateReport}
-                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg
-                         hover:bg-gray-200 transition-colors text-sm font-medium"
-              >
-                <Download className="h-4 w-4" />
-                <span>Report</span>
-              </button>
             </div>
 
             {/* View Controls */}
@@ -228,9 +216,9 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
                 className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
               >
                 <Bell className="h-5 w-5" />
-                {criticalAlerts > 0 && (
-                  <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                    {criticalAlerts}
+                {notifications.length > 0 && (
+                  <span className="absolute -top-1 -right-1 bg-blue-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {notifications.length}
                   </span>
                 )}
               </button>
@@ -240,88 +228,36 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
                 <div className="absolute right-0 mt-2 w-80 bg-white border border-gray-200 rounded-lg shadow-lg z-50">
                   <div className="p-4 border-b border-gray-200">
                     <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold text-gray-900">Clinical Notifications</h3>
+                      <h3 className="text-sm font-semibold text-gray-900">Notifications</h3>
                       <span className="text-xs text-gray-500">{notifications.length} unread</span>
                     </div>
                   </div>
                   
                   <div className="max-h-80 overflow-y-auto">
-                    {/* Urgent Notifications First */}
-                    {urgentNotifications.length > 0 && (
-                      <>
-                        <div className="px-4 py-2 bg-red-100 border-b border-red-200">
-                          <p className="text-xs font-semibold text-red-800 uppercase tracking-wider">
-                            🚨 Critical Safety Alerts ({urgentNotifications.length})
-                          </p>
-                        </div>
-                        {urgentNotifications.map((notification) => {
-                          const Icon = notification.icon;
-                          return (
-                            <div
-                              key={notification.id}
-                              className={`p-4 border-b border-gray-100 hover:bg-red-50 cursor-pointer ${notification.color}`}
-                            >
-                              <div className="flex items-start space-x-3">
-                                <Icon className="h-5 w-5 mt-0.5 text-red-600" />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-semibold text-red-900">
-                                    {notification.title}
-                                  </p>
-                                  <p className="text-sm text-red-800 mt-1">
-                                    {notification.message}
-                                  </p>
-                                  <p className="text-xs text-red-600 mt-2">
-                                    {notification.time}
-                                  </p>
-                                </div>
-                                <div className="flex-shrink-0">
-                                  <button className="text-xs bg-red-600 text-white px-2 py-1 rounded hover:bg-red-700">
-                                    Review
-                                  </button>
-                                </div>
-                              </div>
+                    {notifications.map((notification) => {
+                      const Icon = notification.icon;
+                      return (
+                        <div
+                          key={notification.id}
+                          className="p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                        >
+                          <div className="flex items-start space-x-3">
+                            <Icon className={`h-5 w-5 mt-0.5 ${notification.color}`} />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-gray-900">
+                                {notification.title}
+                              </p>
+                              <p className="text-sm text-gray-600 mt-1">
+                                {notification.message}
+                              </p>
+                              <p className="text-xs text-gray-500 mt-2">
+                                {notification.time}
+                              </p>
                             </div>
-                          );
-                        })}
-                      </>
-                    )}
-
-                    {/* Regular Notifications */}
-                    {regularNotifications.length > 0 && (
-                      <>
-                        {urgentNotifications.length > 0 && (
-                          <div className="px-4 py-2 bg-gray-50 border-b border-gray-200">
-                            <p className="text-xs font-medium text-gray-600 uppercase tracking-wider">
-                              Other Notifications
-                            </p>
                           </div>
-                        )}
-                        {regularNotifications.map((notification) => {
-                          const Icon = notification.icon;
-                          return (
-                            <div
-                              key={notification.id}
-                              className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${notification.color}`}
-                            >
-                              <div className="flex items-start space-x-3">
-                                <Icon className="h-5 w-5 mt-0.5 text-gray-600" />
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-medium text-gray-900">
-                                    {notification.title}
-                                  </p>
-                                  <p className="text-sm text-gray-600 mt-1">
-                                    {notification.message}
-                                  </p>
-                                  <p className="text-xs text-gray-500 mt-2">
-                                    {notification.time}
-                                  </p>
-                                </div>
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </>
-                    )}
+                        </div>
+                      );
+                    })}
                   </div>
                   
                   <div className="p-3 border-t border-gray-200">

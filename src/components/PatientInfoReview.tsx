@@ -5,24 +5,63 @@ import { useHMRSelectors } from '@/store/hmr-store';
 import { Patient } from '@/store/hmr-store';
 import { Eye, EyeOff, Copy } from 'lucide-react';
 
-// Temporary simple fallback instead of PDFViewer
+// Improved SimplePDFViewer with better error handling
 const SimplePDFViewer = ({ file, onTextSelect, className, rawText, selectedFieldType }: any) => {
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
   const [showRawText, setShowRawText] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     if (file) {
-      const url = URL.createObjectURL(file);
-      setPdfUrl(url);
-      return () => URL.revokeObjectURL(url);
+      try {
+        const url = URL.createObjectURL(file);
+        setPdfUrl(url);
+        setIsLoading(false);
+        setError(null);
+        return () => URL.revokeObjectURL(url);
+      } catch (err) {
+        console.error('Error creating PDF URL:', err);
+        setError('Failed to load PDF document. Please try uploading again.');
+        setIsLoading(false);
+      }
+    } else {
+      setIsLoading(false);
     }
   }, [file]);
+
+  if (isLoading) {
+    return (
+      <div className={`flex items-center justify-center h-full bg-gray-50 border border-gray-200 rounded-lg ${className || ''}`}>
+        <div className="text-center p-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+          <p className="text-gray-600">Loading PDF...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className={`flex items-center justify-center h-full bg-red-50 border border-red-200 rounded-lg ${className || ''}`}>
+        <div className="text-center p-8">
+          <p className="text-red-600 mb-4">{error}</p>
+          <button 
+            onClick={() => window.location.reload()} 
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+          >
+            Refresh Page
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (!pdfUrl) {
     return (
       <div className={`flex items-center justify-center h-full bg-gray-50 border border-gray-200 rounded-lg ${className || ''}`}>
         <div className="text-center p-8">
-          <p className="text-gray-600">Loading PDF...</p>
+          <p className="text-gray-600">No PDF loaded</p>
         </div>
       </div>
     );
@@ -64,6 +103,8 @@ const SimplePDFViewer = ({ file, onTextSelect, className, rawText, selectedField
             src={pdfUrl}
             className="w-full h-full border-0"
             title="PDF Viewer"
+            onLoad={() => setError(null)}
+            onError={() => setError('PDF failed to load in viewer')}
           />
         )}
       </div>

@@ -7,6 +7,7 @@ import PatientsView from '@/components/PatientsView';
 import TabsWorkflow from '@/components/TabsWorkflow';
 import DataDebugger from '@/components/DataDebugger';
 import { useHMRSelectors, Patient } from '@/store/hmr-store';
+import { Calendar } from 'lucide-react';
 
 // Extended type for all navigation steps
 type ExtendedStep = 
@@ -19,6 +20,8 @@ type ExtendedStep =
   | 'recommendations' 
   | 'review'
   | 'add-patient'
+  | 'patient-view-detail'
+  | 'patient-edit'
   | 'scheduled-reviews'
   | 'medications'
   | 'clinical-guidelines'
@@ -26,9 +29,7 @@ type ExtendedStep =
   | 'risk-assessment'
   | 'analytics'
   | 'reports'
-  | 'settings'
-  | 'urgent-review'
-  | 'medication-alert';
+  | 'settings';
 
 export default function MainLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
@@ -109,6 +110,13 @@ export default function MainLayout() {
     alert('Schedule Review functionality - will show calendar interface for scheduling reviews');
   };
 
+  const handleResumeReview = () => {
+    if (currentPatient) {
+      // Resume the HMR workflow by navigating to patient-info step
+      setCurrentStep('patient-info');
+    }
+  };
+
   const handleGlobalSearch = (query: string) => {
     console.log('Global search:', query);
     // TODO: Implement global search functionality
@@ -116,15 +124,65 @@ export default function MainLayout() {
 
   // Patient view handlers
   const handleNewPatient = () => {
-    alert('Add New Patient functionality - will navigate to patient creation form');
+    setCurrentStep('add-patient');
   };
 
-  const handleEditPatient = (patientId: number) => {
-    alert(`Edit Patient ${patientId} functionality - will navigate to patient edit form`);
+  const handleEditPatient = async (patientId: number) => {
+    try {
+      setLoading(true);
+      console.log('Editing patient ID:', patientId);
+      
+      if (patients.length === 0) {
+        console.log('Loading patients from API...');
+        await loadPatients();
+      }
+      
+      const patient = patients.find((p: Patient) => p.id === patientId);
+      if (!patient) {
+        throw new Error(`Patient with ID ${patientId} not found`);
+      }
+
+      console.log('Found patient for editing:', patient.name);
+      setCurrentPatient(patient);
+      setCurrentStep('patient-edit');
+      
+    } catch (error) {
+      console.error('Error loading patient for edit:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setError(`Failed to load patient: ${errorMessage}`);
+      alert(`Failed to load patient: ${errorMessage}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleViewPatient = (patientId: number) => {
-    alert(`View Patient ${patientId} functionality - will show detailed patient information`);
+  const handleViewPatient = async (patientId: number) => {
+    try {
+      setLoading(true);
+      console.log('Viewing patient ID:', patientId);
+      
+      if (patients.length === 0) {
+        console.log('Loading patients from API...');
+        await loadPatients();
+      }
+      
+      const patient = patients.find((p: Patient) => p.id === patientId);
+      if (!patient) {
+        throw new Error(`Patient with ID ${patientId} not found`);
+      }
+
+      console.log('Found patient for viewing:', patient.name);
+      setCurrentPatient(patient);
+      setCurrentStep('patient-view-detail');
+      
+    } catch (error) {
+      console.error('Error loading patient for view:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred';
+      setError(`Failed to load patient: ${errorMessage}`);
+      alert(`Failed to load patient: ${errorMessage}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleStartReview = async (patientId: number) => {
@@ -270,12 +328,212 @@ export default function MainLayout() {
           </div>
         );
         
-      case 'scheduled-reviews':
+      case 'patient-view-detail':
         return (
           <div className="p-6">
             <div className="max-w-4xl mx-auto">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Scheduled Reviews</h2>
-              <p className="text-gray-600">Calendar view of scheduled HMR reviews will be implemented here.</p>
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Patient Details</h2>
+                <button
+                  onClick={() => setCurrentStep('patients-view')}
+                  className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  <span>← Back to Patients</span>
+                </button>
+              </div>
+              {currentPatient ? (
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
+                      <div className="space-y-3">
+                        <div><span className="font-medium">Name:</span> {currentPatient.name}</div>
+                        <div><span className="font-medium">Date of Birth:</span> {currentPatient.dob}</div>
+                        <div><span className="font-medium">Gender:</span> {currentPatient.gender}</div>
+                        <div><span className="font-medium">Medicare Number:</span> {currentPatient.medicare_number || 'Not provided'}</div>
+                        <div><span className="font-medium">Phone:</span> {currentPatient.phone || 'Not provided'}</div>
+                        <div><span className="font-medium">Address:</span> {currentPatient.address || 'Not provided'}</div>
+                      </div>
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Medical Information</h3>
+                      <div className="space-y-3">
+                        <div><span className="font-medium">Referring Doctor:</span> {currentPatient.referring_doctor}</div>
+                        <div><span className="font-medium">Practice:</span> {currentPatient.practice_name || 'Not provided'}</div>
+                        <div><span className="font-medium">Known Allergies:</span> {currentPatient.known_allergies || 'None listed'}</div>
+                        <div><span className="font-medium">Current Conditions:</span> {currentPatient.current_conditions || 'None listed'}</div>
+                        <div><span className="font-medium">Past Medical History:</span> {currentPatient.past_medical_history || 'None listed'}</div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="mt-6 flex space-x-4">
+                    <button
+                      onClick={() => handleEditPatient(currentPatient.id!)}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Edit Patient
+                    </button>
+                    <button
+                      onClick={() => handleStartReview(currentPatient.id!)}
+                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                    >
+                      Start HMR Review
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-600">No patient selected.</p>
+              )}
+            </div>
+          </div>
+        );
+        
+      case 'patient-edit':
+        return (
+          <div className="p-6">
+            <div className="max-w-2xl mx-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Edit Patient</h2>
+                <button
+                  onClick={() => setCurrentStep('patients-view')}
+                  className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
+                >
+                  <span>← Back to Patients</span>
+                </button>
+              </div>
+              {currentPatient ? (
+                <div className="bg-white rounded-lg shadow-sm p-6">
+                  <p className="text-gray-600 mb-4">Editing: <span className="font-medium">{currentPatient.name}</span></p>
+                  <p className="text-gray-600">Patient edit form will be implemented here.</p>
+                  <div className="mt-6 flex space-x-4">
+                    <button
+                      onClick={() => setCurrentStep('patient-view-detail')}
+                      className="px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => {
+                        alert('Save functionality will be implemented');
+                        setCurrentStep('patient-view-detail');
+                      }}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                    >
+                      Save Changes
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-gray-600">No patient selected.</p>
+              )}
+            </div>
+          </div>
+        );
+        
+      case 'scheduled-reviews':
+        return (
+          <div className="p-6">
+            <div className="max-w-6xl mx-auto">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold text-gray-900">Scheduled Reviews</h2>
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => {
+                      // Google Calendar integration
+                      const calendarUrl = 'https://calendar.google.com/calendar/render?action=TEMPLATE&text=HMR+Review&dates=20240101T100000Z/20240101T110000Z&details=Home+Medication+Review+appointment&location=Patient+Home';
+                      window.open(calendarUrl, '_blank');
+                    }}
+                    className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    <span>Add to Google Calendar</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      // Outlook Calendar integration
+                      const outlookUrl = 'https://outlook.live.com/calendar/0/deeplink/compose?subject=HMR+Review&startdt=2024-01-01T10:00:00&enddt=2024-01-01T11:00:00&body=Home+Medication+Review+appointment&location=Patient+Home';
+                      window.open(outlookUrl, '_blank');
+                    }}
+                    className="flex items-center space-x-2 px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-colors"
+                  >
+                    <Calendar className="w-4 h-4" />
+                    <span>Add to Outlook</span>
+                  </button>
+                </div>
+              </div>
+              
+              <div className="bg-white rounded-lg shadow-sm p-6">
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                  {/* Calendar Integration Info */}
+                  <div className="lg:col-span-2">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Calendar Integration</h3>
+                    <div className="space-y-4">
+                      <div className="p-4 bg-blue-50 rounded-lg">
+                        <h4 className="font-medium text-blue-900 mb-2">Google Calendar</h4>
+                        <p className="text-blue-700 text-sm mb-3">Sync your HMR appointments with Google Calendar for easy scheduling and reminders.</p>
+                        <button
+                          onClick={() => {
+                            alert('Google Calendar sync will be implemented with OAuth integration');
+                          }}
+                          className="text-blue-600 hover:text-blue-800 text-sm font-medium"
+                        >
+                          Connect Google Calendar →
+                        </button>
+                      </div>
+                      
+                      <div className="p-4 bg-orange-50 rounded-lg">
+                        <h4 className="font-medium text-orange-900 mb-2">Microsoft Outlook</h4>
+                        <p className="text-orange-700 text-sm mb-3">Integrate with Outlook Calendar for seamless appointment management.</p>
+                        <button
+                          onClick={() => {
+                            alert('Outlook Calendar sync will be implemented with Microsoft Graph API');
+                          }}
+                          className="text-orange-600 hover:text-orange-800 text-sm font-medium"
+                        >
+                          Connect Outlook Calendar →
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                  
+                  {/* Quick Schedule */}
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Schedule</h3>
+                    <div className="space-y-3">
+                      <button
+                        onClick={() => {
+                          const now = new Date();
+                          const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+                          const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=HMR+Review&dates=${nextWeek.toISOString().replace(/[-:]/g, '').split('.')[0]}Z/${new Date(nextWeek.getTime() + 60 * 60 * 1000).toISOString().replace(/[-:]/g, '').split('.')[0]}Z&details=Home+Medication+Review+appointment`;
+                          window.open(calendarUrl, '_blank');
+                        }}
+                        className="w-full text-left p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="font-medium text-gray-900">Next Week</div>
+                        <div className="text-sm text-gray-600">Schedule for next week</div>
+                      </button>
+                      
+                      <button
+                        onClick={() => {
+                          const now = new Date();
+                          const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, now.getDate());
+                          const calendarUrl = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=HMR+Review&dates=${nextMonth.toISOString().replace(/[-:]/g, '').split('.')[0]}Z/${new Date(nextMonth.getTime() + 60 * 60 * 1000).toISOString().replace(/[-:]/g, '').split('.')[0]}Z&details=Home+Medication+Review+appointment`;
+                          window.open(calendarUrl, '_blank');
+                        }}
+                        className="w-full text-left p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors"
+                      >
+                        <div className="font-medium text-gray-900">Next Month</div>
+                        <div className="text-sm text-gray-600">Schedule for next month</div>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Upcoming Reviews</h3>
+                  <p className="text-gray-600">Scheduled HMR appointments will appear here once calendar integration is set up.</p>
+                </div>
+              </div>
             </div>
           </div>
         );
@@ -378,7 +636,7 @@ export default function MainLayout() {
         currentPatient={currentPatient}
         onNewReview={handleNewReview}
         onScheduleReview={handleScheduleReview}
-        onGenerateReport={handleGenerateReports}
+        onResumeReview={handleResumeReview}
         onSearch={handleGlobalSearch}
       />
       

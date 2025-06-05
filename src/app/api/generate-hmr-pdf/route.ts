@@ -21,6 +21,8 @@ interface Medication {
   compliance_comment?: string;
   actual_usage?: string;
   route?: string;
+  prn_status?: string;
+  prescribed_usage?: string;
 }
 
 interface Interview {
@@ -230,22 +232,76 @@ const generateHMRHTML = (data: HMRData) => {
       `;
     }
 
-    return data.medications.map((med) => `
+    return data.medications.map((med, index) => `
       <tr${med.compliance_status === 'Poor' || med.compliance_status === 'Non-adherent' ? ' class="non-compliant"' : ''}>
-        <td>
-          <strong>${med.name}</strong><br>
-          ${med.strength || ''}
+        <td class="medication-name-cell">
+          <div class="medication-header">
+            <span class="medication-number">${index + 1}.</span>
+            <strong class="medication-name">${med.name || 'Medication name not specified'}</strong>
+          </div>
+          ${med.strength ? `
+            <div class="medication-strength">
+              <span class="strength-label">Strength:</span> 
+              <span class="strength-value">${med.strength}</span>
+            </div>
+          ` : ''}
+          ${med.route ? `
+            <div class="medication-route">
+              <span class="route-label">Route:</span> 
+              <span class="route-value">${med.route}</span>
+            </div>
+          ` : ''}
         </td>
-        <td>
-          ${med.dosage || ''}<br>
-          ${med.frequency || ''}
+        <td class="administration-cell">
+          ${med.dosage ? `
+            <div class="dosage-info">
+              <span class="dosage-label">Dose:</span>
+              <div class="dosage-value">${med.dosage}</div>
+            </div>
+          ` : '<div class="not-specified">Not specified</div>'}
+          ${med.frequency ? `
+            <div class="frequency-info">
+              <span class="frequency-label">Frequency:</span>
+              <div class="frequency-value">${med.frequency}</div>
+            </div>
+          ` : '<div class="not-specified">Frequency not specified</div>'}
+          ${med.prn_status ? `
+            <div class="prn-status">
+              <span class="prn-badge ${med.prn_status === 'PRN' ? 'prn-badge-prn' : med.prn_status === 'Regular' ? 'prn-badge-regular' : 'prn-badge-other'}">${med.prn_status}</span>
+            </div>
+          ` : ''}
         </td>
-        <td>
-          ${med.compliance_status || 'Not assessed'}<br>
-          ${med.compliance_comment || ''}
+        <td class="compliance-cell">
+          ${med.compliance_status ? `
+            <div class="compliance-status">
+              <span class="compliance-badge ${med.compliance_status === 'Good' ? 'compliance-good' : med.compliance_status === 'Poor' ? 'compliance-poor' : 'compliance-moderate'}">
+                ${med.compliance_status}
+              </span>
+            </div>
+          ` : '<div class="not-assessed">Not assessed</div>'}
+          ${med.compliance_comment ? `
+            <div class="compliance-comment">
+              <span class="comment-icon">💬</span>
+              <span class="comment-text">${med.compliance_comment}</span>
+            </div>
+          ` : ''}
         </td>
-        <td>
-          ${med.dosage || 'Patient understanding not documented'}
+        <td class="understanding-cell">
+          <div class="understanding-content">
+            ${med.actual_usage ? `
+              <div class="actual-usage">
+                <span class="usage-label">Actual usage:</span>
+                <div class="usage-text">${med.actual_usage}</div>
+              </div>
+            ` : ''}
+            ${med.prescribed_usage ? `
+              <div class="prescribed-usage">
+                <span class="prescribed-label">As prescribed:</span>
+                <div class="prescribed-text">${med.prescribed_usage}</div>
+              </div>
+            ` : ''}
+            ${!med.actual_usage && !med.prescribed_usage ? '<div class="not-documented">Patient understanding not documented</div>' : ''}
+          </div>
         </td>
       </tr>
     `).join('');
@@ -290,7 +346,7 @@ const generateHMRHTML = (data: HMRData) => {
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Home Medication Review Report</title>
   <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Source+Sans+Pro:wght@300;400;600;700&family=Roboto:wght@300;400;500;700&display=swap');
     
     * {
       margin: 0;
@@ -299,10 +355,10 @@ const generateHMRHTML = (data: HMRData) => {
     }
 
     .hmr-report {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-      font-size: 11pt;
-      line-height: 1.6;
-      color: #1f2937;
+      font-family: 'Source Sans Pro', 'Segoe UI', 'Helvetica Neue', Arial, sans-serif;
+      font-size: 10pt;
+      line-height: 1.5;
+      color: #1a1a1a;
       max-width: 210mm;
       margin: 0 auto;
       padding: 20px;
@@ -313,163 +369,169 @@ const generateHMRHTML = (data: HMRData) => {
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 30px;
-      padding: 20px;
-      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-      border-radius: 12px;
+      margin-bottom: 25px;
+      padding: 18px 24px;
+      background: #2c3e50;
       color: white;
-      box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+      border-left: 4px solid #34495e;
     }
 
     .logo {
+      font-family: 'Roboto', sans-serif;
       font-weight: 700;
-      font-size: 24pt;
+      font-size: 20pt;
       color: white;
-      letter-spacing: -0.5px;
+      letter-spacing: 0.5px;
     }
 
     .logo-subtitle {
-      font-size: 12pt;
+      font-size: 10pt;
       font-weight: 400;
-      color: rgba(255, 255, 255, 0.9);
-      margin-top: 4px;
+      color: #ecf0f1;
+      margin-top: 2px;
+      font-family: 'Source Sans Pro', sans-serif;
     }
 
     .pharmacist-details {
       text-align: right;
-      font-size: 10pt;
+      font-size: 9pt;
       font-weight: 400;
-      color: rgba(255, 255, 255, 0.95);
+      color: #ecf0f1;
       line-height: 1.4;
+      font-family: 'Source Sans Pro', sans-serif;
     }
 
     .title-section {
       text-align: center;
-      margin-bottom: 30px;
-      padding: 25px;
-      background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
-      border-radius: 12px;
-      border: 1px solid #e2e8f0;
+      margin-bottom: 25px;
+      padding: 20px;
+      background: #f8f9fa;
+      border: 2px solid #e9ecef;
+      border-top: 4px solid #2c3e50;
     }
 
     .title-section h1 {
-      font-size: 28pt;
+      font-family: 'Roboto', sans-serif;
+      font-size: 22pt;
       font-weight: 700;
       margin: 0;
-      color: #1e293b;
-      letter-spacing: -0.5px;
+      color: #2c3e50;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
     }
 
     .title-section h2 {
-      font-size: 16pt;
+      font-size: 13pt;
       font-weight: 500;
       margin: 8px 0 0 0;
-      color: #475569;
+      color: #5a6c7d;
+      font-family: 'Source Sans Pro', sans-serif;
     }
 
     .patient-info-table {
       width: 100%;
       border-collapse: collapse;
-      margin-bottom: 30px;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      margin-bottom: 25px;
+      border: 1px solid #d1d5db;
     }
 
     .patient-info-table td {
-      border: 1px solid #e2e8f0;
-      padding: 12px 16px;
-      font-size: 11pt;
+      border: 1px solid #d1d5db;
+      padding: 10px 14px;
+      font-size: 10pt;
       background: white;
     }
 
     .patient-info-table .label {
-      background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
+      background: #f1f3f4;
       font-weight: 600;
       width: 25%;
       color: #374151;
+      font-family: 'Source Sans Pro', sans-serif;
     }
 
     .patient-info-table .value {
       font-weight: 400;
       color: #1f2937;
+      font-family: 'Source Sans Pro', sans-serif;
     }
 
     .section-header {
-      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      background: #34495e;
       color: white;
-      padding: 16px 20px;
-      margin: 25px 0 8px 0;
-      font-size: 14pt;
+      padding: 12px 18px;
+      margin: 20px 0 6px 0;
+      font-size: 12pt;
       font-weight: 600;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(239, 68, 68, 0.15);
-      letter-spacing: 0.5px;
+      font-family: 'Roboto', sans-serif;
+      letter-spacing: 0.3px;
+      text-transform: uppercase;
+      border-left: 4px solid #2c3e50;
     }
 
     .subsection {
       background: white;
-      border: 1px solid #e5e7eb;
-      border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 16px;
-      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+      border: 1px solid #d1d5db;
+      padding: 16px;
+      margin-bottom: 12px;
     }
 
     .subsection h4 {
       font-weight: 600;
-      margin: 0 0 12px 0;
+      margin: 0 0 10px 0;
       color: #374151;
-      font-size: 12pt;
-      border-bottom: 2px solid #e5e7eb;
-      padding-bottom: 8px;
+      font-size: 11pt;
+      border-bottom: 1px solid #d1d5db;
+      padding-bottom: 6px;
+      font-family: 'Roboto', sans-serif;
     }
 
     .subsection h5 {
       font-weight: 600;
-      margin: 16px 0 8px 0;
+      margin: 14px 0 6px 0;
       font-style: normal;
-      color: #6b7280;
-      font-size: 10pt;
+      color: #5a6c7d;
+      font-size: 9pt;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.4px;
+      font-family: 'Source Sans Pro', sans-serif;
     }
 
     .subsection p {
-      margin: 8px 0;
+      margin: 6px 0;
       color: #374151;
-      line-height: 1.6;
+      line-height: 1.5;
+      font-family: 'Source Sans Pro', sans-serif;
     }
 
     .recommendations-table {
       width: 100%;
       border-collapse: collapse;
-      margin: 15px 0;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      margin: 12px 0;
+      border: 1px solid #d1d5db;
     }
 
     .recommendations-table th,
     .recommendations-table td {
-      border: 1px solid #e5e7eb;
-      padding: 16px;
+      border: 1px solid #d1d5db;
+      padding: 12px;
       vertical-align: top;
-      font-size: 10pt;
+      font-size: 9pt;
       background: white;
     }
 
     .recommendations-table th {
-      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      background: #34495e;
       color: white;
       font-weight: 600;
       text-align: center;
-      font-size: 11pt;
-      letter-spacing: 0.3px;
+      font-size: 10pt;
+      letter-spacing: 0.2px;
+      font-family: 'Roboto', sans-serif;
     }
 
     .recommendations-table tbody tr:nth-child(even) {
-      background: #f8fafc;
+      background: #f8f9fa;
     }
 
     .issue-cell {
@@ -482,58 +544,349 @@ const generateHMRHTML = (data: HMRData) => {
 
     .management-cell {
       width: 30%;
-      background: #fef7ed !important;
+      background: #fff8e7 !important;
+      border-left: 3px solid #f39c12 !important;
     }
 
     .medication-table {
       width: 100%;
       border-collapse: collapse;
-      margin: 15px 0;
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      margin: 12px 0;
+      border: 1px solid #d1d5db;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
     }
 
     .medication-table th,
     .medication-table td {
-      border: 1px solid #e5e7eb;
-      padding: 12px;
-      font-size: 10pt;
+      border: 1px solid #d1d5db;
+      padding: 12px 10px;
+      font-size: 9pt;
       vertical-align: top;
       background: white;
+      line-height: 1.4;
     }
 
     .medication-table th {
-      background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
+      background: #2c3e50;
       color: white;
       font-weight: 600;
       text-align: center;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.2px;
+      font-family: 'Roboto', sans-serif;
+      font-size: 10pt;
+      padding: 14px 10px;
     }
 
     .medication-table tbody tr:nth-child(even) {
-      background: #f8fafc;
+      background: #f8f9fa;
+    }
+
+    .medication-table tbody tr:hover {
+      background: #e8f4f8;
     }
 
     .medication-table .non-compliant {
+      background: #fdf2f2 !important;
+      border-left: 4px solid #e74c3c !important;
+    }
+
+    /* Medication Name Cell Styles */
+    .medication-name-cell {
+      width: 28%;
+    }
+
+    .medication-header {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 8px;
+      gap: 8px;
+    }
+
+    .medication-number {
+      background: #34495e;
+      color: white;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: 8pt;
+      font-weight: 600;
+      min-width: 20px;
+      text-align: center;
+      flex-shrink: 0;
+    }
+
+    .medication-name {
+      color: #2c3e50;
+      font-size: 10pt;
       font-weight: 700;
-      color: #dc2626;
+      line-height: 1.3;
+      font-family: 'Roboto', sans-serif;
+    }
+
+    .medication-strength,
+    .medication-route {
+      margin: 4px 0;
+      font-size: 8.5pt;
+    }
+
+    .strength-label,
+    .route-label {
+      color: #5a6c7d;
+      font-weight: 600;
+      font-size: 8pt;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    .strength-value,
+    .route-value {
+      color: #2c3e50;
+      font-weight: 600;
+      background: #f1f3f4;
+      padding: 2px 4px;
+      border-radius: 2px;
+      margin-left: 4px;
+    }
+
+    /* Administration Cell Styles */
+    .administration-cell {
+      width: 22%;
+    }
+
+    .dosage-info,
+    .frequency-info {
+      margin: 6px 0;
+    }
+
+    .dosage-label,
+    .frequency-label {
+      color: #5a6c7d;
+      font-weight: 600;
+      font-size: 8pt;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .dosage-value {
+      color: #2c3e50;
+      font-weight: 700;
+      font-size: 10pt;
+      background: #e8f4f8;
+      padding: 3px 6px;
+      border-radius: 3px;
+      border-left: 3px solid #3498db;
+    }
+
+    .frequency-value {
+      color: #374151;
+      font-weight: 600;
+      font-size: 9pt;
+      background: #f0f9f4;
+      padding: 2px 5px;
+      border-radius: 2px;
+      text-transform: uppercase;
+      letter-spacing: 0.2px;
+    }
+
+    .prn-status {
+      margin-top: 8px;
+    }
+
+    .prn-badge {
+      display: inline-block;
+      padding: 3px 8px;
+      font-size: 7.5pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.4px;
+      border-radius: 12px;
+      border: 1px solid;
+    }
+
+    .prn-badge-prn {
+      background: #fff8e7;
+      color: #d68910;
+      border-color: #d68910;
+    }
+
+    .prn-badge-regular {
+      background: #f0f9f4;
+      color: #27ae60;
+      border-color: #27ae60;
+    }
+
+    .prn-badge-other {
+      background: #e8f4f8;
+      color: #2980b9;
+      border-color: #2980b9;
+    }
+
+    /* Compliance Cell Styles */
+    .compliance-cell {
+      width: 25%;
+    }
+
+    .compliance-status {
+      margin-bottom: 8px;
+    }
+
+    .compliance-badge {
+      display: inline-block;
+      padding: 4px 10px;
+      font-size: 8pt;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      border-radius: 4px;
+      border: 1px solid;
+    }
+
+    .compliance-good {
+      background: #f0f9f4;
+      color: #27ae60;
+      border-color: #27ae60;
+    }
+
+    .compliance-poor {
+      background: #fdf2f2;
+      color: #c0392b;
+      border-color: #c0392b;
+    }
+
+    .compliance-moderate {
+      background: #fff8e7;
+      color: #d68910;
+      border-color: #d68910;
+    }
+
+    .compliance-comment {
+      display: flex;
+      align-items: flex-start;
+      gap: 4px;
+      background: #f8f9fa;
+      padding: 6px 8px;
+      border-radius: 3px;
+      border-left: 3px solid #bdc3c7;
+    }
+
+    .comment-icon {
+      font-size: 8pt;
+      flex-shrink: 0;
+    }
+
+    .comment-text {
+      font-size: 8pt;
+      color: #374151;
+      line-height: 1.3;
+    }
+
+    /* Understanding Cell Styles */
+    .understanding-cell {
+      width: 25%;
+    }
+
+    .understanding-content {
+      font-size: 8.5pt;
+    }
+
+    .actual-usage,
+    .prescribed-usage {
+      margin: 6px 0;
+      padding: 6px 8px;
+      border-radius: 3px;
+    }
+
+    .actual-usage {
+      background: #e8f4f8;
+      border-left: 3px solid #3498db;
+    }
+
+    .prescribed-usage {
+      background: #f0f9f4;
+      border-left: 3px solid #27ae60;
+    }
+
+    .usage-label,
+    .prescribed-label {
+      color: #5a6c7d;
+      font-weight: 600;
+      font-size: 7.5pt;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    .usage-text,
+    .prescribed-text {
+      color: #374151;
+      font-size: 8.5pt;
+      line-height: 1.3;
+    }
+
+    /* General utility styles */
+    .not-specified,
+    .not-assessed,
+    .not-documented {
+      color: #7f8c8d;
+      font-style: italic;
+      font-size: 8pt;
+      padding: 4px 6px;
+      background: #f8f9fa;
+      border-radius: 2px;
+      text-align: center;
+    }
+
+    /* Medication Summary Footer */
+    .medication-summary {
+      background: #34495e !important;
+      color: white !important;
+    }
+
+    .summary-cell {
+      padding: 12px 14px !important;
+      border-color: #2c3e50 !important;
+    }
+
+    .medication-stats {
+      font-size: 9pt;
+      font-weight: 500;
+      text-align: center;
+      font-family: 'Source Sans Pro', sans-serif;
+    }
+
+    .medication-notes {
+      margin-top: 16px;
+      background: #f8f9fa;
+      padding: 12px 16px;
+      border: 1px solid #d1d5db;
+      border-left: 4px solid #34495e;
+      border-radius: 0 4px 4px 0;
+    }
+
+    .medication-notes h5 {
+      margin: 0 0 8px 0;
+      color: #2c3e50;
+      font-size: 10pt;
+      font-weight: 600;
+      font-family: 'Roboto', sans-serif;
     }
 
     .signature-section {
-      margin-top: 40px;
+      margin-top: 30px;
       page-break-inside: avoid;
-      background: #f8fafc;
-      padding: 20px;
-      border-radius: 12px;
-      border: 1px solid #e2e8f0;
+      background: #f8f9fa;
+      padding: 16px;
+      border: 1px solid #d1d5db;
+      border-left: 4px solid #34495e;
     }
 
     .signature-line {
-      border-bottom: 2px solid #374151;
+      border-bottom: 1px solid #34495e;
       width: 200px;
-      height: 30px;
-      margin-top: 20px;
+      height: 25px;
+      margin-top: 16px;
     }
 
     .page-break {
@@ -541,87 +894,90 @@ const generateHMRHTML = (data: HMRData) => {
     }
 
     .allergies-section {
-      margin: 20px 0;
-      background: #fef2f2;
-      border: 2px solid #fecaca;
-      border-radius: 8px;
-      padding: 16px;
+      margin: 16px 0;
+      background: #fdf2f2;
+      border: 1px solid #e74c3c;
+      border-left: 4px solid #c0392b;
+      padding: 14px;
     }
 
     .allergies-section h4 {
       font-weight: 600;
-      margin-bottom: 8px;
-      color: #dc2626;
-      font-size: 12pt;
+      margin-bottom: 6px;
+      color: #c0392b;
+      font-size: 11pt;
+      font-family: 'Roboto', sans-serif;
     }
 
     .allergies-section ul {
       margin: 0;
-      padding-left: 20px;
-      color: #7f1d1d;
+      padding-left: 18px;
+      color: #922b21;
     }
 
     .lifestyle-grid {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 20px;
-      margin: 20px 0;
+      gap: 16px;
+      margin: 16px 0;
     }
 
     .lifestyle-card {
-      background: #f8fafc;
-      border: 1px solid #e2e8f0;
-      border-radius: 8px;
-      padding: 16px;
+      background: #f8f9fa;
+      border: 1px solid #d1d5db;
+      padding: 14px;
     }
 
     .lifestyle-card h5 {
       color: #374151;
       font-weight: 600;
-      margin-bottom: 8px;
-      font-size: 11pt;
+      margin-bottom: 6px;
+      font-size: 10pt;
+      font-family: 'Roboto', sans-serif;
     }
 
     .closing-section {
-      background: #f8fafc;
-      padding: 25px;
-      border-radius: 12px;
-      border: 1px solid #e2e8f0;
-      margin-top: 20px;
+      background: #f8f9fa;
+      padding: 20px;
+      border: 1px solid #d1d5db;
+      border-left: 4px solid #34495e;
+      margin-top: 16px;
     }
 
     .closing-section p {
-      margin-bottom: 16px;
-      line-height: 1.7;
+      margin-bottom: 12px;
+      line-height: 1.6;
       color: #374151;
+      font-family: 'Source Sans Pro', sans-serif;
     }
 
     .footer-signature {
-      margin-top: 30px;
-      padding: 20px;
-      background: linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 100%);
-      border-radius: 8px;
-      border: 1px solid #cbd5e1;
+      margin-top: 25px;
+      padding: 16px;
+      background: #f1f3f4;
+      border: 1px solid #bdc3c7;
     }
 
     .footer-signature .name {
       font-weight: 700;
-      font-size: 14pt;
-      color: #1e293b;
-      margin-bottom: 8px;
+      font-size: 12pt;
+      color: #2c3e50;
+      margin-bottom: 6px;
+      font-family: 'Roboto', sans-serif;
     }
 
     .footer-signature .credentials {
-      color: #475569;
+      color: #5a6c7d;
       font-weight: 500;
-      line-height: 1.5;
+      line-height: 1.4;
+      font-family: 'Source Sans Pro', sans-serif;
     }
 
     /* Print specific styles */
     @media print {
       .hmr-report {
         margin: 0;
-        padding: 15mm;
+        padding: 12mm;
       }
       
       .page-break {
@@ -631,40 +987,89 @@ const generateHMRHTML = (data: HMRData) => {
       .header, .title-section, .subsection, .recommendations-table, .medication-table {
         break-inside: avoid;
       }
+
+      .medication-table {
+        font-size: 8pt;
+      }
+
+      .medication-table th {
+        font-size: 9pt;
+      }
+
+      .medication-number {
+        font-size: 7pt;
+      }
+
+      .medication-name {
+        font-size: 9pt;
+      }
+
+      .prn-badge,
+      .compliance-badge {
+        font-size: 7pt;
+      }
+
+      .dosage-value {
+        font-size: 9pt;
+      }
+
+      .comment-text,
+      .usage-text,
+      .prescribed-text {
+        font-size: 7.5pt;
+      }
     }
 
     @page {
-      margin: 15mm;
+      margin: 12mm;
       size: A4;
     }
 
-    /* Status badges */
+    /* Professional status indicators */
     .status-badge {
       display: inline-block;
-      padding: 4px 12px;
-      border-radius: 20px;
-      font-size: 9pt;
+      padding: 3px 8px;
+      font-size: 8pt;
       font-weight: 600;
       text-transform: uppercase;
-      letter-spacing: 0.5px;
+      letter-spacing: 0.3px;
+      border: 1px solid;
     }
 
     .status-high {
-      background: #fef2f2;
-      color: #dc2626;
-      border: 1px solid #fecaca;
+      background: #fdf2f2;
+      color: #c0392b;
+      border-color: #c0392b;
     }
 
     .status-medium {
-      background: #fffbeb;
-      color: #d97706;
-      border: 1px solid #fed7aa;
+      background: #fff8e7;
+      color: #d68910;
+      border-color: #d68910;
     }
 
     .status-low {
-      background: #f0fdf4;
-      color: #16a34a;
-      border: 1px solid #bbf7d0;
+      background: #f0f9f4;
+      color: #27ae60;
+      border-color: #27ae60;
+    }
+
+    /* Clinical emphasis */
+    .clinical-note {
+      background: #e8f4f8;
+      border-left: 4px solid #2980b9;
+      padding: 10px;
+      margin: 8px 0;
+      font-style: italic;
+      color: #2c3e50;
+    }
+
+    .dosage-highlight {
+      font-weight: 600;
+      color: #2c3e50;
+      background: #f7f9fc;
+      padding: 2px 4px;
+      border-radius: 2px;
     }
   </style>
 </head>
@@ -674,7 +1079,7 @@ const generateHMRHTML = (data: HMRData) => {
     <div class="header">
       <div>
         <div class="logo">LAL MedReviews</div>
-        <div class="logo-subtitle">Professional Clinical Services</div>
+        <div class="logo-subtitle">Accredited Clinical Pharmacy Services</div>
       </div>
       <div class="pharmacist-details">
         <strong>Accredited Pharmacist:</strong><br>
@@ -817,20 +1222,44 @@ const generateHMRHTML = (data: HMRData) => {
       </div>
       
       <div class="medication-tables">
-        <h4>Current Medications (Non-compliant medications highlighted in red)</h4>
+        <h4>Current Medication Regimen Assessment</h4>
+        <p style="margin-bottom: 12px; color: #5a6c7d; font-style: italic;">Medications with compliance issues are highlighted with red border for immediate attention</p>
         <table class="medication-table">
           <thead>
             <tr>
-              <th style="width: 25%;">Prescribed Medication</th>
-              <th style="width: 15%;">Administration</th>
-              <th style="width: 30%;">Clinical Comments & Compliance</th>
-              <th style="width: 30%;">Therapeutic Purpose (Patient Understanding)</th>
+              <th style="width: 28%;">Medication Details</th>
+              <th style="width: 22%;">Dosing & Administration</th>
+              <th style="width: 25%;">Compliance Assessment</th>
+              <th style="width: 25%;">Patient Understanding & Usage</th>
             </tr>
           </thead>
           <tbody>
             ${generateMedicationRows()}
           </tbody>
+          <tfoot>
+            <tr class="medication-summary">
+              <td colspan="4" class="summary-cell">
+                <div class="medication-stats">
+                  <strong>Medication Summary:</strong> 
+                  ${data.medications ? `Total medications: ${data.medications.length}` : 'No medications documented'} 
+                  ${data.medications ? ` | Regular medications: ${data.medications.filter(m => m.prn_status === 'Regular').length}` : ''} 
+                  ${data.medications ? ` | PRN medications: ${data.medications.filter(m => m.prn_status === 'PRN' || m.prn_status === 'PRN (as needed)').length}` : ''}
+                  ${data.medications ? ` | Non-compliant: ${data.medications.filter(m => m.compliance_status === 'Poor' || m.compliance_status === 'Non-adherent').length}` : ''}
+                </div>
+              </td>
+            </tr>
+          </tfoot>
         </table>
+        
+        <div class="medication-notes">
+          <h5>Clinical Notes:</h5>
+          <ul style="margin: 8px 0; padding-left: 20px; color: #374151; font-size: 9pt; line-height: 1.4;">
+            <li>All medications were reviewed for appropriateness, effectiveness, and safety</li>
+            <li>Patient education was provided regarding proper medication administration and timing</li>
+            <li>Compliance assessment was conducted through patient interview and observation</li>
+            <li>Drug interactions and contraindications were evaluated</li>
+          </ul>
+        </div>
       </div>
     </div>
 

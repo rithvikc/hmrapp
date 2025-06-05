@@ -270,43 +270,6 @@ const EnhancedDashboard: React.FC<EnhancedDashboardProps> = ({
             </div>
           </div>
 
-          {/* Clinical Alerts */}
-          <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-            <div className="p-6 border-b border-gray-200">
-              <div className="flex items-center space-x-3">
-                <AlertTriangle className="h-5 w-5 text-red-600" />
-                <h2 className="text-lg font-semibold text-gray-900">Safety Alerts</h2>
-              </div>
-            </div>
-            <div className="p-6">
-              <div className="space-y-4">
-                {drugAlerts.map((alert, index) => (
-                  <div key={index} className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <div className="flex items-start space-x-3">
-                      <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
-                      <div className="flex-1">
-                        <p className="font-semibold text-red-900">{alert.patientName}</p>
-                        <p className="text-sm text-red-700 mb-2">{alert.interaction}</p>
-                        <p className="text-xs text-red-600">{alert.recommendation}</p>
-                      </div>
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        alert.severity === 'High' ? 'bg-red-100 text-red-800' : 'bg-amber-100 text-amber-800'
-                      }`}>
-                        {alert.severity}
-                      </span>
-                    </div>
-                  </div>
-                ))}
-                <button className="w-full text-center text-sm text-red-600 hover:text-red-700 font-medium">
-                  View all safety alerts
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Recent Activity & Quick Stats */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           {/* Recent Completed Reviews */}
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
             <div className="p-6 border-b border-gray-200">
@@ -354,8 +317,10 @@ const EnhancedDashboard: React.FC<EnhancedDashboardProps> = ({
               )}
             </div>
           </div>
+        </div>
 
-          {/* Clinical Performance */}
+        {/* Clinical Performance */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
           <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
             <div className="p-6 border-b border-gray-200">
               <div className="flex items-center space-x-3">

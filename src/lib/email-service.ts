@@ -77,62 +77,154 @@ class EmailService {
       <head>
           <meta charset="UTF-8">
           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-          <title>HMR Report</title>
+          <title>Clinical Report - Home Medication Review</title>
           <style>
-              body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-              .header { background-color: #f8f9fa; padding: 20px; border-left: 4px solid #007bff; }
-              .content { padding: 20px; }
-              .footer { background-color: #f8f9fa; padding: 15px; margin-top: 20px; border-top: 1px solid #dee2e6; }
-              .highlight { color: #007bff; font-weight: bold; }
-              .contact-info { margin-top: 10px; font-size: 0.9em; }
+              body { 
+                font-family: 'Segoe UI', 'Helvetica Neue', Arial, sans-serif; 
+                line-height: 1.6; 
+                color: #1a1a1a; 
+                margin: 0;
+                padding: 0;
+                background: #f8f9fa;
+              }
+              .container {
+                max-width: 650px;
+                margin: 0 auto;
+                background: #ffffff;
+                border: 1px solid #d1d5db;
+              }
+              .header { 
+                background: #2c3e50; 
+                color: white;
+                padding: 20px; 
+                border-left: 4px solid #34495e; 
+              }
+              .header h2 {
+                margin: 0;
+                font-size: 18pt;
+                font-weight: 600;
+                letter-spacing: 0.3px;
+              }
+              .header .subtitle {
+                font-size: 10pt;
+                color: #ecf0f1;
+                margin-top: 4px;
+              }
+              .content { 
+                padding: 25px; 
+                background: white;
+              }
+              .footer { 
+                background: #f1f3f4; 
+                padding: 18px; 
+                border-top: 1px solid #d1d5db;
+                border-left: 4px solid #34495e;
+              }
+              .highlight { 
+                color: #2c3e50; 
+                font-weight: 600; 
+              }
+              .contact-info { 
+                font-size: 9pt; 
+                color: #5a6c7d;
+                line-height: 1.4;
+              }
+              .contact-info strong {
+                color: #2c3e50;
+                font-size: 10pt;
+              }
+              .clinical-section {
+                background: #f8f9fa;
+                border: 1px solid #e9ecef;
+                border-left: 4px solid #2980b9;
+                padding: 15px;
+                margin: 15px 0;
+              }
+              .clinical-section h3 {
+                margin: 0 0 10px 0;
+                color: #2c3e50;
+                font-size: 12pt;
+              }
+              .clinical-section ul {
+                margin: 0;
+                padding-left: 18px;
+              }
+              .clinical-section li {
+                margin: 4px 0;
+                color: #374151;
+              }
+              .credentials {
+                background: #e8f4f8;
+                border: 1px solid #b8dce8;
+                padding: 12px;
+                margin: 15px 0;
+                color: #2c3e50;
+                font-size: 9pt;
+              }
           </style>
       </head>
       <body>
-          <div class="header">
-              <h2>LAL MedReviews - Home Medication Review Report</h2>
-          </div>
-          
-          <div class="content">
-              <p>Dear Doctor,</p>
+          <div class="container">
+              <div class="header">
+                  <h2>LAL MedReviews</h2>
+                  <div class="subtitle">Accredited Clinical Pharmacy Services</div>
+              </div>
               
-              <p>Please find attached the completed <span class="highlight">Home Medication Review (HMR) report</span> 
-              for your patient <strong>${emailData.patientName}</strong>.</p>
+              <div class="content">
+                  <p>Dear Colleague,</p>
+                  
+                  <p>Please find attached the completed <span class="highlight">Home Medication Review (HMR) clinical report</span> 
+                  for your patient <strong>${emailData.patientName}</strong>.</p>
+                  
+                  <div class="credentials">
+                      <strong>Clinical Review Conducted By:</strong><br>
+                      Avishkar Lal, Accredited Pharmacist (MRN: 8362)<br>
+                      Specializing in medication management and clinical optimization
+                  </div>
+                  
+                  <div class="clinical-section">
+                      <h3>Clinical Assessment Summary</h3>
+                      <ul>
+                          <li>Comprehensive medication reconciliation and review</li>
+                          <li>Assessment of patient understanding and medication adherence</li>
+                          <li>Evaluation of lifestyle factors affecting therapeutic outcomes</li>
+                          <li>Evidence-based clinical recommendations for optimization</li>
+                          <li>Patient counselling and education outcomes documented</li>
+                          <li>Follow-up recommendations and monitoring parameters</li>
+                      </ul>
+                  </div>
+                  
+                  ${emailData.additionalNotes ? `
+                  <div class="clinical-section">
+                      <h3>Additional Clinical Notes</h3>
+                      <p>${emailData.additionalNotes}</p>
+                  </div>
+                  ` : ''}
+                  
+                  <p>Please review the attached clinical report and implement the recommendations as clinically appropriate 
+                  for this patient. All recommendations are evidence-based and consider current therapeutic guidelines.</p>
+                  
+                  <p><strong>MBS Item 900</strong> can be claimed upon completion of the attached Medication Management Report form. 
+                  Please forward a copy to avishkarlal01@gmail.com for our records.</p>
+                  
+                  <p>Should you require clarification on any clinical recommendations or additional pharmaceutical consultation, 
+                  please don't hesitate to contact me directly.</p>
+                  
+                  <p>Thank you for the professional referral and your continued commitment to optimal patient care.</p>
+                  
+                  <p>Professional regards,</p>
+                  <p><strong>Avishkar Lal</strong><br>
+                  Accredited Pharmacist (MRN: 8362)<br>
+                  Clinical Pharmacy Specialist</p>
+              </div>
               
-              <p>This comprehensive review has been conducted by <strong>Avishkar Lal</strong> (MRN: 8362), 
-              a qualified pharmacist specializing in medication management and optimization.</p>
-              
-              <h3>Report Highlights:</h3>
-              <ul>
-                  <li>Complete medication reconciliation</li>
-                  <li>Assessment of medication understanding and adherence</li>
-                  <li>Lifestyle factors affecting medication management</li>
-                  <li>Clinical recommendations for optimization</li>
-                  <li>Patient education outcomes</li>
-              </ul>
-              
-              ${emailData.additionalNotes ? `
-              <h3>Additional Notes:</h3>
-              <p>${emailData.additionalNotes}</p>
-              ` : ''}
-              
-              <p>Please review the attached report and implement the recommendations as clinically appropriate. 
-              If you have any questions or require clarification on any aspect of this review, please don't 
-              hesitate to contact me.</p>
-              
-              <p>Thank you for the referral and your ongoing commitment to your patient's medication safety.</p>
-              
-              <p>Kind regards,</p>
-              <p><strong>Avishkar Lal</strong><br>
-              Pharmacist<br>
-              MRN: 8362</p>
-          </div>
-          
-          <div class="footer">
-              <div class="contact-info">
-                  <strong>LAL MedReviews</strong><br>
-                  Phone: 0490 417 047<br>
-                  Email: ${this.config.user}<br>
-                  <em>Professional Medication Review Services</em>
+              <div class="footer">
+                  <div class="contact-info">
+                      <strong>LAL MedReviews - Professional Clinical Services</strong><br>
+                      Direct Line: 0490 417 047<br>
+                      Clinical Email: ${this.config.user}<br>
+                      <em>Providing evidence-based medication review and clinical pharmacy services</em>
+                  </div>
               </div>
           </div>
       </body>
