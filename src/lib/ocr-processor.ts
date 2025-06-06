@@ -35,25 +35,38 @@ class OCRProcessor {
 
   async extractFromPDF(buffer: Buffer): Promise<OCRResult> {
     try {
-      console.log('Processing PDF with OCR...');
+      console.log('🔄 Processing PDF with OCR...');
+      console.log(`📄 Buffer size: ${buffer.length} bytes`);
       
       let rawText = '';
+      let extractionMethod = 'none';
       
       // Try Google Document AI first if API key is available
       if (process.env.GOOGLE_CLOUD_API_KEY) {
+        console.log('🔄 Attempting Google Document AI extraction...');
         try {
           rawText = await this.extractWithGoogleDocumentAI(buffer);
+          extractionMethod = 'Google Document AI';
         } catch (error) {
           console.warn('Google Document AI failed, falling back to other methods:', error);
         }
+      } else {
+        console.log('📝 Google Document AI not configured, skipping...');
       }
       
       // If no text yet, try fallback methods
       if (!rawText) {
+        console.log('🔄 Trying fallback extraction methods...');
         rawText = await this.extractWithFallbacks(buffer);
+        extractionMethod = rawText.includes('CASEY MEDICAL CENTRE') ? 'mock data' : 'fallback methods';
       }
       
-      console.log(`📄 Extracted ${rawText.length} characters`);
+      console.log(`📄 Extracted ${rawText.length} characters using ${extractionMethod}`);
+      
+      // Warn if we're using mock data in production
+      if (this.isProduction && extractionMethod === 'mock data') {
+        console.error('⚠️ PRODUCTION WARNING: Using mock data instead of real PDF content!');
+      }
       
       // Use AI-enhanced parsing if available
       let parsedData;
@@ -61,11 +74,13 @@ class OCRProcessor {
         try {
           console.log('🤖 Using Gemini AI for enhanced parsing...');
           parsedData = await this.parseWithGeminiAI(rawText);
+          console.log('✅ Gemini AI parsing completed');
         } catch (error) {
           console.warn('Gemini AI parsing failed, falling back to regex parsing:', error);
           parsedData = this.parseExtractedText(rawText);
         }
       } else {
+        console.log('📝 Using regex-based parsing (Gemini AI not available or text too short)');
         parsedData = this.parseExtractedText(rawText);
       }
       
@@ -99,19 +114,22 @@ class OCRProcessor {
       // Initialize the client with credentials
       let client;
       
-      // Check if we have service account credentials
-      if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-        // Use service account file path
-        client = new DocumentProcessorServiceClient();
-      } else if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+      // In production, prefer GOOGLE_SERVICE_ACCOUNT_KEY over file-based credentials
+      if (process.env.GOOGLE_SERVICE_ACCOUNT_KEY) {
+        console.log('Using GOOGLE_SERVICE_ACCOUNT_KEY for authentication');
         // Use service account JSON string
         const serviceAccount = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT_KEY);
         client = new DocumentProcessorServiceClient({
           credentials: serviceAccount,
           projectId: serviceAccount.project_id
         });
+      } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS && !this.isProduction) {
+        console.log('Using GOOGLE_APPLICATION_CREDENTIALS for authentication (development only)');
+        // Only use file path in development
+        client = new DocumentProcessorServiceClient();
       } else {
-        throw new Error('Google Document AI credentials not configured. Set GOOGLE_APPLICATION_CREDENTIALS or GOOGLE_SERVICE_ACCOUNT_KEY');
+        console.warn('Google Document AI credentials not properly configured for production');
+        throw new Error('Google Document AI credentials not configured. Set GOOGLE_SERVICE_ACCOUNT_KEY for production deployment.');
       }
 
       // Prepare the document for processing
@@ -153,6 +171,8 @@ class OCRProcessor {
         throw new Error('Google Document AI processor not found. Check your processor ID.');
       } else if (errorMessage.includes('QUOTA_EXCEEDED')) {
         throw new Error('Google Document AI quota exceeded. Check your usage limits.');
+      } else if (errorMessage.includes('ENOENT') || errorMessage.includes('no such file')) {
+        throw new Error('Google service account file not found. Use GOOGLE_SERVICE_ACCOUNT_KEY environment variable for production.');
       }
       
       throw error;
@@ -166,12 +186,16 @@ class OCRProcessor {
       return this.getFallbackMockData();
     }
 
-    // Try pdf-parse first
+    console.log(`📄 Processing buffer of ${buffer.length} bytes`);
+
+    // Try pdf-parse first with enhanced error handling
     try {
       const text = await this.extractWithPdfParse(buffer);
       if (text && text.length > 100) {
-        console.log('Successfully extracted text with pdf-parse');
+        console.log(`✅ Successfully extracted ${text.length} characters with pdf-parse`);
         return text;
+      } else {
+        console.log('📄 pdf-parse returned insufficient text, continuing to other methods');
       }
     } catch (error) {
       console.warn('pdf-parse failed:', error instanceof Error ? error.message : String(error));
@@ -179,21 +203,42 @@ class OCRProcessor {
 
     // Try Tesseract only if buffer seems to be image-like or contains PDF magic bytes
     const isValidPDF = buffer.toString('ascii', 0, 4) === '%PDF';
+    console.log(`📄 PDF validation: ${isValidPDF ? 'Valid PDF detected' : 'Not a valid PDF'}`);
+    
     if (isValidPDF) {
-      console.log('Valid PDF detected, but pdf-parse failed. Skipping Tesseract for PDF.');
+      console.log('Valid PDF detected, but pdf-parse failed. Trying alternative PDF processing...');
+      
+      // Try a more basic text extraction approach for PDFs
+      try {
+        const textContent = buffer.toString('utf8');
+        // Look for readable text patterns in the buffer
+        const readableText = textContent.match(/[a-zA-Z\s]{20,}/g);
+        if (readableText && readableText.join(' ').length > 100) {
+          console.log('✅ Extracted text using basic buffer parsing');
+          return readableText.join(' ');
+        }
+      } catch (error) {
+        console.warn('Basic PDF text extraction failed:', error);
+      }
     } else {
       try {
         const worker = await this.initTesseract();
         if (worker) {
-          console.log('Trying Tesseract OCR...');
+          console.log('🔄 Trying Tesseract OCR...');
           const { data: { text: ocrText } } = await worker.recognize(buffer);
           if (ocrText && ocrText.length > 50) {
+            console.log(`✅ Extracted ${ocrText.length} characters with Tesseract`);
             return ocrText;
           }
         }
       } catch (error) {
         console.warn('Tesseract OCR failed:', error instanceof Error ? error.message : String(error));
       }
+    }
+
+    // In production, log a warning before using mock data
+    if (this.isProduction) {
+      console.error('⚠️ WARNING: All PDF extraction methods failed in production. Using mock data. This should be investigated.');
     }
 
     // Final fallback to mock data
