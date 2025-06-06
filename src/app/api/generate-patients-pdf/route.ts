@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import puppeteer from 'puppeteer';
+import chromium from '@sparticuz/chromium';
 
 interface PatientData {
   id: number;
@@ -412,11 +413,12 @@ export async function POST(request: NextRequest) {
     const htmlContent = generatePatientsHTML(patientsData);
     console.log('HTML content generated, length:', htmlContent.length);
 
-    // Create PDF using Puppeteer
+    // Create PDF using Puppeteer with serverless Chromium for Vercel compatibility
     console.log('Launching browser...');
+    const isProduction = process.env.NODE_ENV === 'production';
+    
     const browser = await puppeteer.launch({
-      headless: true,
-      args: [
+      args: isProduction ? chromium.args : [
         '--no-sandbox',
         '--disable-setuid-sandbox',
         '--disable-dev-shm-usage',
@@ -425,7 +427,12 @@ export async function POST(request: NextRequest) {
         '--no-zygote',
         '--single-process',
         '--disable-gpu'
-      ]
+      ],
+      defaultViewport: chromium.defaultViewport,
+      executablePath: isProduction 
+        ? await chromium.executablePath() 
+        : process.env.PUPPETEER_EXECUTABLE_PATH || puppeteer.executablePath(),
+      headless: chromium.headless,
     });
 
     console.log('Browser launched, creating new page...');
