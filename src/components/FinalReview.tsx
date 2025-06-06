@@ -2,9 +2,11 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useHMRSelectors, ClinicalRecommendation } from '@/store/hmr-store';
+import { useAuth } from '@/contexts/AuthContext';
+import PDFEditScreen from './PDFEditScreen';
 import { 
   FileText, Mail, Eye, Edit, CheckCircle, AlertTriangle, 
-  Clock, Printer, Smartphone, Save, X
+  Clock, Printer, Smartphone, Save, X, Edit3
 } from 'lucide-react';
 
 interface FinalReviewProps {
@@ -12,7 +14,7 @@ interface FinalReviewProps {
   onPrevious: () => void;
 }
 
-type ReviewTab = 'summary' | 'preview' | 'template';
+type ReviewTab = 'summary' | 'preview' | 'edit' | 'template';
 
 export default function FinalReview({ onNext, onPrevious }: FinalReviewProps) {
   const {
@@ -23,8 +25,13 @@ export default function FinalReview({ onNext, onPrevious }: FinalReviewProps) {
     setLoading,
     saveDraft,
     setCurrentStep,
-    setCurrentInterviewResponse
+    setCurrentInterviewResponse,
+    setCurrentPatient,
+    setCurrentMedications,
+    setCurrentClinicalRecommendations
   } = useHMRSelectors();
+
+  const { user, pharmacist } = useAuth();
 
   const [activeTab, setActiveTab] = useState<ReviewTab>('summary');
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
@@ -38,32 +45,97 @@ export default function FinalReview({ onNext, onPrevious }: FinalReviewProps) {
   });
   const [showMobilePreview, setShowMobilePreview] = useState(false);
   const [emailTemplate, setEmailTemplate] = useState('');
+  const [showEditScreen, setShowEditScreen] = useState(false);
+  const [editedData, setEditedData] = useState<any>(null);
   
   // Editing state variables
   const [isEditingPharmacist, setIsEditingPharmacist] = useState(false);
   const [pharmacistName, setPharmacistName] = useState('');
   
+  // Auto-populate pharmacist name from logged-in user
   useEffect(() => {
     if (currentInterviewResponse?.pharmacist_name) {
       setPharmacistName(currentInterviewResponse.pharmacist_name);
+    } else if (pharmacist?.name) {
+      // Auto-populate from logged-in pharmacist
+      const autoPharmacistName = pharmacist.registration_number 
+        ? `${pharmacist.name} (MRN ${pharmacist.registration_number})`
+        : pharmacist.name;
+      setPharmacistName(autoPharmacistName);
+      
+      // Also update the interview response if it exists
+      if (currentInterviewResponse) {
+        setCurrentInterviewResponse({
+          ...currentInterviewResponse,
+          pharmacist_name: autoPharmacistName
+        });
+      }
+    } else if (user?.user_metadata?.name) {
+      // Fallback to user metadata
+      setPharmacistName(user.user_metadata.name);
+      
+      if (currentInterviewResponse) {
+        setCurrentInterviewResponse({
+          ...currentInterviewResponse,
+          pharmacist_name: user.user_metadata.name
+        });
+      }
     }
-  }, [currentInterviewResponse]);
+  }, [currentInterviewResponse, pharmacist, user, setCurrentInterviewResponse]);
 
   const validateReview = useCallback(() => {
     const issues: string[] = [];
     
-    if (!currentPatient?.name) issues.push('Patient name is missing');
-    if (!currentPatient?.doctor_email) issues.push('GP email address is not confirmed');
-    if (!currentMedications.length) issues.push('No medications documented');
-    if (!currentInterviewResponse) issues.push('Interview not completed');
-    if (!currentClinicalRecommendations.length) issues.push('No clinical recommendations documented');
-    if (currentClinicalRecommendations.some(rec => !rec.issue_identified || !rec.suggested_action)) {
+    // Check patient information
+    if (!currentPatient?.name?.trim()) {
+      issues.push('Patient name is missing');
+    }
+    
+    // Check doctor email
+    if (!currentPatient?.doctor_email?.trim()) {
+      issues.push('GP email address is not confirmed');
+    } else if (!/\S+@\S+\.\S+/.test(currentPatient.doctor_email)) {
+      issues.push('GP email address is invalid');
+    }
+    
+    // Check medications - allow for cases where no medications are appropriate
+    // This is not necessarily an error, but we'll still flag it for review
+    // if (!currentMedications.length) issues.push('No medications documented');
+    
+    // Check interview completion - more thorough check
+    if (!currentInterviewResponse) {
+      issues.push('Interview not completed');
+    } else {
+      // Check if key interview fields are completed
+      const requiredFields = ['interview_date'];
+      const missingFields = requiredFields.filter(field => 
+        !currentInterviewResponse[field as keyof typeof currentInterviewResponse]
+      );
+      
+      if (missingFields.length > 0) {
+        issues.push('Interview sections incomplete');
+      }
+    }
+    
+    // Check clinical recommendations - also allow for "no issues found" scenario
+    // if (!currentClinicalRecommendations.length) {
+    //   issues.push('No clinical recommendations documented');
+    // }
+    
+    // Check if existing recommendations are complete
+    if (currentClinicalRecommendations.length > 0 && 
+        currentClinicalRecommendations.some(rec => !rec.issue_identified?.trim() || !rec.suggested_action?.trim())) {
       issues.push('Some recommendations are incomplete');
     }
-    if (!currentInterviewResponse?.pharmacist_name) issues.push('Pharmacist name is missing');
+    
+    // Check pharmacist name - use current state or auto-populated value
+    const effectivePharmacistName = currentInterviewResponse?.pharmacist_name || pharmacistName;
+    if (!effectivePharmacistName?.trim()) {
+      issues.push('Pharmacist name is missing');
+    }
     
     setValidationIssues(issues);
-  }, [currentPatient, currentMedications, currentInterviewResponse, currentClinicalRecommendations]);
+  }, [currentPatient, currentMedications, currentInterviewResponse, currentClinicalRecommendations, pharmacistName]);
 
   const generateEmailTemplate = useCallback(() => {
     if (!currentPatient) return;
@@ -142,7 +214,8 @@ Email: avishkarlal01@gmail.com`;
   const handleGeneratePDF = async (useEditableData = false) => {
     setLoading(true);
     try {
-      const reportData = {
+      // Use edited data if available, otherwise use current store data
+      const reportData = editedData || {
         patient: currentPatient,
         medications: currentMedications,
         interview: currentInterviewResponse,
@@ -170,6 +243,56 @@ Email: avishkarlal01@gmail.com`;
         setPdfUrl(url);
         setIsPdfOutdated(false);
         console.log('PDF generated successfully');
+      } else {
+        const errorText = await response.text();
+        console.error('PDF generation failed:', errorText);
+        alert(`Failed to generate PDF: ${errorText}`);
+      }
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      alert(`Error generating PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // PDF Edit Screen handlers
+  const handleEditSave = (data: any) => {
+    setEditedData(data);
+    setIsPdfOutdated(true);
+    setActiveTab('preview');
+    alert('Changes saved! Switch to Preview tab to generate updated PDF.');
+  };
+
+  const handleEditCancel = () => {
+    setActiveTab('summary');
+  };
+
+  const handleEditPreview = async (data: any) => {
+    setEditedData(data);
+    setLoading(true);
+    try {
+      const response = await fetch('/api/generate-hmr-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          patientId: currentPatient?.id,
+          reviewData: data,
+          options: {
+            includeAppendices: sendOptions.includeEducationSheet || sendOptions.includeMedicationList,
+            watermark: validationIssues.length > 0 ? 'Draft' : 'Final',
+            format: 'A4'
+          }
+        })
+      });
+      
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        setPdfUrl(url);
+        setIsPdfOutdated(false);
+        setActiveTab('preview');
+        console.log('Preview PDF generated successfully');
       } else {
         const errorText = await response.text();
         console.error('PDF generation failed:', errorText);
@@ -289,9 +412,9 @@ Email: avishkarlal01@gmail.com`;
   
   const handleFixIssue = (issue: string) => {
     if (issue.includes('Patient name') || issue.includes('GP email')) {
-      navigateToStep('patient-info');
+      navigateToStep('patient');
     } else if (issue.includes('medications')) {
-      navigateToStep('medications-review');
+      navigateToStep('medications');
     } else if (issue.includes('Interview') || issue.includes('Pharmacist name')) {
       navigateToStep('interview');
     } else if (issue.includes('recommendations')) {
@@ -299,228 +422,261 @@ Email: avishkarlal01@gmail.com`;
     }
   };
 
-  const renderSummaryTab = () => (
-    <div className="space-y-6">
-      {/* Validation Checklist */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <h3 className="text-lg font-semibold text-gray-900 mb-4">Pre-Export Checklist</h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {[
-            { label: 'Patient information complete and verified', valid: !!currentPatient?.name },
-            { label: 'All medications reviewed and confirmed', valid: currentMedications.length > 0 },
-            { label: 'Interview sections completed', valid: !!currentInterviewResponse },
-            { label: 'At least one clinical recommendation documented', valid: currentClinicalRecommendations.length > 0 },
-            { label: 'Patient counselling documented', valid: currentClinicalRecommendations.some(rec => (rec as ClinicalRecommendation & { patient_counselling?: string }).patient_counselling) },
-            { label: 'GP email address confirmed', valid: !!currentPatient?.doctor_email },
-            { label: 'Pharmacist name provided', valid: !!currentInterviewResponse?.pharmacist_name }
-          ].map((item, index) => (
-            <div key={index} className="flex items-center space-x-3">
-              {item.valid ? (
-                <CheckCircle className="w-5 h-5 text-green-500" />
+  const renderSummaryTab = () => {
+    // Calculate effective pharmacist name for validation
+    const effectivePharmacistName = currentInterviewResponse?.pharmacist_name || pharmacistName;
+    
+    return (
+      <div className="space-y-6">
+        {/* Validation Checklist */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Pre-Export Checklist</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {[
+              { 
+                label: 'Patient information complete and verified', 
+                valid: !!currentPatient?.name?.trim() 
+              },
+              { 
+                label: 'All medications reviewed and confirmed', 
+                valid: currentMedications.length > 0,
+                note: currentMedications.length === 0 ? 'No medications documented (this may be appropriate)' : ''
+              },
+              { 
+                label: 'Interview sections completed', 
+                valid: !!currentInterviewResponse?.interview_date 
+              },
+              { 
+                label: 'Clinical assessment documented', 
+                valid: currentClinicalRecommendations.length > 0 || validationIssues.length === 0,
+                note: currentClinicalRecommendations.length === 0 ? 'No specific issues identified (this may be appropriate)' : ''
+              },
+              { 
+                label: 'Patient counselling documented', 
+                valid: currentClinicalRecommendations.some(rec => (rec as ClinicalRecommendation & { patient_counselling?: string }).patient_counselling) || currentClinicalRecommendations.length === 0
+              },
+              { 
+                label: 'GP email address confirmed', 
+                valid: !!currentPatient?.doctor_email?.trim() && /\S+@\S+\.\S+/.test(currentPatient.doctor_email)
+              },
+              { 
+                label: 'Pharmacist name provided', 
+                valid: !!effectivePharmacistName?.trim() 
+              }
+            ].map((item, index) => (
+              <div key={index} className="flex items-start space-x-3">
+                {item.valid ? (
+                  <CheckCircle className="w-5 h-5 text-green-500 mt-0.5" />
+                ) : (
+                  <AlertTriangle className="w-5 h-5 text-red-500 mt-0.5" />
+                )}
+                <div className="flex-1">
+                  <span className={`text-sm ${item.valid ? 'text-gray-700' : 'text-red-600'}`}>
+                    {item.label}
+                  </span>
+                  {item.note && (
+                    <p className="text-xs text-gray-500 mt-1">{item.note}</p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          
+          <div className="mt-4 p-3 rounded-md bg-gray-50">
+            <div className="flex items-center">
+              {validationIssues.length === 0 ? (
+                <>
+                  <CheckCircle className="w-5 h-5 text-green-500 mr-2" />
+                  <span className="text-green-700 font-medium">Ready to Generate Report</span>
+                </>
               ) : (
-                <AlertTriangle className="w-5 h-5 text-red-500" />
+                <>
+                  <AlertTriangle className="w-5 h-5 text-red-500 mr-2" />
+                  <span className="text-red-700 font-medium">{validationIssues.length} Issues Found</span>
+                </>
               )}
-              <span className={`text-sm ${item.valid ? 'text-gray-700' : 'text-red-600'}`}>
-                {item.label}
-              </span>
             </div>
-          ))}
-        </div>
-        
-        <div className="mt-4 p-3 rounded-md bg-gray-50">
-          <div className="flex items-center">
-            {validationIssues.length === 0 ? (
-              <>
-                <CheckCircle className="w-5 h-5 text-green-500 mr-2" />
-                <span className="text-green-700 font-medium">Ready to Generate Report</span>
-              </>
-            ) : (
-              <>
-                <AlertTriangle className="w-5 h-5 text-red-500 mr-2" />
-                <span className="text-red-700 font-medium">{validationIssues.length} Issues Found</span>
-              </>
+            {validationIssues.length > 0 && (
+              <ul className="mt-2 text-sm text-red-600 list-disc list-inside space-y-2">
+                {validationIssues.map((issue, index) => (
+                  <li key={index} className="flex items-center justify-between">
+                    <span className="mr-4">{issue}</span>
+                    <button 
+                      onClick={() => handleFixIssue(issue)}
+                      className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition-colors ml-4"
+                    >
+                      Fix Now
+                    </button>
+                  </li>
+                ))}
+              </ul>
             )}
           </div>
-          {validationIssues.length > 0 && (
-            <ul className="mt-2 text-sm text-red-600 list-disc list-inside space-y-2">
-              {validationIssues.map((issue, index) => (
-                <li key={index} className="flex items-center justify-between">
-                  <span className="mr-4">{issue}</span>
-                  <button 
-                    onClick={() => handleFixIssue(issue)}
-                    className="px-3 py-1 bg-blue-100 text-blue-700 rounded text-xs hover:bg-blue-200 transition-colors ml-4"
-                  >
-                    Fix Now
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
         </div>
-      </div>
 
-      {/* Pharmacist Details Card */}
-      <div className="bg-white border border-gray-200 rounded-lg p-6">
-        <div className="flex items-center justify-between mb-4">
-          <h3 className="text-lg font-semibold text-gray-900">Pharmacist Details</h3>
-          {!isEditingPharmacist ? (
-            <button 
-              onClick={() => setIsEditingPharmacist(true)}
-              className="text-blue-600 hover:text-blue-800 transition-colors"
-              title="Edit pharmacist details"
-            >
-              <Edit className="w-4 h-4" />
-            </button>
-          ) : (
-            <div className="flex space-x-2">
+        {/* Pharmacist Details Card */}
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">Pharmacist Details</h3>
+            {!isEditingPharmacist ? (
               <button 
-                onClick={handleSavePharmacistName}
-                className="text-green-600 hover:text-green-800 transition-colors"
-                title="Save pharmacist details"
+                onClick={() => setIsEditingPharmacist(true)}
+                className="text-blue-600 hover:text-blue-800 transition-colors"
+                title="Edit pharmacist details"
               >
-                <Save className="w-4 h-4" />
+                <Edit className="w-4 h-4" />
               </button>
+            ) : (
+              <div className="flex space-x-2">
+                <button 
+                  onClick={handleSavePharmacistName}
+                  className="text-green-600 hover:text-green-800 transition-colors"
+                  title="Save pharmacist details"
+                >
+                  <Save className="w-4 h-4" />
+                </button>
+                <button 
+                  onClick={() => {
+                    setIsEditingPharmacist(false);
+                    if (currentInterviewResponse?.pharmacist_name) {
+                      setPharmacistName(currentInterviewResponse.pharmacist_name);
+                    }
+                  }}
+                  className="text-gray-600 hover:text-gray-800 transition-colors"
+                  title="Cancel"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+          </div>
+          <div className="space-y-2 text-sm">
+            {isEditingPharmacist ? (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Pharmacist Name (with credentials)
+                </label>
+                <input
+                  type="text"
+                  value={pharmacistName}
+                  onChange={(e) => setPharmacistName(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
+                  placeholder="e.g., John Smith (MRN 1234)"
+                />
+                <p className="text-xs text-gray-500 mt-1">
+                  Enter your full name and MRN number as it should appear on the report
+                </p>
+              </div>
+            ) : (
+              <div>
+                <strong>Pharmacist Name:</strong> {currentInterviewResponse?.pharmacist_name || 'Not specified'}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Patient Information Card */}
+          <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Patient Information</h3>
               <button 
-                onClick={() => {
-                  setIsEditingPharmacist(false);
-                  if (currentInterviewResponse?.pharmacist_name) {
-                    setPharmacistName(currentInterviewResponse.pharmacist_name);
-                  }
-                }}
-                className="text-gray-600 hover:text-gray-800 transition-colors"
-                title="Cancel"
+                onClick={() => navigateToStep('patient')}
+                className="text-blue-600 hover:text-blue-800 transition-colors"
+                title="Edit patient information"
               >
-                <X className="w-4 h-4" />
+                <Edit className="w-4 h-4" />
               </button>
             </div>
-          )}
-        </div>
-        <div className="space-y-2 text-sm">
-          {isEditingPharmacist ? (
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Pharmacist Name (with credentials)
-              </label>
-              <input
-                type="text"
-                value={pharmacistName}
-                onChange={(e) => setPharmacistName(e.target.value)}
-                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 bg-white"
-                placeholder="e.g., John Smith (MRN 1234)"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Enter your full name and MRN number as it should appear on the report
-              </p>
+            <div className="space-y-2 text-sm">
+              <div><strong>Name:</strong> {currentPatient?.name || 'Not specified'}</div>
+              <div><strong>DOB:</strong> {currentPatient?.dob || 'Not specified'}</div>
+              <div><strong>Gender:</strong> {currentPatient?.gender || 'Not specified'}</div>
+              <div><strong>Medicare:</strong> {currentPatient?.medicare_number || 'Not specified'}</div>
+              <div><strong>Doctor:</strong> {currentPatient?.referring_doctor || 'Not specified'}</div>
+              <div><strong>Practice:</strong> {currentPatient?.practice_name || 'Not specified'}</div>
             </div>
-          ) : (
-            <div>
-              <strong>Pharmacist Name:</strong> {currentInterviewResponse?.pharmacist_name || 'Not specified'}
+          </div>
+
+          {/* Medications Summary Card */}
+          <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Medications Summary</h3>
+              <button 
+                onClick={() => navigateToStep('medications')}
+                className="text-blue-600 hover:text-blue-800 transition-colors"
+                title="Edit medications"
+              >
+                <Edit className="w-4 h-4" />
+              </button>
             </div>
-          )}
-        </div>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Patient Information Card */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Patient Information</h3>
-            <button 
-              onClick={() => navigateToStep('patient')}
-              className="text-blue-600 hover:text-blue-800 transition-colors"
-              title="Edit patient information"
-            >
-              <Edit className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="space-y-2 text-sm">
-            <div><strong>Name:</strong> {currentPatient?.name || 'Not specified'}</div>
-            <div><strong>DOB:</strong> {currentPatient?.dob || 'Not specified'}</div>
-            <div><strong>Gender:</strong> {currentPatient?.gender || 'Not specified'}</div>
-            <div><strong>Medicare:</strong> {currentPatient?.medicare_number || 'Not specified'}</div>
-            <div><strong>Doctor:</strong> {currentPatient?.referring_doctor || 'Not specified'}</div>
-            <div><strong>Practice:</strong> {currentPatient?.practice_name || 'Not specified'}</div>
-          </div>
-        </div>
-
-        {/* Medications Summary Card */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Medications Summary</h3>
-            <button 
-              onClick={() => navigateToStep('medications')}
-              className="text-blue-600 hover:text-blue-800 transition-colors"
-              title="Edit medications"
-            >
-              <Edit className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="space-y-2 text-sm">
-            <div><strong>Total Medications:</strong> {currentMedications.length}</div>
-            <div><strong>Regular:</strong> {currentMedications.filter(med => med.prn_status === 'Regular').length}</div>
-            <div><strong>PRN:</strong> {currentMedications.filter(med => med.prn_status === 'PRN (as needed)').length}</div>
-            <div><strong>Limited Duration:</strong> {currentMedications.filter(med => med.prn_status === 'Limited Duration').length}</div>
-            <div><strong>Compliance Issues:</strong> {currentMedications.filter(med => med.compliance_status === 'Poor' || med.compliance_status === 'Non-adherent').length}</div>
-          </div>
-        </div>
-
-        {/* Interview Summary Card */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Interview Summary</h3>
-            <button 
-              onClick={() => navigateToStep('interview')}
-              className="text-blue-600 hover:text-blue-800 transition-colors"
-              title="Edit interview responses"
-            >
-              <Edit className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="space-y-2 text-sm">
-            <div><strong>Understanding:</strong> {currentInterviewResponse?.medication_understanding?.split(' - ')[0] || 'Not assessed'}</div>
-            <div><strong>Administration:</strong> {currentInterviewResponse?.medication_administration ? 'DAA' : 'Not specified'}</div>
-            <div><strong>Adherence:</strong> {currentInterviewResponse?.medication_adherence?.split(' - ')[0] || 'Not assessed'}</div>
-            <div><strong>Lifestyle Concerns:</strong> {[
-              currentInterviewResponse?.fluid_intake?.includes('Inadequate') ? 'Fluid intake' : null,
-              currentInterviewResponse?.eating_habits?.includes('Poor') ? 'Eating habits' : null,
-              currentInterviewResponse?.smoking_status === 'Current smoker' ? 'Smoking' : null,
-              currentInterviewResponse?.alcohol_consumption?.includes('Excessive') ? 'Alcohol' : null
-            ].filter(Boolean).length} identified</div>
-          </div>
-        </div>
-
-        {/* Clinical Recommendations Card */}
-        <div className="bg-white border border-gray-200 rounded-lg p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold text-gray-900">Clinical Recommendations</h3>
-            <button 
-              onClick={() => navigateToStep('recommendations')}
-              className="text-blue-600 hover:text-blue-800 transition-colors"
-              title="Edit clinical recommendations"
-            >
-              <Edit className="w-4 h-4" />
-            </button>
-          </div>
-          <div className="space-y-2 text-sm">
-            <div><strong>Total Issues:</strong> {currentClinicalRecommendations.length}</div>
-            <div className="flex items-center">
-              <AlertTriangle className="w-4 h-4 text-red-500 mr-1" />
-              <strong>High Priority:</strong> {currentClinicalRecommendations.filter(rec => rec.priority_level === 'High').length}
+            <div className="space-y-2 text-sm">
+              <div><strong>Total Medications:</strong> {currentMedications.length}</div>
+              <div><strong>Regular:</strong> {currentMedications.filter(med => med.prn_status === 'Regular').length}</div>
+              <div><strong>PRN:</strong> {currentMedications.filter(med => med.prn_status === 'PRN (as needed)').length}</div>
+              <div><strong>Limited Duration:</strong> {currentMedications.filter(med => med.prn_status === 'Limited Duration').length}</div>
+              <div><strong>Compliance Issues:</strong> {currentMedications.filter(med => med.compliance_status === 'Poor' || med.compliance_status === 'Non-adherent').length}</div>
             </div>
-            <div className="flex items-center">
-              <Clock className="w-4 h-4 text-yellow-500 mr-1" />
-              <strong>Medium Priority:</strong> {currentClinicalRecommendations.filter(rec => rec.priority_level === 'Medium').length}
+          </div>
+
+          {/* Interview Summary Card */}
+          <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Interview Summary</h3>
+              <button 
+                onClick={() => navigateToStep('interview')}
+                className="text-blue-600 hover:text-blue-800 transition-colors"
+                title="Edit interview responses"
+              >
+                <Edit className="w-4 h-4" />
+              </button>
             </div>
-            <div className="flex items-center">
-              <CheckCircle className="w-4 h-4 text-green-500 mr-1" />
-              <strong>Low Priority:</strong> {currentClinicalRecommendations.filter(rec => rec.priority_level === 'Low').length}
+            <div className="space-y-2 text-sm">
+              <div><strong>Understanding:</strong> {currentInterviewResponse?.medication_understanding?.split(' - ')[0] || 'Not assessed'}</div>
+              <div><strong>Administration:</strong> {currentInterviewResponse?.medication_administration ? 'DAA' : 'Not specified'}</div>
+              <div><strong>Adherence:</strong> {currentInterviewResponse?.medication_adherence?.split(' - ')[0] || 'Not assessed'}</div>
+              <div><strong>Lifestyle Concerns:</strong> {[
+                currentInterviewResponse?.fluid_intake?.includes('Inadequate') ? 'Fluid intake' : null,
+                currentInterviewResponse?.eating_habits?.includes('Poor') ? 'Eating habits' : null,
+                currentInterviewResponse?.smoking_status === 'Current smoker' ? 'Smoking' : null,
+                currentInterviewResponse?.alcohol_consumption?.includes('Excessive') ? 'Alcohol' : null
+              ].filter(Boolean).length} identified</div>
+            </div>
+          </div>
+
+          {/* Clinical Recommendations Card */}
+          <div className="bg-white border border-gray-200 rounded-lg p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Clinical Recommendations</h3>
+              <button 
+                onClick={() => navigateToStep('recommendations')}
+                className="text-blue-600 hover:text-blue-800 transition-colors"
+                title="Edit clinical recommendations"
+              >
+                <Edit className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-2 text-sm">
+              <div><strong>Total Issues:</strong> {currentClinicalRecommendations.length}</div>
+              <div className="flex items-center">
+                <AlertTriangle className="w-4 h-4 text-red-500 mr-1" />
+                <strong>High Priority:</strong> {currentClinicalRecommendations.filter(rec => rec.priority_level === 'High').length}
+              </div>
+              <div className="flex items-center">
+                <Clock className="w-4 h-4 text-yellow-500 mr-1" />
+                <strong>Medium Priority:</strong> {currentClinicalRecommendations.filter(rec => rec.priority_level === 'Medium').length}
+              </div>
+              <div className="flex items-center">
+                <CheckCircle className="w-4 h-4 text-green-500 mr-1" />
+                <strong>Low Priority:</strong> {currentClinicalRecommendations.filter(rec => rec.priority_level === 'Low').length}
+              </div>
             </div>
           </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const renderPreviewTab = () => (
     <div className="space-y-6">
@@ -747,6 +903,7 @@ Email: avishkarlal01@gmail.com`;
         {[
           { key: 'summary', label: 'Review Summary', icon: FileText },
           { key: 'preview', label: 'PDF Preview', icon: Eye },
+          { key: 'edit', label: 'Edit PDF', icon: Edit3 },
           { key: 'template', label: 'Email Template', icon: Mail }
         ].map((tab) => {
           const Icon = tab.icon;
@@ -771,6 +928,13 @@ Email: avishkarlal01@gmail.com`;
       <div className="bg-gray-50 min-h-96">
         {activeTab === 'summary' && renderSummaryTab()}
         {activeTab === 'preview' && renderPreviewTab()}
+        {activeTab === 'edit' && (
+          <PDFEditScreen 
+            onSave={handleEditSave}
+            onCancel={handleEditCancel}
+            onPreview={handleEditPreview}
+          />
+        )}
         {activeTab === 'template' && renderTemplateTab()}
       </div>
 
@@ -801,7 +965,7 @@ Email: avishkarlal01@gmail.com`;
           ) : (
             <button
               onClick={() => {
-                const tabs: ReviewTab[] = ['summary', 'preview', 'template'];
+                const tabs: ReviewTab[] = ['summary', 'preview', 'edit', 'template'];
                 const currentIndex = tabs.indexOf(activeTab);
                 if (currentIndex < tabs.length - 1) {
                   setActiveTab(tabs[currentIndex + 1]);

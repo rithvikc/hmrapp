@@ -105,6 +105,7 @@ export interface ClinicalRecommendation {
   interview_id?: number;
   issue_identified: string;
   suggested_action: string;
+  patient_counselling?: string;
   priority_level: 'High' | 'Medium' | 'Low';
   category: 'Medication Adherence Issues' | 'Drug Interactions' | 'Inappropriate Dosing' | 'Side Effects/Adverse Reactions' | 'Therapeutic Duplication' | 'Contraindications' | 'Drug-Disease Interactions' | 'Monitoring Requirements' | 'Cost/Access Issues' | 'Administration Problems' | 'Medication Storage Issues' | 'Polypharmacy Concerns' | 'Other Clinical Issue';
   order_number: number;
