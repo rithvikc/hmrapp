@@ -155,6 +155,11 @@ export const statements = {
                          practice_name, practice_address, practice_phone, known_allergies, current_conditions, past_medical_history)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `),
+  insertPatientWithPharmacist: db.prepare(`
+    INSERT INTO patients (pharmacist_id, name, dob, gender, medicare_number, address, phone, referring_doctor, doctor_email, 
+                         practice_name, practice_address, practice_phone, known_allergies, current_conditions, past_medical_history)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `),
   updatePatient: db.prepare(`
     UPDATE patients 
     SET name = ?, dob = ?, gender = ?, medicare_number = ?, address = ?, phone = ?, 
@@ -163,7 +168,9 @@ export const statements = {
     WHERE id = ?
   `),
   getPatients: db.prepare('SELECT * FROM patients ORDER BY created_at DESC'),
+  getPatientsByPharmacist: db.prepare('SELECT * FROM patients WHERE pharmacist_id = ? ORDER BY created_at DESC'),
   getPatient: db.prepare('SELECT * FROM patients WHERE id = ?'),
+  getPatientByIdAndPharmacist: db.prepare('SELECT * FROM patients WHERE id = ? AND pharmacist_id = ?'),
   
   // Medication operations
   insertMedication: db.prepare(`

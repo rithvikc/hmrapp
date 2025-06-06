@@ -1,9 +1,22 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createServerClient } from '@/lib/supabase';
 import { statements } from '@/lib/database';
 
 export async function GET() {
   try {
-    const patients = statements.getPatients.all();
+    const supabase = createServerClient();
+    
+    // Get the current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const patients = statements.getPatientsByPharmacist.all(user.id);
     return NextResponse.json(patients);
   } catch (error) {
     console.error('Error fetching patients:', error);
@@ -13,9 +26,22 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = createServerClient();
+    
+    // Get the current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     const data = await request.json();
     
-    const result = statements.insertPatient.run(
+    const result = statements.insertPatientWithPharmacist.run(
+      user.id,
       data.name,
       data.dob,
       data.gender,
@@ -42,10 +68,28 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const supabase = createServerClient();
+    
+    // Get the current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
     const data = await request.json();
     
     if (!data.id) {
       return NextResponse.json({ error: 'Patient ID is required' }, { status: 400 });
+    }
+    
+    // Verify patient belongs to current user
+    const existingPatient = statements.getPatientByIdAndPharmacist.get(data.id, user.id);
+    if (!existingPatient) {
+      return NextResponse.json({ error: 'Patient not found or access denied' }, { status: 404 });
     }
     
     statements.updatePatient.run(

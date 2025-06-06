@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
+import { createServerClient } from '@/lib/supabase';
 import { statements } from '@/lib/database';
+import Database from 'better-sqlite3';
+import path from 'path';
+
+const dbPath = path.join(process.cwd(), 'hmr.db');
 
 interface Patient {
   id: number;
@@ -23,19 +28,78 @@ interface Patient {
 interface Review {
   id: number;
   patient_id: number;
-  status: string;
   interview_date: string;
-  pharmacist_name: string;
+  status: string;
+  patient_name: string;
   created_at: string;
-  patient_name?: string;
 }
 
 export async function GET() {
   try {
-    // Fetch all dashboard data efficiently
-    const patients = statements.getPatients.all() as Patient[];
-    const pendingReviews = statements.getPendingReviews.all() as Review[];
-    const recentActivity = statements.getRecentActivity.all() as Review[];
+    const supabase = createServerClient();
+    
+    // Get the current user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json(
+        { error: 'Authentication required' },
+        { status: 401 }
+      );
+    }
+
+    const db = new Database(dbPath);
+    
+    // Fetch user-specific dashboard data
+    const patients = statements.getPatientsByPharmacist.all(user.id) as Patient[];
+    
+    // Get pending reviews for this pharmacist
+    const pendingReviewsStmt = db.prepare(`
+      SELECT r.*, p.name as patient_name 
+      FROM interview_responses r 
+      JOIN patients p ON r.patient_id = p.id 
+      WHERE r.status = 'draft' AND r.pharmacist_id = ?
+      ORDER BY r.interview_date ASC
+    `);
+    const pendingReviews = pendingReviewsStmt.all(user.id) as Review[];
+    
+    // Get recent activity for this pharmacist
+    const recentActivityStmt = db.prepare(`
+      SELECT r.*, p.name as patient_name 
+      FROM interview_responses r 
+      JOIN patients p ON r.patient_id = p.id 
+      WHERE r.pharmacist_id = ?
+      ORDER BY r.created_at DESC 
+      LIMIT 10
+    `);
+    const recentActivity = recentActivityStmt.all(user.id) as Review[];
+    
+    // Get subscription and usage info
+    const subscriptionStmt = db.prepare(`
+      SELECT s.*, p.name as plan_name, p.hmr_limit, p.price_monthly
+      FROM user_subscriptions s
+      JOIN subscription_plans p ON s.plan_id = p.id
+      WHERE s.pharmacist_id = ?
+      ORDER BY s.created_at DESC
+      LIMIT 1
+    `);
+    const subscription = subscriptionStmt.get(user.id) as any;
+    
+    // Get current month usage
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
+    const usageStmt = db.prepare(`
+      SELECT * FROM usage_tracking 
+      WHERE pharmacist_id = ? AND month_year = ?
+    `);
+    const usage = usageStmt.get(user.id, currentMonth) as any;
+    
+    // Get onboarding status
+    const onboardingStmt = db.prepare(`
+      SELECT * FROM user_onboarding WHERE pharmacist_id = ?
+    `);
+    const onboarding = onboardingStmt.get(user.id) as any;
+    
+    db.close();
     
     // Calculate statistics
     const totalPatients = patients.length;
@@ -72,7 +136,15 @@ export async function GET() {
         pendingReviews: pendingReviewsCount
       },
       pendingReviews: pendingReviewsWithPatients,
-      recentActivity: recentActivityWithPatients.slice(0, 5) // Limit to 5 most recent
+      recentActivity: recentActivityWithPatients.slice(0, 5), // Limit to 5 most recent
+      subscription,
+      usage: {
+        current_month: currentMonth,
+        hmr_count: usage?.hmr_count || 0,
+        hmr_limit: subscription?.hmr_limit,
+        last_hmr_date: usage?.last_hmr_date
+      },
+      onboarding
     });
   } catch (error) {
     console.error('Error fetching dashboard data:', error);

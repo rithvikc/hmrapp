@@ -99,7 +99,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
     try {
       await signOut();
       // Redirect to login page
-      window.location.href = '/auth/signin';
+      window.location.href = '/login';
     } catch (error) {
       console.error('Error logging out:', error);
     }

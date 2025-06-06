@@ -5,41 +5,142 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHMRSelectors } from '@/store/hmr-store';
 import MainLayout from '@/components/layout/MainLayout';
+import OnboardingOverlay from '@/components/OnboardingOverlay';
+import { Crown, Zap, AlertTriangle, CheckCircle } from 'lucide-react';
 
 export default function DashboardPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { user, loading } = useAuth();
+  const { user, loading, pharmacist } = useAuth();
   const { setCurrentStep } = useHMRSelectors();
   const [showWelcomeMessage, setShowWelcomeMessage] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [loadingData, setLoadingData] = useState(true);
   
   useEffect(() => {
-    // Redirect to login if not authenticated
+    console.log('Dashboard: Auth state check - loading:', loading, 'user exists:', !!user, 'user id:', user?.id);
+    
+    // Only redirect if we're definitely not loading and definitely no user
     if (!loading && !user) {
-      router.push('/login');
+      console.log('Dashboard: No user found, redirecting to login...');
+      setTimeout(() => {
+        router.push('/login');
+      }, 100);
       return;
     }
     
     if (user) {
-      // Set the current step to dashboard when this page loads
+      console.log('Dashboard: User authenticated, setting up dashboard...');
       setCurrentStep('dashboard');
       
-      // Check if this is a welcome redirect from signup
+      // Check if this is a welcome redirect from signup/subscription
       const isWelcome = searchParams.get('welcome');
+      const isTrialUser = searchParams.get('trial');
+      const subscriptionSuccess = searchParams.get('subscription');
+      
       if (isWelcome === 'true') {
         setShowWelcomeMessage(true);
-        console.log('Welcome new user to dashboard!');
+        
+        if (subscriptionSuccess === 'success') {
+          console.log('Welcome message: Subscription successful!');
+        } else if (isTrialUser === 'true') {
+          console.log('Welcome message: Trial user started!');
+        }
         
         // Auto-hide welcome message after 5 seconds
         setTimeout(() => {
           setShowWelcomeMessage(false);
         }, 5000);
       }
+      
+      // Fetch dashboard data
+      fetchDashboardData();
     }
   }, [user, loading, router, setCurrentStep, searchParams]);
 
-  // Show loading spinner while checking authentication
-  if (loading) {
+  const fetchDashboardData = async () => {
+    try {
+      const response = await fetch('/api/dashboard');
+      if (response.ok) {
+        const data = await response.json();
+        setDashboardData(data);
+        
+        // Check if user needs onboarding
+        if (data.onboarding && !data.onboarding.onboarding_completed_at) {
+          setShowOnboarding(true);
+        }
+      } else {
+        console.error('Failed to fetch dashboard data');
+      }
+    } catch (error) {
+      console.error('Error fetching dashboard data:', error);
+    } finally {
+      setLoadingData(false);
+    }
+  };
+
+  const handleOnboardingComplete = () => {
+    setShowOnboarding(false);
+  };
+
+  const getSubscriptionStatus = () => {
+    if (!dashboardData?.subscription) {
+      return { status: 'none', color: 'gray', text: 'No subscription' };
+    }
+
+    const sub = dashboardData.subscription;
+    switch (sub.status) {
+      case 'active':
+        return { 
+          status: 'active', 
+          color: 'green', 
+          text: `${sub.plan_name} - Active`,
+          icon: <CheckCircle className="h-4 w-4" />
+        };
+      case 'trialing':
+        const trialEnd = new Date(sub.trial_ends_at);
+        const daysLeft = Math.ceil((trialEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
+        return { 
+          status: 'trial', 
+          color: 'blue', 
+          text: `Free Trial (${daysLeft} days left)`,
+          icon: <Zap className="h-4 w-4" />
+        };
+      case 'past_due':
+        return { 
+          status: 'past_due', 
+          color: 'red', 
+          text: 'Payment required',
+          icon: <AlertTriangle className="h-4 w-4" />
+        };
+      default:
+        return { status: 'unknown', color: 'gray', text: sub.status };
+    }
+  };
+
+  const getUsageDisplay = () => {
+    if (!dashboardData?.usage) return null;
+
+    const { hmr_count, hmr_limit } = dashboardData.usage;
+    const isUnlimited = hmr_limit === null;
+    
+    if (isUnlimited) {
+      return `${hmr_count} HMRs this month`;
+    } else {
+      const percentage = (hmr_count / hmr_limit) * 100;
+      const color = percentage >= 90 ? 'red' : percentage >= 70 ? 'yellow' : 'green';
+      
+      return {
+        text: `${hmr_count}/${hmr_limit} HMRs used`,
+        percentage,
+        color
+      };
+    }
+  };
+
+  // Show loading spinner while checking authentication or loading data
+  if (loading || loadingData) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
@@ -52,10 +153,15 @@ export default function DashboardPage() {
     return null;
   }
 
+  const subscriptionStatus = getSubscriptionStatus();
+  const usageDisplay = getUsageDisplay();
+  const isTrialUser = dashboardData?.subscription?.status === 'trialing';
+
   return (
     <>
+      {/* Welcome Message */}
       {showWelcomeMessage && (
-        <div className="fixed top-4 right-4 z-50 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg">
+        <div className="fixed top-4 right-4 z-40 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg max-w-sm">
           <div className="flex items-center space-x-2">
             <span>🎉 Welcome to LAL MedReviews!</span>
             <button 
@@ -67,7 +173,89 @@ export default function DashboardPage() {
           </div>
         </div>
       )}
-      <MainLayout />
+
+      {/* Subscription Status Bar */}
+      {dashboardData?.subscription && (
+        <div className={`bg-${subscriptionStatus.color}-50 border-b border-${subscriptionStatus.color}-200 px-4 py-2`}>
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <div className={`text-${subscriptionStatus.color}-600`}>
+                {subscriptionStatus.icon}
+              </div>
+              <span className={`text-sm font-medium text-${subscriptionStatus.color}-800`}>
+                {subscriptionStatus.text}
+              </span>
+            </div>
+            
+            {usageDisplay && (
+              <div className="flex items-center space-x-4">
+                {typeof usageDisplay === 'string' ? (
+                  <span className="text-sm text-gray-600">{usageDisplay}</span>
+                ) : (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-600">{usageDisplay.text}</span>
+                    <div className="w-20 bg-gray-200 rounded-full h-2">
+                      <div 
+                        className={`h-2 rounded-full bg-${usageDisplay.color}-500`}
+                        style={{ width: `${usageDisplay.percentage}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+                
+                {subscriptionStatus.status === 'trial' && (
+                  <button 
+                    onClick={() => router.push('/subscription')}
+                    className="text-sm bg-blue-600 text-white px-3 py-1 rounded-md hover:bg-blue-700 transition-colors"
+                  >
+                    Upgrade
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Main Dashboard */}
+      <div className="min-h-screen bg-gray-50">
+        {/* Personalized Header */}
+        <div className="bg-white shadow-sm border-b">
+          <div className="max-w-7xl mx-auto px-4 py-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">
+                  Welcome back, {pharmacist?.name || 'Doctor'}
+                </h1>
+                <p className="text-gray-600">
+                  {isTrialUser 
+                    ? 'You\'re on a free trial - explore all features risk-free!'
+                    : 'Ready to help more patients with their medication reviews?'
+                  }
+                </p>
+              </div>
+              
+              {subscriptionStatus.status === 'active' && (
+                <div className="flex items-center space-x-2 text-green-600">
+                  <Crown className="h-5 w-5" />
+                  <span className="font-medium">Pro Member</span>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Main Layout */}
+        <MainLayout />
+      </div>
+
+      {/* Onboarding Overlay */}
+      <OnboardingOverlay
+        isVisible={showOnboarding}
+        onComplete={handleOnboardingComplete}
+        pharmacistName={pharmacist?.name}
+        isTrialUser={isTrialUser}
+      />
     </>
   );
 } 

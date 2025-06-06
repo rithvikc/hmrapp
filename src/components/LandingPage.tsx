@@ -38,14 +38,14 @@ export default function LandingPage() {
               {/* CTA Buttons */}
               <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6 mb-16">
                 <button
-                  onClick={() => router.push('/auth/signup')}
+                  onClick={() => router.push('/signup')}
                   className="group relative px-8 py-4 bg-gradient-to-r from-blue-600 to-purple-600 text-white font-semibold rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-1 transition-all duration-300 flex items-center space-x-2"
                 >
                   <span>Create your free report</span>
                   <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
                 </button>
                 <button
-                  onClick={() => router.push('/auth/signin')}
+                  onClick={() => router.push('/login')}
                   className="px-8 py-4 border-2 border-gray-300 text-gray-700 font-semibold rounded-xl hover:border-blue-400 hover:text-blue-600 transition-all duration-300 bg-white"
                 >
                   Access Platform
@@ -220,13 +220,13 @@ export default function LandingPage() {
           </p>
           <div className="flex flex-col sm:flex-row justify-center items-center space-y-4 sm:space-y-0 sm:space-x-6">
             <button
-              onClick={() => router.push('/auth/signup')}
+              onClick={() => router.push('/signup')}
               className="px-10 py-4 bg-white text-blue-600 font-bold rounded-xl hover:bg-gray-50 transform hover:-translate-y-1 transition-all duration-300 shadow-lg"
             >
               Start Free Trial
             </button>
             <button
-              onClick={() => router.push('/auth/signin')}
+              onClick={() => router.push('/login')}
               className="px-10 py-4 border-2 border-white text-white font-semibold rounded-xl hover:bg-white hover:text-blue-600 transition-all duration-300"
             >
               Schedule Demo

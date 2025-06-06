@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState } from 'react'
 import { User, AuthChangeEvent, Session } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase'
 
@@ -9,8 +9,10 @@ interface AuthContextType {
   pharmacist: any | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<any>
+  signInWithGoogle: () => Promise<any>
   signUp: (email: string, password: string, metadata: any) => Promise<any>
   signOut: () => Promise<void>
+  resetPassword: (email: string) => Promise<any>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -19,135 +21,166 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [pharmacist, setPharmacist] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
-  const [initialLoad, setInitialLoad] = useState(true)
+  const [isClient, setIsClient] = useState(false)
   
-  // Always complete loading after 3 seconds max (reduced from 5)
+  // Ensure we're on the client side before initializing Supabase
   useEffect(() => {
-    const timer = setTimeout(() => {
-      if (loading && initialLoad) {
-        console.log('AuthContext: Forcing initial loading state to complete after timeout');
-        setLoading(false);
-        setInitialLoad(false);
-      }
-    }, 3000);
-    
-    return () => clearTimeout(timer);
-  }, [loading, initialLoad]);
-  
-  // Check for required environment variables
-  useEffect(() => {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-      console.error('AuthContext: Missing Supabase environment variables');
-      setLoading(false);
-      setInitialLoad(false);
-      return;
-    }
-  }, []);
-  
-  const supabase = createClient()
+    setIsClient(true)
+  }, [])
 
   useEffect(() => {
-    // Get initial session
+    if (!isClient) return
+
+    let mounted = true
+    let supabase: any = null
+    
+    try {
+      supabase = createClient()
+    } catch (error) {
+      console.error('AuthContext: Failed to create Supabase client:', error)
+      if (mounted) {
+        setLoading(false)
+      }
+      return
+    }
+    
     const getInitialSession = async () => {
       try {
-        console.log('AuthContext: Getting initial session...');
-        const { data: { session } } = await supabase.auth.getSession();
-        console.log('AuthContext: Initial session exists:', !!session);
-        setUser(session?.user ?? null);
+        console.log('AuthContext: Getting initial session...')
+        const { data: { session }, error } = await supabase.auth.getSession()
         
-        if (session?.user) {
-          await fetchPharmacist(session.user.id);
-        } else {
-          setPharmacist(null);
+        if (error) {
+          console.error('AuthContext: Error getting session:', error)
+        }
+        
+        if (mounted) {
+          console.log('AuthContext: Initial session exists:', !!session)
+          setUser(session?.user ?? null)
+          
+          if (session?.user) {
+            await fetchPharmacist(session.user.id)
+          } else {
+            setPharmacist(null)
+          }
+          setLoading(false)
         }
       } catch (error) {
-        console.error("AuthContext: Error during initial session fetch:", error);
-        setUser(null);
-        setPharmacist(null);
-      } finally {
-        setLoading(false);
-        setInitialLoad(false);
+        console.error('AuthContext: Error during initial session fetch:', error)
+        if (mounted) {
+          setUser(null)
+          setPharmacist(null)
+          setLoading(false)
+        }
       }
-    };
+    }
 
-    getInitialSession();
+    const fetchPharmacist = async (userId: string) => {
+      try {
+        console.log('AuthContext: Fetching pharmacist for user:', userId)
+        
+        // First check if pharmacist record exists
+        const { data: existingPharmacist, error: fetchError } = await supabase
+          .from('pharmacists')
+          .select('*')
+          .eq('user_id', userId)
+          .single()
+        
+        if (fetchError && fetchError.code !== 'PGRST116') {
+          // PGRST116 is "not found" - which is expected for new users
+          console.error('AuthContext: Error fetching pharmacist:', fetchError)
+          setPharmacist(null)
+          return
+        }
+        
+        if (existingPharmacist) {
+          console.log('AuthContext: Found existing pharmacist:', existingPharmacist.name)
+          setPharmacist(existingPharmacist)
+        } else {
+          console.log('AuthContext: No pharmacist record found for user')
+          setPharmacist(null)
+        }
+      } catch (error) {
+        console.error('AuthContext: Exception in fetchPharmacist:', error)
+        setPharmacist(null)
+      }
+    }
+
+    getInitialSession()
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       async (event: AuthChangeEvent, session: Session | null) => {
-        console.log('AuthContext: Auth state changed:', event, 'Session exists:', !!session);
+        console.log('AuthContext: Auth state changed:', event, 'Session exists:', !!session, 'User ID:', session?.user?.id)
         
-        // Only set loading for actual sign-in/sign-out events, not for token refreshes
-        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-          setLoading(true);
+        if (!mounted) return
+        
+        // Handle different auth events
+        if (event === 'SIGNED_OUT') {
+          setUser(null)
+          setPharmacist(null)
+          return
         }
         
-        try {
-          setUser(session?.user ?? null);
-          
-          if (session?.user) {
-            await fetchPharmacist(session.user.id);
-          } else {
-            setPharmacist(null);
-          }
-        } catch (error) {
-          console.error("AuthContext: Error during auth state change:", error);
-          setPharmacist(null);
-        } finally {
-          // Only set loading to false for sign-in/sign-out events
-          if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
-            setLoading(false);
+        // For SIGNED_IN events, update user state
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          try {
+            setUser(session?.user ?? null)
+            
+            if (session?.user) {
+              await fetchPharmacist(session.user.id)
+            } else {
+              setPharmacist(null)
+            }
+          } catch (error) {
+            console.error('AuthContext: Error during auth state change:', error)
+            setPharmacist(null)
           }
         }
       }
-    );
+    )
 
     return () => {
-      subscription.unsubscribe();
+      mounted = false
+      subscription.unsubscribe()
     }
-  }, [])
+  }, [isClient])
 
-  const fetchPharmacist = async (userId: string) => {
-    // Create a timeout promise that resolves after 3 seconds (reduced from 5)
-    const timeoutPromise = new Promise<void>((resolve) => {
-      setTimeout(() => {
-        console.log('AuthContext: fetchPharmacist timed out');
-        resolve();
-      }, 3000);
-    });
-    
+  const createPharmacistRecord = async (user: User, metadata: any) => {
     try {
-      // Race between the actual fetch and the timeout
-      await Promise.race([
-        (async () => {
-          const { data, error } = await supabase
-            .from('pharmacists')
-            .select('*')
-            .eq('user_id', userId)
-            .single()
-          
-          if (error) {
-            console.warn('AuthContext: Error fetching pharmacist (this may be normal for new users):', error);
-            setPharmacist(null);
-            return;
-          }
-          
-          if (data) {
-            setPharmacist(data);
-          } else {
-            console.log('AuthContext: No pharmacist data found');
-            setPharmacist(null);
-          }
-        })(),
-        timeoutPromise
-      ]);
+      console.log('AuthContext: Creating pharmacist record for user:', user.id)
+      const supabase = createClient()
+      
+      const { data: pharmacist, error } = await supabase
+        .from('pharmacists')
+        .insert({
+          user_id: user.id,
+          email: user.email!,
+          name: metadata.name || user.user_metadata?.full_name || user.email,
+          registration_number: metadata.registration_number || null,
+          phone: metadata.phone || null,
+          practice_name: metadata.practice || null,
+          practice_address: metadata.location || null,
+        })
+        .select()
+        .single()
+
+      if (error) {
+        console.error('AuthContext: Error creating pharmacist record:', error)
+        throw error
+      }
+
+      console.log('AuthContext: Pharmacist record created successfully')
+      setPharmacist(pharmacist)
+      return pharmacist
     } catch (error) {
-      console.error('AuthContext: Exception in fetchPharmacist:', error);
-      setPharmacist(null);
+      console.error('AuthContext: Exception creating pharmacist record:', error)
+      throw error
     }
   }
 
   const signIn = async (email: string, password: string) => {
+    console.log('AuthContext: Signing in with email/password')
+    const supabase = createClient()
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
@@ -155,19 +188,107 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return { data, error }
   }
 
-  const signUp = async (email: string, password: string, metadata: any) => {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
+  const signInWithGoogle = async () => {
+    console.log('AuthContext: Signing in with Google')
+    const supabase = createClient()
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
       options: {
-        data: metadata
+        redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`
       }
     })
     return { data, error }
   }
 
+  const signUp = async (email: string, password: string, metadata: any) => {
+    console.log('AuthContext: Starting signup process...')
+    
+    try {
+      const supabase = createClient()
+      // Step 1: Create the auth user
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            full_name: metadata.name,
+            ...metadata
+          }
+        }
+      })
+      
+      // If there was an auth error, return it immediately
+      if (error) {
+        console.error('AuthContext: Auth signup failed:', error)
+        return { data, error }
+      }
+      
+      // If signup was successful and we have a user, create the pharmacist record
+      if (data.user && !data.user.email_confirmed_at) {
+        console.log('AuthContext: User signup successful, awaiting email confirmation')
+        // For email confirmation flow, we'll create the pharmacist record after confirmation
+        return { data, error: null }
+      } else if (data.user) {
+        console.log('AuthContext: User signup successful, creating pharmacist record')
+        try {
+          await createPharmacistRecord(data.user, metadata)
+          return { data, error: null }
+        } catch (createError) {
+          console.error('AuthContext: Failed to create pharmacist record:', createError)
+          // Don't delete the user here as it's handled by Supabase Auth
+          return { 
+            data: null, 
+            error: { 
+              message: 'Account created but profile setup failed. Please contact support.'
+            } 
+          }
+        }
+      }
+      
+      return { data, error }
+      
+    } catch (error) {
+      console.error('AuthContext: Unexpected error during signup:', error)
+      return { 
+        data: null, 
+        error: { 
+          message: 'An unexpected error occurred. Please try again.'
+        } 
+      }
+    }
+  }
+
+  const resetPassword = async (email: string) => {
+    console.log('AuthContext: Sending password reset email')
+    const supabase = createClient()
+    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/reset-password`
+    })
+    return { data, error }
+  }
+
   const signOut = async () => {
+    console.log('AuthContext: Signing out')
+    const supabase = createClient()
     await supabase.auth.signOut()
+  }
+
+  // Show loading state until client-side initialization is complete
+  if (!isClient) {
+    return (
+      <AuthContext.Provider value={{
+        user: null,
+        pharmacist: null,
+        loading: true,
+        signIn: async () => ({ data: null, error: { message: 'Initializing...' } }),
+        signInWithGoogle: async () => ({ data: null, error: { message: 'Initializing...' } }),
+        signUp: async () => ({ data: null, error: { message: 'Initializing...' } }),
+        signOut: async () => {},
+        resetPassword: async () => ({ data: null, error: { message: 'Initializing...' } }),
+      }}>
+        {children}
+      </AuthContext.Provider>
+    )
   }
 
   return (
@@ -176,8 +297,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       pharmacist,
       loading,
       signIn,
+      signInWithGoogle,
       signUp,
       signOut,
+      resetPassword,
     }}>
       {children}
     </AuthContext.Provider>

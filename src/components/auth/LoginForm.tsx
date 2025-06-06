@@ -16,7 +16,7 @@ export default function LoginForm() {
   useEffect(() => {
     if (user && !authLoading) {
       console.log('LoginForm: User authenticated, redirecting to dashboard')
-      router.push('/')
+      router.push('/dashboard')
     }
   }, [user, authLoading, router])
 
@@ -97,7 +97,7 @@ export default function LoginForm() {
           </div>
 
           <div className="text-center">
-            <a href="/auth/signup" className="text-blue-600 hover:text-blue-500">
+            <a href="/signup" className="text-blue-600 hover:text-blue-500">
               Don't have an account? Sign up
             </a>
           </div>

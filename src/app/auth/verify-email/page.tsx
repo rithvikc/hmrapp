@@ -15,7 +15,7 @@ export default function VerifyEmailPage() {
             </p>
             <div className="mt-6">
               <a 
-                href="/auth/signin" 
+                href="/login" 
                 className="text-blue-600 hover:text-blue-500 font-medium"
               >
                 Back to Sign In

@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Header from '@/components/layout/Header';
+import Footer from '@/components/layout/Footer';
 import { 
   Stethoscope, Shield, FileText, Clock, CheckCircle, ArrowRight,
   Users, BarChart3, Lock, Smartphone, Zap, Award, User, Pill,
@@ -80,36 +82,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen bg-white">
-      {/* Navigation */}
-      <nav className="bg-white border-b border-gray-100 sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center mr-3">
-                <Stethoscope className="h-6 w-6 text-white" />
-              </div>
-              <span className="text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                LAL MedReviews
-              </span>
-            </div>
-            
-            <div className="flex items-center space-x-4">
-              <Link 
-                href="/login"
-                className="text-gray-600 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium transition-colors"
-              >
-                Sign In
-              </Link>
-              <Link 
-                href="/signup"
-                className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl"
-              >
-                Get Started
-              </Link>
-            </div>
-          </div>
-        </div>
-      </nav>
+      <Header />
 
       {/* Hero Section */}
       <section className="bg-gradient-to-br from-blue-50 via-white to-purple-50 py-20 px-4 sm:px-6 lg:px-8">
@@ -127,7 +100,7 @@ export default function HomePage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link 
-                href="/signup"
+                href="/pricing"
                 className="group bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center"
               >
                 Start Free Trial
@@ -361,8 +334,8 @@ export default function HomePage() {
               },
               {
                 icon: Shield,
-                title: 'Secure Patient Data',
-                description: 'HIPAA-compliant data security with encrypted storage and secure access controls.'
+                title: 'HIPAA Compliant & Secure',
+                description: 'Full HIPAA compliance with encrypted data storage, secure payment processing, and bank-level security for all patient information.'
               },
               {
                 icon: Clock,
@@ -396,6 +369,65 @@ export default function HomePage() {
                 </div>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      {/* Security & Compliance Section */}
+      <section className="py-16 px-4 sm:px-6 lg:px-8 bg-green-50">
+        <div className="max-w-7xl mx-auto">
+          <div className="text-center mb-12">
+            <div className="inline-flex items-center bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-medium mb-6">
+              <Shield className="h-4 w-4 mr-2" />
+              Enterprise-Grade Security
+            </div>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+              Your Data Security is Our Priority
+            </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              We understand the sensitive nature of patient health information and maintain the highest standards of security and compliance.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="bg-white p-6 rounded-xl shadow-lg border border-green-200 text-center">
+              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <Shield className="h-6 w-6 text-green-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">HIPAA Compliant</h3>
+              <p className="text-sm text-gray-600">Full compliance with HIPAA regulations for healthcare data protection and privacy.</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow-lg border border-green-200 text-center">
+              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <Lock className="h-6 w-6 text-green-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Encrypted Storage</h3>
+              <p className="text-sm text-gray-600">All patient data encrypted at rest and in transit using industry-standard AES-256 encryption.</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow-lg border border-green-200 text-center">
+              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Secure Payments</h3>
+              <p className="text-sm text-gray-600">Payment details are securely processed and never stored on our servers, ensuring complete financial security.</p>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow-lg border border-green-200 text-center">
+              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-4">
+                <Users className="h-6 w-6 text-green-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Access Controls</h3>
+              <p className="text-sm text-gray-600">Multi-factor authentication and role-based access controls protect sensitive information.</p>
+            </div>
+          </div>
+
+          <div className="mt-12 text-center">
+            <div className="inline-flex items-center bg-white px-6 py-3 rounded-full shadow-lg border border-green-200">
+              <span className="text-sm text-gray-600 mr-2">Trusted by healthcare professionals</span>
+              <span className="text-sm font-semibold text-green-600">SOC 2 Type II Certified</span>
+            </div>
           </div>
         </div>
       </section>
@@ -482,7 +514,7 @@ export default function HomePage() {
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link 
-              href="/signup"
+              href="/pricing"
               className="bg-white text-blue-600 px-8 py-4 rounded-xl text-lg font-semibold hover:bg-gray-50 transition-all duration-200 shadow-lg hover:shadow-xl"
             >
               Start Your Free Trial
@@ -497,58 +529,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-gray-900 text-gray-300 py-12 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div>
-              <div className="flex items-center mb-4">
-                <div className="w-8 h-8 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center mr-2">
-                  <Stethoscope className="h-5 w-5 text-white" />
-                </div>
-                <span className="text-lg font-bold text-white">LAL MedReviews</span>
-              </div>
-              <p className="text-sm text-gray-400">
-                Professional Home Medication Review platform for Australian pharmacists.
-              </p>
-            </div>
-            
-            <div>
-              <h3 className="text-lg font-semibold text-white mb-4">Product</h3>
-              <ul className="space-y-2 text-sm">
-                <li><Link href="/features" className="hover:text-white transition-colors">Features</Link></li>
-                <li><Link href="/pricing" className="hover:text-white transition-colors">Pricing</Link></li>
-                <li><Link href="/demo" className="hover:text-white transition-colors">Demo</Link></li>
-                <li><Link href="/updates" className="hover:text-white transition-colors">Updates</Link></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="text-lg font-semibold text-white mb-4">Support</h3>
-              <ul className="space-y-2 text-sm">
-                <li><Link href="/help" className="hover:text-white transition-colors">Help Center</Link></li>
-                <li><Link href="/contact" className="hover:text-white transition-colors">Contact Us</Link></li>
-                <li><Link href="/training" className="hover:text-white transition-colors">Training</Link></li>
-                <li><Link href="/status" className="hover:text-white transition-colors">System Status</Link></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h3 className="text-lg font-semibold text-white mb-4">Legal</h3>
-              <ul className="space-y-2 text-sm">
-                <li><Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
-                <li><Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link></li>
-                <li><Link href="/security" className="hover:text-white transition-colors">Security</Link></li>
-                <li><Link href="/compliance" className="hover:text-white transition-colors">Compliance</Link></li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="border-t border-gray-800 mt-8 pt-8 text-center text-sm text-gray-400">
-            <p>&copy; 2024 LAL MedReviews. All rights reserved. Professional Healthcare Platform.</p>
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 } 

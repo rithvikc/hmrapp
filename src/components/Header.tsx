@@ -90,13 +90,13 @@ export default function Header() {
               // Unauthenticated user section
               <div className="flex items-center space-x-3">
                 <button
-                  onClick={() => router.push('/auth/signin')}
+                  onClick={() => router.push('/login')}
                   className="px-6 py-2 text-sm font-semibold text-gray-700 hover:text-blue-600 transition-colors"
                 >
                   Sign In
                 </button>
                 <button
-                  onClick={() => router.push('/auth/signup')}
+                  onClick={() => router.push('/signup')}
                   className="px-6 py-2 text-sm font-semibold text-white bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-300"
                 >
                   Get Started
