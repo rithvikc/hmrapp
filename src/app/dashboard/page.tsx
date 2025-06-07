@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import { useHMRSelectors } from '@/store/hmr-store';
@@ -8,7 +8,7 @@ import MainLayout from '@/components/layout/MainLayout';
 import OnboardingOverlay from '@/components/OnboardingOverlay';
 import { Crown, Zap, AlertTriangle, CheckCircle } from 'lucide-react';
 
-export default function DashboardPage() {
+function DashboardContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { user, loading, pharmacist } = useAuth();
@@ -343,5 +343,24 @@ export default function DashboardPage() {
         isTrialUser={isTrialUser}
       />
     </>
+  );
+}
+
+function DashboardLoadingFallback() {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+        <p className="text-gray-600">Loading dashboard...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function DashboardPage() {
+  return (
+    <Suspense fallback={<DashboardLoadingFallback />}>
+      <DashboardContent />
+    </Suspense>
   );
 } 
