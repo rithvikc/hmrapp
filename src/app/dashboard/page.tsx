@@ -21,33 +21,26 @@ function DashboardContent() {
   useEffect(() => {
     console.log('Dashboard: Auth state check - loading:', loading, 'user exists:', !!user, 'user id:', user?.id);
     
-    // Wait longer for authentication to complete
+    // Don't do anything while still loading
     if (loading) {
       console.log('Dashboard: Still loading authentication...');
       return;
     }
     
-    // Only redirect if we're definitely not loading and definitely no user after a reasonable wait
+    // If not loading and no user, redirect to login
     if (!user) {
-      console.log('Dashboard: No user found after auth loading completed');
-      // Add a small delay to give auth state one more chance to update
-      const timeoutId = setTimeout(() => {
-        if (!user) {
-          console.log('Dashboard: Redirecting to login...');
-          router.push('/login');
-        }
-      }, 2000); // Wait 2 seconds
-      
-      return () => clearTimeout(timeoutId);
+      console.log('Dashboard: No user found, redirecting to login...');
+      router.push('/login');
+      return;
     }
     
+    // If we have a user, set up the dashboard
     if (user) {
       console.log('Dashboard: User authenticated successfully, setting up dashboard...');
       setCurrentStep('dashboard');
       
-      // Only check for welcome message once when user is first authenticated
+      // Check for welcome message only once
       if (!showWelcomeMessage && !dashboardData) {
-        // Check if this is a welcome redirect from signup/subscription
         const isWelcome = searchParams.get('welcome');
         const isTrialUser = searchParams.get('trial');
         const subscriptionSuccess = searchParams.get('subscription');
@@ -70,15 +63,13 @@ function DashboardContent() {
         }
       }
       
-      // Fetch dashboard data only once
-      if (!dashboardData && !loadingData) {
+      // Fetch dashboard data if we don't have it yet
+      if (!dashboardData && loadingData) {
         console.log('Dashboard: Fetching dashboard data...');
-        setTimeout(() => {
-          fetchDashboardData();
-        }, 1000);
+        fetchDashboardData();
       }
     }
-  }, [user, loading, router, setCurrentStep, searchParams]);
+  }, [user, loading, router, setCurrentStep, searchParams, showWelcomeMessage, dashboardData, loadingData]);
 
   const fetchDashboardData = async () => {
     try {

@@ -33,18 +33,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.log('AuthContext: Fetching pharmacist for user:', userId)
       const supabase = createClient()
       
-      // Add timeout for pharmacist fetch
-      const fetchPromise = supabase
+      const { data: existingPharmacist, error: fetchError } = await supabase
         .from('pharmacists')
         .select('*')
         .eq('user_id', userId)
         .single()
-      
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Pharmacist fetch timeout')), 3000)
-      )
-      
-      const { data: existingPharmacist, error: fetchError } = await Promise.race([fetchPromise, timeoutPromise])
       
       if (fetchError && fetchError.code !== 'PGRST116') {
         // PGRST116 is "not found" - which is expected for new users
@@ -76,41 +69,37 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         console.log('AuthContext: Getting initial session...')
         
-        // Add timeout to prevent hanging
-        const sessionPromise = supabase.auth.getSession()
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Session fetch timeout')), 5000)
-        )
-        
-        const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise])
+        const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error) {
           console.error('AuthContext: Error getting session:', error)
         }
         
         if (mounted) {
-          console.log('AuthContext: Initial session exists:', !!session)
+          console.log('AuthContext: Initial session check complete. Session exists:', !!session)
           setUser(session?.user ?? null)
-          setLoading(false) // Set loading to false first
           
-          // Fetch pharmacist data asynchronously (don't block login)
+          // Fetch pharmacist data asynchronously (don't block loading state)
           if (session?.user) {
             fetchPharmacist(session.user.id)
           } else {
             setPharmacist(null)
           }
+          
+          // Always set loading to false after initial check
+          console.log('AuthContext: Setting loading to false after initial session check')
+          setLoading(false)
         }
       } catch (error) {
         console.error('AuthContext: Error during initial session fetch:', error)
         if (mounted) {
           setUser(null)
           setPharmacist(null)
+          console.log('AuthContext: Setting loading to false after error')
           setLoading(false)
         }
       }
     }
-
-    getInitialSession()
 
     // Listen for auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -123,20 +112,30 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (event === 'SIGNED_OUT') {
           setUser(null)
           setPharmacist(null)
+          setLoading(false) // Ensure loading is false
           return
         }
         
         // For SIGNED_IN events, update user state immediately
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           setUser(session?.user ?? null)
+          setLoading(false) // Ensure loading is false
           
           // Fetch pharmacist data asynchronously (don't block)
           if (session?.user) {
             fetchPharmacist(session.user.id)
           }
         }
+        
+        // For any other events, ensure loading is false
+        if (event === 'INITIAL_SESSION') {
+          setLoading(false)
+        }
       }
     )
+
+    // Get initial session
+    getInitialSession()
 
     return () => {
       mounted = false
@@ -182,18 +181,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     
     try {
       const supabase = createClient()
-      
-      // Add timeout to sign in
-      const signInPromise = supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
-      
-      const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Sign in timeout - please try again')), 15000)
-      )
-      
-      const { data, error } = await Promise.race([signInPromise, timeoutPromise])
       
       if (error) {
         console.error('AuthContext: Sign in error:', error)
