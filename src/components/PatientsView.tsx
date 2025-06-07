@@ -766,6 +766,7 @@ const PatientsView: React.FC<PatientsViewProps> = ({
       <PDFGenerationProgress 
         isVisible={showProgress}
         onComplete={() => setShowProgress(false)}
+        duration={12000} // 12 seconds for patients list PDF
       />
     </div>
   );

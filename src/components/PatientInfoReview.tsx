@@ -186,8 +186,11 @@ export default function PatientInfoReview({ onNext, onPrevious }: PatientInfoRev
       };
       
       setFormData(newFormData);
+      
+      // Auto-save the extracted data to current patient in store
+      setCurrentPatient(newFormData);
     }
-  }, [currentPatient, extractedData]);
+  }, [currentPatient, extractedData, setCurrentPatient]);
 
   const handleInputChange = (field: keyof Patient, value: string) => {
     setFormData(prev => ({

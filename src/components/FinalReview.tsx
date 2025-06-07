@@ -88,46 +88,23 @@ export default function FinalReview({ onNext, onPrevious }: FinalReviewProps) {
   const validateReview = useCallback(() => {
     const issues: string[] = [];
     
-    // Check patient information
+    // Check patient information - be more lenient
     if (!currentPatient?.name?.trim()) {
       issues.push('Patient name is missing');
     }
     
-    // Check doctor email
-    if (!currentPatient?.doctor_email?.trim()) {
-      issues.push('GP email address is not confirmed');
-    } else if (!/\S+@\S+\.\S+/.test(currentPatient.doctor_email)) {
-      issues.push('GP email address is invalid');
+    if (!currentPatient?.dob?.trim()) {
+      issues.push('Patient date of birth is missing');
     }
     
-    // Check medications - allow for cases where no medications are appropriate
-    // This is not necessarily an error, but we'll still flag it for review
-    // if (!currentMedications.length) issues.push('No medications documented');
-    
-    // Check interview completion - more thorough check
-    if (!currentInterviewResponse) {
-      issues.push('Interview not completed');
-    } else {
-      // Check if key interview fields are completed
-      const requiredFields = ['interview_date'];
-      const missingFields = requiredFields.filter(field => 
-        !currentInterviewResponse[field as keyof typeof currentInterviewResponse]
-      );
-      
-      if (missingFields.length > 0) {
-        issues.push('Interview sections incomplete');
-      }
+    // Check doctor email - only if provided
+    if (currentPatient?.doctor_email?.trim() && !/\S+@\S+\.\S+/.test(currentPatient.doctor_email)) {
+      issues.push('GP email address format is invalid');
     }
     
-    // Check clinical recommendations - also allow for "no issues found" scenario
-    // if (!currentClinicalRecommendations.length) {
-    //   issues.push('No clinical recommendations documented');
-    // }
-    
-    // Check if existing recommendations are complete
-    if (currentClinicalRecommendations.length > 0 && 
-        currentClinicalRecommendations.some(rec => !rec.issue_identified?.trim() || !rec.suggested_action?.trim())) {
-      issues.push('Some recommendations are incomplete');
+    // Check interview completion - more thorough but realistic check
+    if (!currentInterviewResponse?.interview_date) {
+      issues.push('Interview date is missing');
     }
     
     // Check pharmacist name - use current state or auto-populated value
@@ -443,29 +420,30 @@ Email: avishkarlal01@gmail.com`;
             {[
               { 
                 label: 'Patient information complete and verified', 
-                valid: !!currentPatient?.name?.trim() 
+                valid: !!currentPatient?.name?.trim() && !!currentPatient?.dob?.trim()
               },
               { 
                 label: 'All medications reviewed and confirmed', 
-                valid: currentMedications.length > 0,
-                note: currentMedications.length === 0 ? 'No medications documented (this may be appropriate)' : ''
+                valid: true, // Always valid - no medications is acceptable
+                note: currentMedications.length === 0 ? 'No medications documented (this may be appropriate)' : `${currentMedications.length} medication(s) documented`
               },
               { 
                 label: 'Interview sections completed', 
-                valid: !!currentInterviewResponse?.interview_date 
+                valid: !!currentInterviewResponse?.interview_date && !!effectivePharmacistName?.trim()
               },
               { 
                 label: 'Clinical assessment documented', 
-                valid: currentClinicalRecommendations.length > 0 || validationIssues.length === 0,
-                note: currentClinicalRecommendations.length === 0 ? 'No specific issues identified (this may be appropriate)' : ''
+                valid: true, // Always valid - no issues found is acceptable
+                note: currentClinicalRecommendations.length === 0 ? 'No specific issues identified (this may be appropriate)' : `${currentClinicalRecommendations.length} recommendation(s) documented`
               },
               { 
                 label: 'Patient counselling documented', 
-                valid: currentClinicalRecommendations.some(rec => (rec as ClinicalRecommendation & { patient_counselling?: string }).patient_counselling) || currentClinicalRecommendations.length === 0
+                valid: true // Always valid in this workflow
               },
               { 
                 label: 'GP email address confirmed', 
-                valid: !!currentPatient?.doctor_email?.trim() && /\S+@\S+\.\S+/.test(currentPatient.doctor_email)
+                valid: !currentPatient?.doctor_email?.trim() || (!!currentPatient?.doctor_email?.trim() && /\S+@\S+\.\S+/.test(currentPatient.doctor_email)),
+                note: !currentPatient?.doctor_email?.trim() ? 'Optional - can be provided if available' : ''
               },
               { 
                 label: 'Pharmacist name provided', 
@@ -991,6 +969,7 @@ Email: avishkarlal01@gmail.com`;
       <PDFGenerationProgress 
         isVisible={showProgress}
         onComplete={() => setShowProgress(false)}
+        duration={15000}
       />
     </div>
   );

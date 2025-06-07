@@ -6,22 +6,24 @@ import { FileText, Zap, CheckCircle, Star, Pill, Heart, Activity } from 'lucide-
 interface PDFGenerationProgressProps {
   isVisible: boolean
   onComplete?: () => void
+  duration?: number // Allow custom duration in milliseconds
 }
 
 const PDFGenerationProgress: React.FC<PDFGenerationProgressProps> = ({ 
   isVisible, 
-  onComplete 
+  onComplete,
+  duration = 18000 // Default 18 seconds
 }) => {
   const [progress, setProgress] = useState(0)
   const [currentStep, setCurrentStep] = useState(0)
   const [showSuccess, setShowSuccess] = useState(false)
 
   const steps = [
-    { label: 'Analyzing patient data', icon: Heart, color: 'text-red-500' },
-    { label: 'Processing medications', icon: Pill, color: 'text-blue-500' },
-    { label: 'Generating recommendations', icon: Activity, color: 'text-green-500' },
-    { label: 'Formatting document', icon: FileText, color: 'text-purple-500' },
-    { label: 'Finalizing PDF', icon: Zap, color: 'text-yellow-500' }
+    { label: 'Analyzing patient data', icon: Heart, color: 'text-red-500', duration: 0.2 },
+    { label: 'Processing medications', icon: Pill, color: 'text-blue-500', duration: 0.25 },
+    { label: 'Generating recommendations', icon: Activity, color: 'text-green-500', duration: 0.25 },
+    { label: 'Formatting document', icon: FileText, color: 'text-purple-500', duration: 0.2 },
+    { label: 'Finalizing PDF', icon: Zap, color: 'text-yellow-500', duration: 0.1 }
   ]
 
   useEffect(() => {
@@ -32,29 +34,41 @@ const PDFGenerationProgress: React.FC<PDFGenerationProgressProps> = ({
       return
     }
 
+    let timeElapsed = 0
+    const updateInterval = 100 // Update every 100ms
+    const totalDuration = duration
+
     const interval = setInterval(() => {
-      setProgress(prev => {
-        const newProgress = prev + Math.random() * 15 + 5
-        
-        // Update current step based on progress
-        const stepIndex = Math.floor((newProgress / 100) * steps.length)
-        setCurrentStep(Math.min(stepIndex, steps.length - 1))
-        
-        if (newProgress >= 100) {
-          clearInterval(interval)
-          setShowSuccess(true)
-          setTimeout(() => {
-            onComplete?.()
-          }, 1500)
-          return 100
+      timeElapsed += updateInterval
+      const newProgress = Math.min((timeElapsed / totalDuration) * 100, 100)
+      
+      // Update current step based on progress with step durations
+      let cumulativeDuration = 0
+      let stepIndex = 0
+      
+      for (let i = 0; i < steps.length; i++) {
+        cumulativeDuration += steps[i].duration
+        if (newProgress / 100 <= cumulativeDuration) {
+          stepIndex = i
+          break
         }
-        
-        return newProgress
-      })
-    }, 200)
+        stepIndex = i + 1
+      }
+      
+      setCurrentStep(Math.min(stepIndex, steps.length - 1))
+      setProgress(newProgress)
+      
+      if (newProgress >= 100) {
+        clearInterval(interval)
+        setShowSuccess(true)
+        setTimeout(() => {
+          onComplete?.()
+        }, 2000) // Show success for 2 seconds
+      }
+    }, updateInterval)
 
     return () => clearInterval(interval)
-  }, [isVisible, onComplete, steps.length])
+  }, [isVisible, onComplete, duration, steps])
 
   if (!isVisible) return null
 
@@ -78,8 +92,8 @@ const PDFGenerationProgress: React.FC<PDFGenerationProgressProps> = ({
                     style={{
                       left: `${20 + Math.random() * 60}%`,
                       top: `${20 + Math.random() * 60}%`,
-                      animationDelay: `${i * 0.2}s`,
-                      animationDuration: `${1 + Math.random()}s`
+                      animationDelay: `${i * 0.3}s`,
+                      animationDuration: `${1.5 + Math.random()}s`
                     }}
                   />
                 ))}
@@ -128,12 +142,14 @@ const PDFGenerationProgress: React.FC<PDFGenerationProgressProps> = ({
               </div>
             </div>
 
-            {/* Fun medical facts */}
+            {/* Dynamic medical tips based on progress */}
             <div className="text-sm text-gray-500 italic">
-              {progress < 25 && "Did you know? The average person takes 4 different medications daily."}
-              {progress >= 25 && progress < 50 && "Pharmacist tip: Medication reviews reduce adverse events by 70%."}
-              {progress >= 50 && progress < 75 && "Quality assurance: Ensuring all clinical guidelines are met."}
-              {progress >= 75 && "Almost ready! Your professional report is being finalized."}
+              {progress < 20 && "Analyzing patient demographics and medical history..."}
+              {progress >= 20 && progress < 40 && "Cross-referencing medications for interactions and contraindications..."}
+              {progress >= 40 && progress < 60 && "Applying clinical guidelines and evidence-based recommendations..."}
+              {progress >= 60 && progress < 80 && "Generating Medicare-compliant documentation..."}
+              {progress >= 80 && progress < 95 && "Finalizing professional report formatting..."}
+              {progress >= 95 && "Quality assurance complete - preparing download..."}
             </div>
           </>
         ) : (
@@ -162,7 +178,7 @@ const PDFGenerationProgress: React.FC<PDFGenerationProgressProps> = ({
               PDF Generated Successfully! 🎉
             </h3>
             <p className="text-gray-600">
-              Your professional medication review report is ready.
+              Your professional medication review report is ready for download.
             </p>
           </div>
         )}

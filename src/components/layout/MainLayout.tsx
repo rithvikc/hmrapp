@@ -667,6 +667,7 @@ export default function MainLayout() {
       <PDFGenerationProgress 
         isVisible={showProgress}
         onComplete={() => setShowProgress(false)}
+        duration={15000} // 15 seconds for HMR PDF generation
       />
     </div>
   );

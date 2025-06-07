@@ -305,32 +305,6 @@ function DashboardContent() {
 
       {/* Main Dashboard */}
       <div className="min-h-screen bg-gray-50">
-        {/* Personalized Header */}
-        <div className="bg-white shadow-sm border-b">
-          <div className="max-w-7xl mx-auto px-4 py-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">
-                  Welcome back, {pharmacist?.name || 'Doctor'}
-                </h1>
-                <p className="text-gray-600">
-                  {isTrialUser 
-                    ? 'You\'re on a free trial - explore all features risk-free!'
-                    : 'Ready to help more patients with their medication reviews?'
-                  }
-                </p>
-              </div>
-              
-              {subscriptionStatus.status === 'active' && (
-                <div className="flex items-center space-x-2 text-green-600">
-                  <Crown className="h-5 w-5" />
-                  <span className="font-medium">Pro Member</span>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-
         {/* Main Layout */}
         <MainLayout />
       </div>
