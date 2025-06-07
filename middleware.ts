@@ -9,6 +9,12 @@ export async function middleware(request: NextRequest) {
   })
 
   try {
+    // Check if we have the required environment variables
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      console.error('Middleware: Missing Supabase environment variables')
+      return response
+    }
+
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -35,19 +41,44 @@ export async function middleware(request: NextRequest) {
       }
     )
 
-    // This will refresh the session if needed
-    const { data: { user } } = await supabase.auth.getUser()
+    // Get the current user
+    const { data: { user }, error } = await supabase.auth.getUser()
     
-    // For API routes, ensure user is authenticated
-    if (request.nextUrl.pathname.startsWith('/api/') && 
-        !request.nextUrl.pathname.startsWith('/api/auth/') &&
-        !request.nextUrl.pathname.startsWith('/api/generate-hmr-pdf') && 
-        !user) {
-      console.log('Middleware: Blocking unauthenticated API request to:', request.nextUrl.pathname)
-      return NextResponse.json(
-        { error: 'Authentication required' },
-        { status: 401 }
+    if (error) {
+      console.log('Middleware: Auth error:', error.message)
+    }
+    
+    // Only block API routes if authentication is required
+    if (request.nextUrl.pathname.startsWith('/api/')) {
+      // Allow these API routes without authentication
+      const publicApiRoutes = [
+        '/api/auth/',
+        '/api/generate-hmr-pdf',
+        '/api/process-pdf',
+        '/api/send-hmr-report'
+      ]
+      
+      const isPublicRoute = publicApiRoutes.some(route => 
+        request.nextUrl.pathname.startsWith(route)
       )
+      
+      if (!isPublicRoute && !user) {
+        console.log('Middleware: Blocking unauthenticated API request to:', request.nextUrl.pathname)
+        return NextResponse.json(
+          { error: 'Authentication required' },
+          { status: 401 }
+        )
+      }
+      
+      if (user) {
+        console.log('Middleware: Authenticated user accessing:', request.nextUrl.pathname)
+      }
+    }
+
+    // For dashboard routes, redirect to login if not authenticated
+    if (request.nextUrl.pathname === '/dashboard' && !user && !error) {
+      console.log('Middleware: Redirecting unauthenticated user to login')
+      return NextResponse.redirect(new URL('/login', request.url))
     }
 
   } catch (error) {
