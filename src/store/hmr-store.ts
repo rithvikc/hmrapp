@@ -374,27 +374,73 @@ export const useHMRStore = create<HMRWorkflowState>()(
         },
         
         saveDraft: () => {
-          const state = get();
-          const draft = {
-            currentPatient: state.currentPatient,
-            currentMedications: state.currentMedications,
-            currentInterviewResponse: state.currentInterviewResponse,
-            currentMedicationCompliance: state.currentMedicationCompliance,
-            currentClinicalRecommendations: state.currentClinicalRecommendations,
-            currentStep: state.currentStep,
-            currentSection: state.currentSection,
-            timestamp: new Date().toISOString(),
-          };
-          
-          localStorage.setItem('hmr-draft', JSON.stringify(draft));
-          
-          if (state.currentInterviewResponse) {
-            set((state) => ({
-              currentInterviewResponse: state.currentInterviewResponse ? {
-                ...state.currentInterviewResponse,
-                status: 'draft' as const
-              } : null
-            }));
+          console.log('[DEBUG] Starting saveDraft...');
+          try {
+            const state = get();
+            
+            // Only save if there's actually data to save
+            if (!state.currentPatient && 
+                state.currentMedications.length === 0 && 
+                !state.currentInterviewResponse && 
+                state.currentClinicalRecommendations.length === 0) {
+              console.log('[DEBUG] No data to save, skipping saveDraft');
+              return;
+            }
+            
+            const draft = {
+              currentPatient: state.currentPatient,
+              currentMedications: state.currentMedications,
+              currentInterviewResponse: state.currentInterviewResponse,
+              currentMedicationCompliance: state.currentMedicationCompliance,
+              currentClinicalRecommendations: state.currentClinicalRecommendations,
+              currentStep: state.currentStep,
+              currentSection: state.currentSection,
+              timestamp: new Date().toISOString(),
+              version: '1.0', // Version for future compatibility
+            };
+            
+            console.log('[DEBUG] Saving draft to localStorage:', {
+              hasPatient: !!draft.currentPatient,
+              medicationsCount: draft.currentMedications.length,
+              hasInterview: !!draft.currentInterviewResponse,
+              recommendationsCount: draft.currentClinicalRecommendations.length,
+              currentStep: draft.currentStep
+            });
+            
+            // Save to localStorage with error handling
+            try {
+              const draftString = JSON.stringify(draft);
+              localStorage.setItem('hmr-draft', draftString);
+              console.log('[DEBUG] Draft saved successfully to localStorage');
+            } catch (storageError) {
+              console.error('[DEBUG] Failed to save draft to localStorage:', storageError);
+              // Try to clear some space and retry
+              try {
+                localStorage.removeItem('hmr-store'); // Clear main store cache
+                localStorage.setItem('hmr-draft', JSON.stringify(draft));
+                console.log('[DEBUG] Draft saved successfully after clearing storage');
+              } catch (retryError) {
+                console.error('[DEBUG] Failed to save draft even after clearing storage:', retryError);
+                throw retryError;
+              }
+            }
+            
+            // Update interview status to draft if it exists
+            if (state.currentInterviewResponse) {
+              set((state) => ({
+                currentInterviewResponse: state.currentInterviewResponse ? {
+                  ...state.currentInterviewResponse,
+                  status: 'draft' as const,
+                  updated_at: new Date().toISOString()
+                } : null
+              }));
+              console.log('[DEBUG] Updated interview response status to draft');
+            }
+            
+            console.log('[DEBUG] saveDraft completed successfully');
+          } catch (error) {
+            console.error('[DEBUG] Error in saveDraft:', error);
+            // Don't throw error to prevent UI from breaking
           }
         },
         
@@ -407,23 +453,65 @@ export const useHMRStore = create<HMRWorkflowState>()(
             
             if (saved) {
               console.log('[DEBUG] Parsing saved draft from JSON');
-              const draft = JSON.parse(saved);
-              console.log('[DEBUG] Setting state with draft data');
+              let draft;
+              
+              try {
+                draft = JSON.parse(saved);
+              } catch (parseError) {
+                console.error('[DEBUG] Failed to parse draft JSON:', parseError);
+                console.log('[DEBUG] Clearing corrupted draft and using default state');
+                localStorage.removeItem('hmr-draft');
+                return;
+              }
+              
+              // Validate draft structure
+              if (!draft || typeof draft !== 'object') {
+                console.log('[DEBUG] Invalid draft structure, clearing and using default state');
+                localStorage.removeItem('hmr-draft');
+                return;
+              }
+              
+              console.log('[DEBUG] Draft validation successful, loading data:', {
+                hasPatient: !!draft.currentPatient,
+                medicationsCount: (draft.currentMedications || []).length,
+                hasInterview: !!draft.currentInterviewResponse,
+                recommendationsCount: (draft.currentClinicalRecommendations || []).length,
+                version: draft.version || 'legacy',
+                timestamp: draft.timestamp
+              });
               
               // Get current step - only override if it's not already set to something other than dashboard
               const currentState = get();
               const shouldOverrideStep = !currentState.currentStep || currentState.currentStep === 'dashboard';
               
-              set({
+              // Load draft data with fallbacks
+              const loadedState = {
                 currentPatient: draft.currentPatient || null,
-                currentMedications: draft.currentMedications || [],
+                currentMedications: Array.isArray(draft.currentMedications) ? draft.currentMedications : [],
                 currentInterviewResponse: draft.currentInterviewResponse || null,
-                currentMedicationCompliance: draft.currentMedicationCompliance || [],
-                currentClinicalRecommendations: draft.currentClinicalRecommendations || [],
-                currentStep: shouldOverrideStep ? 'dashboard' : currentState.currentStep,
+                currentMedicationCompliance: Array.isArray(draft.currentMedicationCompliance) ? draft.currentMedicationCompliance : [],
+                currentClinicalRecommendations: Array.isArray(draft.currentClinicalRecommendations) ? draft.currentClinicalRecommendations : [],
+                currentStep: shouldOverrideStep ? (draft.currentStep || 'dashboard') : currentState.currentStep,
                 currentSection: draft.currentSection || 'patient-info',
+              };
+              
+              set(loadedState);
+              
+              console.log('[DEBUG] State updated with draft data:', {
+                currentStep: loadedState.currentStep,
+                preserved: shouldOverrideStep ? 'loaded from draft' : 'preserved existing'
               });
-              console.log('[DEBUG] State updated with draft data, currentStep:', shouldOverrideStep ? '"dashboard"' : 'preserved');
+              
+              // Update timestamp of loaded interview if it exists
+              if (loadedState.currentInterviewResponse) {
+                set((state) => ({
+                  currentInterviewResponse: state.currentInterviewResponse ? {
+                    ...state.currentInterviewResponse,
+                    updated_at: new Date().toISOString()
+                  } : null
+                }));
+              }
+              
             } else {
               console.log('[DEBUG] No draft found');
               // Only set currentStep to dashboard if it's not already set
@@ -438,8 +526,18 @@ export const useHMRStore = create<HMRWorkflowState>()(
             console.log('[DEBUG] loadDraft complete');
           } catch (error) {
             console.error('[DEBUG] Error in loadDraft:', error);
-            console.log('[DEBUG] Setting currentStep to "dashboard" due to error');
-            set({ currentStep: 'dashboard' });
+            // Don't let draft loading errors break the app
+            try {
+              console.log('[DEBUG] Attempting to clear corrupted draft');
+              localStorage.removeItem('hmr-draft');
+              console.log('[DEBUG] Setting safe fallback state');
+              const currentState = get();
+              if (!currentState.currentStep) {
+                set({ currentStep: 'dashboard' });
+              }
+            } catch (recoveryError) {
+              console.error('[DEBUG] Failed to recover from draft loading error:', recoveryError);
+            }
           }
         },
         

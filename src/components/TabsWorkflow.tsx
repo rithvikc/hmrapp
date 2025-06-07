@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useHMRSelectors } from '@/store/hmr-store';
 import PatientInfoReview from '@/components/PatientInfoReview';
 import MedicationsReview from '@/components/MedicationsReview';
@@ -17,10 +17,24 @@ export default function TabsWorkflow({ onExit }: TabsWorkflowProps) {
     currentStep,
     setCurrentStep,
     resetWorkflow,
-    saveDraft
+    saveDraft,
+    hasUnsavedWork
   } = useHMRSelectors();
 
   const [activeTab, setActiveTab] = useState<string>('patient-info');
+  const [lastSaveTime, setLastSaveTime] = useState<number>(Date.now());
+
+  // Enhanced auto-save function
+  const performAutoSave = useCallback(() => {
+    try {
+      console.log('TabsWorkflow: Performing auto-save...');
+      saveDraft();
+      setLastSaveTime(Date.now());
+      console.log('TabsWorkflow: Auto-save completed successfully');
+    } catch (error) {
+      console.error('TabsWorkflow: Auto-save failed:', error);
+    }
+  }, [saveDraft]);
 
   // Initialize active tab based on current step when component mounts
   useEffect(() => {
@@ -36,9 +50,78 @@ export default function TabsWorkflow({ onExit }: TabsWorkflowProps) {
     }
   }, [activeTab, setCurrentStep]);
 
+  // Auto-save on page visibility change (when user switches browser tabs)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Page is being hidden (user switched to another tab)
+        console.log('TabsWorkflow: Page hidden, performing auto-save...');
+        performAutoSave();
+      } else {
+        // Page is visible again
+        console.log('TabsWorkflow: Page visible again');
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [performAutoSave]);
+
+  // Auto-save before page unload
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      console.log('TabsWorkflow: Page unloading, performing final auto-save...');
+      performAutoSave();
+      
+      // Show warning if there's unsaved work
+      if (hasUnsavedWork) {
+        const message = 'You have unsaved work. Are you sure you want to leave?';
+        event.returnValue = message;
+        return message;
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [performAutoSave, hasUnsavedWork]);
+
+  // Auto-save on window blur (when window loses focus)
+  useEffect(() => {
+    const handleWindowBlur = () => {
+      console.log('TabsWorkflow: Window lost focus, performing auto-save...');
+      performAutoSave();
+    };
+
+    window.addEventListener('blur', handleWindowBlur);
+
+    return () => {
+      window.removeEventListener('blur', handleWindowBlur);
+    };
+  }, [performAutoSave]);
+
+  // Periodic auto-save every 30 seconds
+  useEffect(() => {
+    const autoSaveInterval = setInterval(() => {
+      const timeSinceLastSave = Date.now() - lastSaveTime;
+      if (timeSinceLastSave > 30000) { // 30 seconds
+        console.log('TabsWorkflow: Periodic auto-save triggered');
+        performAutoSave();
+      }
+    }, 30000);
+
+    return () => clearInterval(autoSaveInterval);
+  }, [performAutoSave, lastSaveTime]);
+
   // Auto-save draft when switching tabs
   const handleTabChange = (tab: string) => {
-    saveDraft();
+    console.log(`TabsWorkflow: Changing from ${activeTab} to ${tab}`);
+    performAutoSave();
     setActiveTab(tab);
   };
 
@@ -57,7 +140,8 @@ export default function TabsWorkflow({ onExit }: TabsWorkflowProps) {
   const handleWorkflowCompletion = async () => {
     try {
       // Save final draft
-      await saveDraft();
+      console.log('TabsWorkflow: Completing workflow, saving final draft...');
+      await performAutoSave();
       
       // Show completion message
       alert('🎉 Workflow completed successfully! Your HMR report has been finalized and saved. You can now generate the PDF and email template from the Final Review tab.');
@@ -79,10 +163,15 @@ export default function TabsWorkflow({ onExit }: TabsWorkflowProps) {
   };
 
   const handleExitWorkflow = () => {
+    // Auto-save before showing confirmation
+    performAutoSave();
+    
     const confirmExit = window.confirm(
-      'Are you sure you want to exit? Your progress has been saved.'
+      'Are you sure you want to exit? Your progress has been saved and will be available when you return.'
     );
     if (confirmExit) {
+      // Final save before exit
+      performAutoSave();
       onExit();
     }
   };
@@ -108,7 +197,12 @@ export default function TabsWorkflow({ onExit }: TabsWorkflowProps) {
     <div className="max-w-6xl mx-auto">
       {/* Header with Exit Button */}
       <div className="flex justify-between items-center mb-6 p-4 bg-white border-b border-gray-200">
-        <h1 className="text-xl font-semibold text-gray-900">HMR Report Workflow</h1>
+        <div>
+          <h1 className="text-xl font-semibold text-gray-900">HMR Report Workflow</h1>
+          <p className="text-xs text-gray-500 mt-1">
+            Auto-saves every 30 seconds and when you switch tabs
+          </p>
+        </div>
         <button
           onClick={handleExitWorkflow}
           className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-md"
@@ -144,10 +238,13 @@ export default function TabsWorkflow({ onExit }: TabsWorkflowProps) {
 
         <div className="p-4 flex justify-between text-sm text-gray-500">
           <div>
-            <span className="font-medium">Tip:</span> You can switch between tabs at any time. Your progress is automatically saved.
+            <span className="font-medium">Tip:</span> Your progress is automatically saved when switching tabs or browser windows.
           </div>
-          <div>
-            <span className="text-blue-600 font-medium">Auto-saving</span> enabled
+          <div className="flex items-center space-x-2">
+            <span className="text-green-600 font-medium">🟢 Auto-save active</span>
+            <span className="text-xs text-gray-400">
+              Last saved: {new Date(lastSaveTime).toLocaleTimeString()}
+            </span>
           </div>
         </div>
       </div>
