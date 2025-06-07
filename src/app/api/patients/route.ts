@@ -1,43 +1,93 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { statements } from '@/lib/database';
+import { cookies } from 'next/headers';
 
-export async function GET() {
+async function getAuthenticatedUser(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    // Try to get user from cookies first
+    const cookieStore = await cookies();
     
-    // Get the current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            return cookieStore.get(name)?.value;
+          },
+          set(name: string, value: string, options: CookieOptions) {
+            cookieStore.set({ name, value, ...options });
+          },
+          remove(name: string, options: CookieOptions) {
+            cookieStore.set({ name, value: '', ...options });
+          },
+        },
+      }
+    );
+
+    const { data: { user }, error } = await supabase.auth.getUser();
     
-    if (authError || !user) {
+    if (user && !error) {
+      return user;
+    }
+
+    // If cookie auth fails, try authorization header
+    const authHeader = request.headers.get('authorization');
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7);
+      
+      const { data: { user: headerUser }, error: headerError } = await supabase.auth.getUser(token);
+      
+      if (headerUser && !headerError) {
+        return headerUser;
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Authentication error:', error);
+    return null;
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    console.log('Patients API: Getting authenticated user...');
+    const user = await getAuthenticatedUser(request);
+    
+    if (!user) {
+      console.log('Patients API: No authenticated user found');
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       );
     }
 
+    console.log('Patients API: User authenticated:', user.id);
     const patients = statements.getPatientsByPharmacist.all(user.id);
+    console.log('Patients API: Found', patients.length, 'patients');
     return NextResponse.json(patients);
   } catch (error) {
-    console.error('Error fetching patients:', error);
+    console.error('Patients API Error:', error);
     return NextResponse.json({ error: 'Failed to fetch patients' }, { status: 500 });
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    console.log('Patients API: Creating new patient...');
+    const user = await getAuthenticatedUser(request);
     
-    // Get the current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
+    if (!user) {
+      console.log('Patients API: No authenticated user found');
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       );
     }
 
+    console.log('Patients API: User authenticated for patient creation:', user.id);
     const data = await request.json();
     
     const result = statements.insertPatientWithPharmacist.run(
@@ -58,28 +108,29 @@ export async function POST(request: NextRequest) {
       data.past_medical_history || null
     );
     
-    const patient = statements.getPatient.get(result.lastInsertRowid);
+    const patient = statements.getPatient.get(result.lastInsertRowid) as any;
+    console.log('Patients API: Created patient:', patient?.name);
     return NextResponse.json(patient);
   } catch (error) {
-    console.error('Error creating patient:', error);
+    console.error('Patients API Error creating patient:', error);
     return NextResponse.json({ error: 'Failed to create patient' }, { status: 500 });
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
-    const supabase = createServerClient();
+    console.log('Patients API: Updating patient...');
+    const user = await getAuthenticatedUser(request);
     
-    // Get the current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
-    
-    if (authError || !user) {
+    if (!user) {
+      console.log('Patients API: No authenticated user found');
       return NextResponse.json(
         { error: 'Authentication required' },
         { status: 401 }
       );
     }
 
+    console.log('Patients API: User authenticated for patient update:', user.id);
     const data = await request.json();
     
     if (!data.id) {
@@ -110,10 +161,11 @@ export async function PUT(request: NextRequest) {
       data.id
     );
     
-    const patient = statements.getPatient.get(data.id);
+    const patient = statements.getPatient.get(data.id) as any;
+    console.log('Patients API: Updated patient:', patient?.name);
     return NextResponse.json(patient);
   } catch (error) {
-    console.error('Error updating patient:', error);
+    console.error('Patients API Error updating patient:', error);
     return NextResponse.json({ error: 'Failed to update patient' }, { status: 500 });
   }
 } 

@@ -47,7 +47,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const getInitialSession = async () => {
       try {
         console.log('AuthContext: Getting initial session...')
-        const { data: { session }, error } = await supabase.auth.getSession()
+        
+        // Add timeout to prevent hanging
+        const sessionPromise = supabase.auth.getSession()
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Session fetch timeout')), 5000)
+        )
+        
+        const { data: { session }, error } = await Promise.race([sessionPromise, timeoutPromise])
         
         if (error) {
           console.error('AuthContext: Error getting session:', error)
@@ -56,13 +63,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (mounted) {
           console.log('AuthContext: Initial session exists:', !!session)
           setUser(session?.user ?? null)
+          setLoading(false) // Set loading to false first
           
+          // Fetch pharmacist data asynchronously (don't block login)
           if (session?.user) {
-            await fetchPharmacist(session.user.id)
+            fetchPharmacist(session.user.id)
           } else {
             setPharmacist(null)
           }
-          setLoading(false)
         }
       } catch (error) {
         console.error('AuthContext: Error during initial session fetch:', error)
@@ -78,12 +86,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       try {
         console.log('AuthContext: Fetching pharmacist for user:', userId)
         
-        // First check if pharmacist record exists
-        const { data: existingPharmacist, error: fetchError } = await supabase
+        // Add timeout for pharmacist fetch
+        const fetchPromise = supabase
           .from('pharmacists')
           .select('*')
           .eq('user_id', userId)
           .single()
+        
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Pharmacist fetch timeout')), 3000)
+        )
+        
+        const { data: existingPharmacist, error: fetchError } = await Promise.race([fetchPromise, timeoutPromise])
         
         if (fetchError && fetchError.code !== 'PGRST116') {
           // PGRST116 is "not found" - which is expected for new users
@@ -121,18 +135,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return
         }
         
-        // For SIGNED_IN events, update user state
+        // For SIGNED_IN events, update user state immediately
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          try {
-            setUser(session?.user ?? null)
-            
-            if (session?.user) {
-              await fetchPharmacist(session.user.id)
-            } else {
-              setPharmacist(null)
-            }
-          } catch (error) {
-            console.error('AuthContext: Error during auth state change:', error)
+          setUser(session?.user ?? null)
+          
+          // Fetch pharmacist data asynchronously (don't block)
+          if (session?.user) {
+            fetchPharmacist(session.user.id)
+          } else {
             setPharmacist(null)
           }
         }
@@ -180,24 +190,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     console.log('AuthContext: Signing in with email/password')
-    const supabase = createClient()
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    })
-    return { data, error }
+    
+    try {
+      const supabase = createClient()
+      
+      // Add timeout to sign in
+      const signInPromise = supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Sign in timeout')), 10000)
+      )
+      
+      const { data, error } = await Promise.race([signInPromise, timeoutPromise])
+      return { data, error }
+    } catch (error) {
+      console.error('AuthContext: Sign in failed:', error)
+      return { 
+        data: null, 
+        error: { 
+          message: error instanceof Error ? error.message : 'Sign in failed' 
+        } 
+      }
+    }
   }
 
   const signInWithGoogle = async () => {
     console.log('AuthContext: Signing in with Google')
-    const supabase = createClient()
-    const { data, error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback?next=/dashboard`
+        }
+      })
+      return { data, error }
+    } catch (error) {
+      console.error('AuthContext: Google sign in failed:', error)
+      return { 
+        data: null, 
+        error: { 
+          message: 'Google sign in failed' 
+        } 
       }
-    })
-    return { data, error }
+    }
   }
 
   const signUp = async (email: string, password: string, metadata: any) => {
@@ -260,17 +299,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const resetPassword = async (email: string) => {
     console.log('AuthContext: Sending password reset email')
-    const supabase = createClient()
-    const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: `${window.location.origin}/auth/reset-password`
-    })
-    return { data, error }
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/auth/reset-password`
+      })
+      return { data, error }
+    } catch (error) {
+      console.error('AuthContext: Password reset failed:', error)
+      return { 
+        data: null, 
+        error: { 
+          message: 'Password reset failed' 
+        } 
+      }
+    }
   }
 
   const signOut = async () => {
     console.log('AuthContext: Signing out')
-    const supabase = createClient()
-    await supabase.auth.signOut()
+    try {
+      const supabase = createClient()
+      await supabase.auth.signOut()
+    } catch (error) {
+      console.error('AuthContext: Sign out failed:', error)
+    }
   }
 
   // Show loading state until client-side initialization is complete

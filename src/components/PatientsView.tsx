@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useHMRSelectors, Patient } from '@/store/hmr-store';
 import { format } from 'date-fns';
+import PDFGenerationProgress from './PDFGenerationProgress';
 
 interface PatientsViewProps {
   onBack: () => void;
@@ -50,6 +51,7 @@ const PatientsView: React.FC<PatientsViewProps> = ({
   // Patient selection state
   const [selectedPatients, setSelectedPatients] = useState<Set<number>>(new Set());
   const [selectAll, setSelectAll] = useState(false);
+  const [showProgress, setShowProgress] = useState(false);
 
   // Load patients on mount
   useEffect(() => {
@@ -283,9 +285,11 @@ const PatientsView: React.FC<PatientsViewProps> = ({
 
   const exportToPDF = async (selectedOnly = false) => {
     try {
+      setShowProgress(true);
       const patientsToExport = selectedOnly ? getSelectedPatientsData() : filteredPatients;
       
       if (selectedOnly && patientsToExport.length === 0) {
+        setShowProgress(false);
         alert('Please select patients to export.');
         return;
       }
@@ -342,6 +346,7 @@ const PatientsView: React.FC<PatientsViewProps> = ({
       });
 
       if (!response.ok) {
+        setShowProgress(false);
         throw new Error('Failed to generate PDF');
       }
 
@@ -362,6 +367,7 @@ const PatientsView: React.FC<PatientsViewProps> = ({
       console.log(`Exported ${patientsToExport.length} patients to PDF`);
     } catch (error) {
       console.error('Error exporting PDF:', error);
+      setShowProgress(false);
       alert('Failed to export PDF file. Please try again.');
     }
   };
@@ -755,6 +761,12 @@ const PatientsView: React.FC<PatientsViewProps> = ({
           </div>
         )}
       </div>
+
+      {/* PDF Generation Progress Animation */}
+      <PDFGenerationProgress 
+        isVisible={showProgress}
+        onComplete={() => setShowProgress(false)}
+      />
     </div>
   );
 };

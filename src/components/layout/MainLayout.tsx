@@ -8,6 +8,7 @@ import TabsWorkflow from '@/components/TabsWorkflow';
 import DataDebugger from '@/components/DataDebugger';
 import { useHMRSelectors, Patient } from '@/store/hmr-store';
 import { Calendar } from 'lucide-react';
+import PDFGenerationProgress from '@/components/PDFGenerationProgress';
 
 // Extended type for all navigation steps
 type ExtendedStep = 
@@ -33,6 +34,7 @@ type ExtendedStep =
 
 export default function MainLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [showProgress, setShowProgress] = useState(false);
   const [mounted, setMounted] = useState(false);
   
   const {
@@ -221,6 +223,7 @@ export default function MainLayout() {
   const handleViewReport = async (reviewId: number) => {
     try {
       setLoading(true);
+      setShowProgress(true);
       
       const reviewResponse = await fetch(`/api/reviews/${reviewId}`);
       if (!reviewResponse.ok) {
@@ -238,6 +241,7 @@ export default function MainLayout() {
 
       if (!pdfResponse.ok) {
         const errorText = await pdfResponse.text();
+        setShowProgress(false);
         throw new Error(`Failed to generate PDF: ${errorText}`);
       }
 
@@ -255,6 +259,7 @@ export default function MainLayout() {
       console.log('Report downloaded successfully');
     } catch (error) {
       console.error('Error generating report:', error);
+      setShowProgress(false);
       setError(error instanceof Error ? error.message : 'Failed to generate report');
       alert(`Failed to generate report: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
@@ -657,6 +662,12 @@ export default function MainLayout() {
           <DataDebugger />
         </div>
       )}
+
+      {/* PDF Generation Progress Animation */}
+      <PDFGenerationProgress 
+        isVisible={showProgress}
+        onComplete={() => setShowProgress(false)}
+      />
     </div>
   );
 } 

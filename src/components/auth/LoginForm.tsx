@@ -16,7 +16,10 @@ export default function LoginForm() {
   useEffect(() => {
     if (user && !authLoading) {
       console.log('LoginForm: User authenticated, redirecting to dashboard')
-      router.push('/dashboard')
+      // Set a small delay to allow any pending operations to complete
+      setTimeout(() => {
+        router.push('/dashboard')
+      }, 100)
     }
   }, [user, authLoading, router])
 
@@ -26,18 +29,38 @@ export default function LoginForm() {
     setError('')
 
     try {
-      const { error } = await signIn(email, password)
+      // Add timeout to prevent hanging
+      const signInPromise = signIn(email, password)
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Login timeout - please try again')), 15000)
+      )
+      
+      const { error } = await Promise.race([signInPromise, timeoutPromise])
       
       if (error) {
-        setError(error.message)
+        setError(error.message || 'Login failed')
         setLoading(false)
+      } else {
+        // Login successful - loading will be cleared by redirect
+        console.log('LoginForm: Sign in successful, waiting for redirect...')
       }
-      // Don't set loading to false if sign in was successful - 
-      // let the useEffect handle the redirect when auth state updates
     } catch (err) {
-      setError('An unexpected error occurred')
+      console.error('LoginForm: Login error:', err)
+      setError(err instanceof Error ? err.message : 'An unexpected error occurred')
       setLoading(false)
     }
+  }
+
+  // Show loading state while auth is initializing
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Initializing...</p>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -70,6 +93,7 @@ export default function LoginForm() {
                 placeholder="Email address"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={loading}
               />
             </div>
             <div>
@@ -82,6 +106,7 @@ export default function LoginForm() {
                 placeholder="Password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                disabled={loading}
               />
             </div>
           </div>
@@ -90,9 +115,14 @@ export default function LoginForm() {
             <button
               type="submit"
               disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {loading ? 'Signing in...' : 'Sign in'}
+              {loading ? (
+                <div className="flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                  Signing in...
+                </div>
+              ) : 'Sign in'}
             </button>
           </div>
 

@@ -8,6 +8,7 @@ import {
   FileText, Mail, Eye, Edit, CheckCircle, AlertTriangle, 
   Clock, Printer, Smartphone, Save, X, Edit3
 } from 'lucide-react';
+import PDFGenerationProgress from './PDFGenerationProgress'
 
 interface FinalReviewProps {
   onNext: () => void;
@@ -47,6 +48,7 @@ export default function FinalReview({ onNext, onPrevious }: FinalReviewProps) {
   const [emailTemplate, setEmailTemplate] = useState('');
   const [showEditScreen, setShowEditScreen] = useState(false);
   const [editedData, setEditedData] = useState<any>(null);
+  const [showProgress, setShowProgress] = useState(false);
   
   // Editing state variables
   const [isEditingPharmacist, setIsEditingPharmacist] = useState(false);
@@ -213,6 +215,7 @@ Email: avishkarlal01@gmail.com`;
 
   const handleGeneratePDF = async (useEditableData = false) => {
     setLoading(true);
+    setShowProgress(true);
     try {
       // Use edited data if available, otherwise use current store data
       const reportData = editedData || {
@@ -246,10 +249,12 @@ Email: avishkarlal01@gmail.com`;
       } else {
         const errorText = await response.text();
         console.error('PDF generation failed:', errorText);
+        setShowProgress(false);
         alert(`Failed to generate PDF: ${errorText}`);
       }
     } catch (error) {
       console.error('Error generating PDF:', error);
+      setShowProgress(false);
       alert(`Error generating PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
@@ -271,6 +276,7 @@ Email: avishkarlal01@gmail.com`;
   const handleEditPreview = async (data: any) => {
     setEditedData(data);
     setLoading(true);
+    setShowProgress(true);
     try {
       const response = await fetch('/api/generate-hmr-pdf', {
         method: 'POST',
@@ -296,10 +302,12 @@ Email: avishkarlal01@gmail.com`;
       } else {
         const errorText = await response.text();
         console.error('PDF generation failed:', errorText);
+        setShowProgress(false);
         alert(`Failed to generate PDF: ${errorText}`);
       }
     } catch (error) {
       console.error('Error generating PDF:', error);
+      setShowProgress(false);
       alert(`Error generating PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
     } finally {
       setLoading(false);
@@ -978,6 +986,12 @@ Email: avishkarlal01@gmail.com`;
           )}
         </div>
       </div>
+
+      {/* PDF Generation Progress Animation */}
+      <PDFGenerationProgress 
+        isVisible={showProgress}
+        onComplete={() => setShowProgress(false)}
+      />
     </div>
   );
 } 

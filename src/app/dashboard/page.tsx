@@ -61,9 +61,19 @@ export default function DashboardPage() {
 
   const fetchDashboardData = async () => {
     try {
-      const response = await fetch('/api/dashboard');
+      console.log('Dashboard: Fetching dashboard data...');
+      const response = await fetch('/api/dashboard', {
+        credentials: 'include', // Include cookies
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      console.log('Dashboard: API response status:', response.status);
+      
       if (response.ok) {
         const data = await response.json();
+        console.log('Dashboard: Successfully fetched data');
         setDashboardData(data);
         
         // Check if user needs onboarding
@@ -71,10 +81,60 @@ export default function DashboardPage() {
           setShowOnboarding(true);
         }
       } else {
-        console.error('Failed to fetch dashboard data');
+        const errorText = await response.text();
+        console.error('Dashboard: API error response:', response.status, errorText);
+        
+        // Don't show error for 401 on initial load - user might not be fully authenticated yet
+        if (response.status === 401) {
+          console.log('Dashboard: Authentication required - user may still be logging in');
+          // Set some default data so the dashboard doesn't break
+          setDashboardData({
+            patients: [],
+            statistics: {
+              totalPatients: 0,
+              totalReviews: 0,
+              completedReviews: 0,
+              draftReviews: 0,
+              pendingReviews: 0
+            },
+            pendingReviews: [],
+            recentActivity: [],
+            subscription: null,
+            usage: {
+              current_month: new Date().toISOString().slice(0, 7),
+              hmr_count: 0,
+              hmr_limit: null,
+              last_hmr_date: null
+            },
+            onboarding: null
+          });
+        } else {
+          console.error('Dashboard: Failed to fetch dashboard data:', response.status, errorText);
+        }
       }
     } catch (error) {
-      console.error('Error fetching dashboard data:', error);
+      console.error('Dashboard: Error fetching dashboard data:', error);
+      // Set default data to prevent dashboard from breaking
+      setDashboardData({
+        patients: [],
+        statistics: {
+          totalPatients: 0,
+          totalReviews: 0,
+          completedReviews: 0,
+          draftReviews: 0,
+          pendingReviews: 0
+        },
+        pendingReviews: [],
+        recentActivity: [],
+        subscription: null,
+        usage: {
+          current_month: new Date().toISOString().slice(0, 7),
+          hmr_count: 0,
+          hmr_limit: null,
+          last_hmr_date: null
+        },
+        onboarding: null
+      });
     } finally {
       setLoadingData(false);
     }
@@ -86,7 +146,14 @@ export default function DashboardPage() {
 
   const getSubscriptionStatus = () => {
     if (!dashboardData?.subscription) {
-      return { status: 'none', color: 'gray', text: 'No subscription' };
+      return { 
+        status: 'none', 
+        bgColor: 'bg-gray-50', 
+        borderColor: 'border-gray-200',
+        textColor: 'text-gray-800',
+        iconColor: 'text-gray-600',
+        text: 'No subscription' 
+      };
     }
 
     const sub = dashboardData.subscription;
@@ -94,7 +161,10 @@ export default function DashboardPage() {
       case 'active':
         return { 
           status: 'active', 
-          color: 'green', 
+          bgColor: 'bg-green-50',
+          borderColor: 'border-green-200',
+          textColor: 'text-green-800',
+          iconColor: 'text-green-600',
           text: `${sub.plan_name} - Active`,
           icon: <CheckCircle className="h-4 w-4" />
         };
@@ -103,19 +173,32 @@ export default function DashboardPage() {
         const daysLeft = Math.ceil((trialEnd.getTime() - Date.now()) / (1000 * 60 * 60 * 24));
         return { 
           status: 'trial', 
-          color: 'blue', 
+          bgColor: 'bg-blue-50',
+          borderColor: 'border-blue-200',
+          textColor: 'text-blue-800',
+          iconColor: 'text-blue-600',
           text: `Free Trial (${daysLeft} days left)`,
           icon: <Zap className="h-4 w-4" />
         };
       case 'past_due':
         return { 
           status: 'past_due', 
-          color: 'red', 
+          bgColor: 'bg-red-50',
+          borderColor: 'border-red-200',
+          textColor: 'text-red-800',
+          iconColor: 'text-red-600',
           text: 'Payment required',
           icon: <AlertTriangle className="h-4 w-4" />
         };
       default:
-        return { status: 'unknown', color: 'gray', text: sub.status };
+        return { 
+          status: 'unknown', 
+          bgColor: 'bg-gray-50',
+          borderColor: 'border-gray-200',
+          textColor: 'text-gray-800',
+          iconColor: 'text-gray-600',
+          text: sub.status 
+        };
     }
   };
 
@@ -126,15 +209,18 @@ export default function DashboardPage() {
     const isUnlimited = hmr_limit === null;
     
     if (isUnlimited) {
-      return `${hmr_count} HMRs this month`;
+      return { type: 'unlimited', text: `${hmr_count} HMRs this month` };
     } else {
       const percentage = (hmr_count / hmr_limit) * 100;
-      const color = percentage >= 90 ? 'red' : percentage >= 70 ? 'yellow' : 'green';
+      let barColor = 'bg-green-500';
+      if (percentage >= 90) barColor = 'bg-red-500';
+      else if (percentage >= 70) barColor = 'bg-yellow-500';
       
       return {
+        type: 'limited',
         text: `${hmr_count}/${hmr_limit} HMRs used`,
         percentage,
-        color
+        barColor
       };
     }
   };
@@ -176,27 +262,27 @@ export default function DashboardPage() {
 
       {/* Subscription Status Bar */}
       {dashboardData?.subscription && (
-        <div className={`bg-${subscriptionStatus.color}-50 border-b border-${subscriptionStatus.color}-200 px-4 py-2`}>
+        <div className={`${subscriptionStatus.bgColor} border-b ${subscriptionStatus.borderColor} px-4 py-2`}>
           <div className="max-w-7xl mx-auto flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <div className={`text-${subscriptionStatus.color}-600`}>
+              <div className={subscriptionStatus.iconColor}>
                 {subscriptionStatus.icon}
               </div>
-              <span className={`text-sm font-medium text-${subscriptionStatus.color}-800`}>
+              <span className={`text-sm font-medium ${subscriptionStatus.textColor}`}>
                 {subscriptionStatus.text}
               </span>
             </div>
             
             {usageDisplay && (
               <div className="flex items-center space-x-4">
-                {typeof usageDisplay === 'string' ? (
-                  <span className="text-sm text-gray-600">{usageDisplay}</span>
+                {usageDisplay.type === 'unlimited' ? (
+                  <span className="text-sm text-gray-600">{usageDisplay.text}</span>
                 ) : (
                   <div className="flex items-center space-x-2">
                     <span className="text-sm text-gray-600">{usageDisplay.text}</span>
                     <div className="w-20 bg-gray-200 rounded-full h-2">
                       <div 
-                        className={`h-2 rounded-full bg-${usageDisplay.color}-500`}
+                        className={`h-2 rounded-full ${usageDisplay.barColor}`}
                         style={{ width: `${usageDisplay.percentage}%` }}
                       />
                     </div>
