@@ -1,5 +1,5 @@
 import { createServerClient, type CookieOptions } from '@supabase/ssr'
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 
 export async function getAuthenticatedUser(request?: NextRequest) {
@@ -31,90 +31,86 @@ export async function getAuthenticatedUser(request?: NextRequest) {
         }
       )
       
-      console.log('Auth helpers: Checking user with cookies method...');
+      console.log('Auth helpers: Checking user session...')
       const { data: { user }, error } = await supabase.auth.getUser()
       
-      if (user && !error) {
-        console.log('Auth helpers: User authenticated via cookies:', user.id);
-        return { user, error: null }
-      } else if (error) {
-        console.log('Auth helpers: Cookies method error:', error.message);
+      if (error) {
+        console.log('Auth helpers: Error getting user:', error.message)
+        return { user: null, error: error.message }
       }
+      
+      if (!user) {
+        console.log('Auth helpers: No user found in session')
+        return { user: null, error: 'No user found' }
+      }
+      
+      console.log('Auth helpers: User found:', user.id)
+      return { user, error: null }
     }
-
+    
     // Method 2: Try with request cookies (for middleware)
-    if (request) {
-      console.log('Auth helpers: Using request cookies method...');
-      const supabase = createServerClient(
-        process.env.NEXT_PUBLIC_SUPABASE_URL!,
-        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-        {
-          cookies: {
-            get(name: string) {
-              const cookie = request.cookies.get(name)?.value
-              console.log(`Auth helpers: Getting request cookie ${name}:`, cookie ? 'present' : 'missing')
-              return cookie
-            },
-            set() {},
-            remove() {},
+    console.log('Auth helpers: Using request cookies method...')
+    
+    let response = NextResponse.next({
+      request: {
+        headers: request.headers,
+      },
+    })
+    
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          get(name: string) {
+            const cookie = request.cookies.get(name)?.value
+            console.log(`Auth helpers: Getting request cookie ${name}:`, cookie ? 'present' : 'missing')
+            return cookie
           },
-        }
-      )
-      
-      console.log('Auth helpers: Checking user with request method...');
-      const { data: { user }, error } = await supabase.auth.getUser()
-      
-      if (user && !error) {
-        console.log('Auth helpers: User authenticated via request cookies:', user.id);
-        return { user, error: null }
-      } else if (error) {
-        console.log('Auth helpers: Request method error:', error.message);
-      }
-    }
-
-    // Method 3: Try with authorization header as fallback
-    if (request) {
-      console.log('Auth helpers: Trying authorization header...');
-      const authHeader = request.headers.get('authorization')
-      if (authHeader?.startsWith('Bearer ')) {
-        const token = authHeader.substring(7)
-        console.log('Auth helpers: Found authorization header');
-        
-        const supabase = createServerClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL!,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-          {
-            cookies: {
-              get() { return undefined },
-              set() {},
-              remove() {},
-            },
-            global: {
-              headers: {
-                Authorization: `Bearer ${token}`,
+          set(name: string, value: string, options: CookieOptions) {
+            request.cookies.set({ name, value, ...options })
+            response = NextResponse.next({
+              request: {
+                headers: request.headers,
               },
-            },
-          }
-        )
-        
-        const { data: { user }, error } = await supabase.auth.getUser()
-        
-        if (user && !error) {
-          console.log('Auth helpers: User authenticated via header:', user.id);
-          return { user, error: null }
-        } else if (error) {
-          console.log('Auth helpers: Header method error:', error.message);
-        }
-      } else {
-        console.log('Auth helpers: No authorization header found');
+            })
+            response.cookies.set({ name, value, ...options })
+          },
+          remove(name: string, options: CookieOptions) {
+            request.cookies.set({ name, value: '', ...options })
+            response = NextResponse.next({
+              request: {
+                headers: request.headers,
+              },
+            })
+            response.cookies.set({ name, value: '', ...options })
+          },
+        },
       }
+    )
+    
+    console.log('Auth helpers: Checking user session with request cookies...')
+    const { data: { user }, error } = await supabase.auth.getUser()
+    
+    if (error) {
+      console.log('Auth helpers: Error getting user from request:', error.message)
+      return { user: null, error: error.message }
     }
-
-    console.log('Auth helpers: No valid authentication found');
-    return { user: null, error: 'No valid authentication found' }
+    
+    if (!user) {
+      console.log('Auth helpers: No user found in request session')
+      return { user: null, error: 'No user found' }
+    }
+    
+    console.log('Auth helpers: User found from request:', user.id)
+    return { user, error: null }
+    
   } catch (error) {
-    console.error('Auth helpers: Exception in authentication:', error)
-    return { user: null, error: error instanceof Error ? error.message : 'Authentication failed' }
+    console.error('Auth helpers: Exception during authentication:', error)
+    return { 
+      user: null, 
+      error: error instanceof Error ? error.message : 'Authentication failed' 
+    }
   }
 }
 

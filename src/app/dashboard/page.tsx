@@ -74,10 +74,16 @@ function DashboardContent() {
   const fetchDashboardData = async () => {
     try {
       console.log('Dashboard: Fetching dashboard data...');
+      
+      // Add a small delay to ensure authentication cookies are fully set
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const response = await fetch('/api/dashboard', {
+        method: 'GET',
         credentials: 'include', // Include cookies
         headers: {
           'Content-Type': 'application/json',
+          'Cache-Control': 'no-cache'
         }
       });
       
@@ -92,14 +98,33 @@ function DashboardContent() {
         if (data.onboarding && !data.onboarding.onboarding_completed_at) {
           setShowOnboarding(true);
         }
-      } else {
-        const errorText = await response.text();
-        console.error('Dashboard: API error response:', response.status, errorText);
+      } else if (response.status === 401) {
+        // Handle 401 with retry after a short delay
+        console.log('Dashboard: 401 error, authentication may still be settling. Retrying...');
         
-        // Don't show error for 401 on initial load - user might not be fully authenticated yet
-        if (response.status === 401) {
-          console.log('Dashboard: Authentication required - user may still be logging in');
-          // Set some default data so the dashboard doesn't break
+        // Wait a bit longer and try again
+        await new Promise(resolve => setTimeout(resolve, 2000));
+        
+        const retryResponse = await fetch('/api/dashboard', {
+          method: 'GET',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'Cache-Control': 'no-cache'
+          }
+        });
+        
+        if (retryResponse.ok) {
+          const data = await retryResponse.json();
+          console.log('Dashboard: Successfully fetched data on retry');
+          setDashboardData(data);
+          
+          if (data.onboarding && !data.onboarding.onboarding_completed_at) {
+            setShowOnboarding(true);
+          }
+        } else {
+          console.log('Dashboard: Retry failed, using default data');
+          // Set default data to prevent dashboard from breaking
           setDashboardData({
             patients: [],
             statistics: {
@@ -120,9 +145,32 @@ function DashboardContent() {
             },
             onboarding: null
           });
-        } else {
-          console.error('Dashboard: Failed to fetch dashboard data:', response.status, errorText);
         }
+      } else {
+        const errorText = await response.text();
+        console.error('Dashboard: Failed to fetch dashboard data:', response.status, errorText);
+        
+        // Set default data so dashboard doesn't break
+        setDashboardData({
+          patients: [],
+          statistics: {
+            totalPatients: 0,
+            totalReviews: 0,
+            completedReviews: 0,
+            draftReviews: 0,
+            pendingReviews: 0
+          },
+          pendingReviews: [],
+          recentActivity: [],
+          subscription: null,
+          usage: {
+            current_month: new Date().toISOString().slice(0, 7),
+            hmr_count: 0,
+            hmr_limit: null,
+            last_hmr_date: null
+          },
+          onboarding: null
+        });
       }
     } catch (error) {
       console.error('Dashboard: Error fetching dashboard data:', error);
