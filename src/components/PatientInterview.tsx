@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useHMRSelectors } from '@/store/hmr-store';
-import { InterviewResponse } from '@/store/hmr-store';
+import { InterviewResponse, UnlistedMedication } from '@/store/hmr-store';
 
 interface PatientInterviewProps {
   onNext: () => void;
@@ -10,31 +10,65 @@ interface PatientInterviewProps {
 }
 
 export default function PatientInterview({ onNext, onPrevious }: PatientInterviewProps) {
-  const { 
-    currentPatient,
+  const {
     currentInterviewResponse,
     setCurrentInterviewResponse,
-    setLoading,
+    currentPatient,
     saveDraft
   } = useHMRSelectors();
 
+  const [loading, setLoading] = useState(false);
+  const isUpdatingFromStore = useRef(false);
+
   const [formData, setFormData] = useState<InterviewResponse>({
-    patient_id: currentPatient?.id,
     interview_date: new Date().toISOString().split('T')[0],
-    pharmacist_name: 'Avishkar Lal (MRN 8362)',
+    pharmacist_name: '',
+    medication_understanding: undefined,
+    medication_administration: undefined,
+    medication_adherence: undefined,
+    adherence_comments: '',
+    fluid_intake: undefined,
+    tea_cups_daily: 0,
+    coffee_cups_daily: 0,
+    other_fluids: '',
+    eating_habits: undefined,
+    dietary_concerns: '',
+    smoking_status: undefined,
+    cigarettes_daily: 0,
+    quit_date: '',
+    alcohol_consumption: undefined,
+    alcohol_drinks_weekly: 0,
+    recreational_drug_use: undefined,
+    drug_type: '',
+    drug_frequency: '',
+    unlisted_medications: [],
+    discontinued_medications: [],
+    discontinuation_reasons: {},
+    counselling_provided: [],
+    next_review_date: '',
+    follow_up_type: undefined,
+    follow_up_notes: '',
     status: 'draft'
   });
 
   const [currentSection, setCurrentSection] = useState<'A' | 'B'>('A');
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
+  // Fix the infinite loop by using a ref to track updates
   useEffect(() => {
-    if (currentInterviewResponse) {
+    if (currentInterviewResponse && !isUpdatingFromStore.current) {
+      console.log('PatientInterview: Loading data from store');
+      isUpdatingFromStore.current = true;
       setFormData(currentInterviewResponse);
+      // Reset the flag after a short delay to allow for the state update
+      setTimeout(() => {
+        isUpdatingFromStore.current = false;
+      }, 100);
     }
   }, [currentInterviewResponse]);
 
   const handleInputChange = (field: keyof InterviewResponse, value: string | number | string[]) => {
+    // Don't set the flag here as this is user input, not store update
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -45,6 +79,15 @@ export default function PatientInterview({ onNext, onPrevious }: PatientIntervie
         ...prev,
         [field]: ''
       }));
+    }
+
+    // Update store immediately for auto-save to work
+    if (!isUpdatingFromStore.current) {
+      const updatedData = {
+        ...formData,
+        [field]: value
+      };
+      setCurrentInterviewResponse(updatedData);
     }
   };
 
