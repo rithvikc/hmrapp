@@ -19,31 +19,59 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [pharmacist, setPharmacist] = useState<any | null>(null)
+  const [pharmacist, setPharmacist] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [isClient, setIsClient] = useState(false)
   
-  // Ensure we're on the client side before initializing Supabase
+  // Ensure we're on the client side
   useEffect(() => {
     setIsClient(true)
   }, [])
+
+  const fetchPharmacist = async (userId: string) => {
+    try {
+      console.log('AuthContext: Fetching pharmacist for user:', userId)
+      const supabase = createClient()
+      
+      // Add timeout for pharmacist fetch
+      const fetchPromise = supabase
+        .from('pharmacists')
+        .select('*')
+        .eq('user_id', userId)
+        .single()
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Pharmacist fetch timeout')), 3000)
+      )
+      
+      const { data: existingPharmacist, error: fetchError } = await Promise.race([fetchPromise, timeoutPromise])
+      
+      if (fetchError && fetchError.code !== 'PGRST116') {
+        // PGRST116 is "not found" - which is expected for new users
+        console.error('AuthContext: Error fetching pharmacist:', fetchError)
+        setPharmacist(null)
+        return
+      }
+      
+      if (existingPharmacist) {
+        console.log('AuthContext: Found existing pharmacist:', existingPharmacist.name)
+        setPharmacist(existingPharmacist)
+      } else {
+        console.log('AuthContext: No pharmacist record found for user')
+        setPharmacist(null)
+      }
+    } catch (error) {
+      console.error('AuthContext: Exception in fetchPharmacist:', error)
+      setPharmacist(null)
+    }
+  }
 
   useEffect(() => {
     if (!isClient) return
 
     let mounted = true
-    let supabase: any = null
-    
-    try {
-      supabase = createClient()
-    } catch (error) {
-      console.error('AuthContext: Failed to create Supabase client:', error)
-      if (mounted) {
-        setLoading(false)
-      }
-      return
-    }
-    
+    const supabase = createClient()
+
     const getInitialSession = async () => {
       try {
         console.log('AuthContext: Getting initial session...')
@@ -82,43 +110,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     }
 
-    const fetchPharmacist = async (userId: string) => {
-      try {
-        console.log('AuthContext: Fetching pharmacist for user:', userId)
-        
-        // Add timeout for pharmacist fetch
-        const fetchPromise = supabase
-          .from('pharmacists')
-          .select('*')
-          .eq('user_id', userId)
-          .single()
-        
-        const timeoutPromise = new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Pharmacist fetch timeout')), 3000)
-        )
-        
-        const { data: existingPharmacist, error: fetchError } = await Promise.race([fetchPromise, timeoutPromise])
-        
-        if (fetchError && fetchError.code !== 'PGRST116') {
-          // PGRST116 is "not found" - which is expected for new users
-          console.error('AuthContext: Error fetching pharmacist:', fetchError)
-          setPharmacist(null)
-          return
-        }
-        
-        if (existingPharmacist) {
-          console.log('AuthContext: Found existing pharmacist:', existingPharmacist.name)
-          setPharmacist(existingPharmacist)
-        } else {
-          console.log('AuthContext: No pharmacist record found for user')
-          setPharmacist(null)
-        }
-      } catch (error) {
-        console.error('AuthContext: Exception in fetchPharmacist:', error)
-        setPharmacist(null)
-      }
-    }
-
     getInitialSession()
 
     // Listen for auth changes
@@ -142,8 +133,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // Fetch pharmacist data asynchronously (don't block)
           if (session?.user) {
             fetchPharmacist(session.user.id)
-          } else {
-            setPharmacist(null)
           }
         }
       }
@@ -153,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [isClient])
+  }, [isClient, fetchPharmacist])
 
   const createPharmacistRecord = async (user: User, metadata: any) => {
     try {
@@ -201,17 +190,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       })
       
       const timeoutPromise = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Sign in timeout')), 10000)
+        setTimeout(() => reject(new Error('Sign in timeout - please try again')), 15000)
       )
       
       const { data, error } = await Promise.race([signInPromise, timeoutPromise])
-      return { data, error }
+      
+      if (error) {
+        console.error('AuthContext: Sign in error:', error)
+        return { data, error }
+      }
+      
+      console.log('AuthContext: Sign in successful')
+      return { data, error: null }
+      
     } catch (error) {
       console.error('AuthContext: Sign in failed:', error)
       return { 
         data: null, 
         error: { 
-          message: error instanceof Error ? error.message : 'Sign in failed' 
+          message: error instanceof Error ? error.message : 'Sign in failed - please try again' 
         } 
       }
     }

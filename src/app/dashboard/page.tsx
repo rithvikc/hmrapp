@@ -21,17 +21,28 @@ function DashboardContent() {
   useEffect(() => {
     console.log('Dashboard: Auth state check - loading:', loading, 'user exists:', !!user, 'user id:', user?.id);
     
-    // Only redirect if we're definitely not loading and definitely no user
-    if (!loading && !user) {
-      console.log('Dashboard: No user found, redirecting to login...');
-      setTimeout(() => {
-        router.push('/login');
-      }, 100);
+    // Wait longer for authentication to complete
+    if (loading) {
+      console.log('Dashboard: Still loading authentication...');
       return;
     }
     
+    // Only redirect if we're definitely not loading and definitely no user after a reasonable wait
+    if (!user) {
+      console.log('Dashboard: No user found after auth loading completed');
+      // Add a small delay to give auth state one more chance to update
+      const timeoutId = setTimeout(() => {
+        if (!user) {
+          console.log('Dashboard: Redirecting to login...');
+          router.push('/login');
+        }
+      }, 2000); // Wait 2 seconds
+      
+      return () => clearTimeout(timeoutId);
+    }
+    
     if (user) {
-      console.log('Dashboard: User authenticated, setting up dashboard...');
+      console.log('Dashboard: User authenticated successfully, setting up dashboard...');
       setCurrentStep('dashboard');
       
       // Check if this is a welcome redirect from signup/subscription
@@ -54,8 +65,10 @@ function DashboardContent() {
         }, 5000);
       }
       
-      // Fetch dashboard data
-      fetchDashboardData();
+      // Fetch dashboard data with a small delay to ensure session is fully established
+      setTimeout(() => {
+        fetchDashboardData();
+      }, 1000);
     }
   }, [user, loading, router, setCurrentStep, searchParams]);
 

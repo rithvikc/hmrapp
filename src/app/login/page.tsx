@@ -52,21 +52,32 @@ export default function LoginPage() {
     setError('');
 
     try {
-      const { error: authError } = await signIn(formData.email, formData.password);
+      console.log('LoginPage: Attempting sign in...');
+      const { data, error: authError } = await signIn(formData.email, formData.password);
       
       if (authError) {
+        console.error('LoginPage: Sign in error:', authError);
         if (authError.message.includes('Invalid login credentials')) {
           setError('Invalid email or password. Please check your credentials.');
         } else if (authError.message.includes('Email not confirmed')) {
           setError('Please check your email and click the confirmation link before signing in.');
+        } else if (authError.message.includes('timeout')) {
+          setError('Login is taking longer than expected. Please check your connection and try again.');
         } else {
           setError(authError.message);
         }
+      } else if (data?.user) {
+        console.log('LoginPage: Sign in successful, redirecting...');
+        // Add a small delay to allow auth state to update
+        setTimeout(() => {
+          router.push('/dashboard?welcome=true');
+        }, 500);
       } else {
-        // Redirect will be handled by the auth state change
-        router.push('/dashboard');
+        console.error('LoginPage: Unexpected sign in result');
+        setError('An unexpected error occurred. Please try again.');
       }
     } catch (err) {
+      console.error('LoginPage: Exception during sign in:', err);
       setError('An unexpected error occurred. Please try again.');
     } finally {
       setLoading(false);
