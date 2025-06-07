@@ -84,15 +84,26 @@ export default function MainLayout() {
   };
 
   const handleNewReview = () => {
+    console.log('MainLayout: Starting new HMR review...');
+    
     if (hasUnsavedWork) {
       const confirmNewReview = window.confirm(
         'You have unsaved work. Starting a new review will discard it. Continue?'
       );
-      if (!confirmNewReview) return;
+      if (!confirmNewReview) {
+        console.log('MainLayout: User cancelled new review');
+        return;
+      }
     }
     
+    console.log('MainLayout: Resetting workflow and navigating to upload...');
     resetWorkflow();
-    setCurrentStep('upload');
+    
+    // Small delay to ensure reset is complete, then navigate
+    setTimeout(() => {
+      setCurrentStep('upload');
+      console.log('MainLayout: Navigation to upload complete');
+    }, 100);
   };
 
   const handleContinueDraft = (reviewId: number) => {

@@ -342,12 +342,24 @@ export const useHMRStore = create<HMRWorkflowState>()(
         
         setError: (error) => set({ error }),
         
-        resetWorkflow: () => set({
-          ...initialState,
-          patients: get().patients,
-          interviewResponses: get().interviewResponses,
-          reviews: get().reviews,
-        }),
+        resetWorkflow: () => {
+          console.log('[DEBUG] Resetting workflow...');
+          const currentPatients = get().patients;
+          const currentInterviewResponses = get().interviewResponses;
+          const currentReviews = get().reviews;
+          
+          set({
+            ...initialState,
+            patients: currentPatients,
+            interviewResponses: currentInterviewResponses,
+            reviews: currentReviews,
+            // Don't override currentStep - let it be set by the caller
+          });
+          
+          // Clear any existing draft
+          localStorage.removeItem('hmr-draft');
+          console.log('[DEBUG] Workflow reset complete');
+        },
         
         clearAllData: () => {
           // Clear localStorage
@@ -397,19 +409,31 @@ export const useHMRStore = create<HMRWorkflowState>()(
               console.log('[DEBUG] Parsing saved draft from JSON');
               const draft = JSON.parse(saved);
               console.log('[DEBUG] Setting state with draft data');
+              
+              // Get current step - only override if it's not already set to something other than dashboard
+              const currentState = get();
+              const shouldOverrideStep = !currentState.currentStep || currentState.currentStep === 'dashboard';
+              
               set({
                 currentPatient: draft.currentPatient || null,
                 currentMedications: draft.currentMedications || [],
                 currentInterviewResponse: draft.currentInterviewResponse || null,
                 currentMedicationCompliance: draft.currentMedicationCompliance || [],
                 currentClinicalRecommendations: draft.currentClinicalRecommendations || [],
-                currentStep: 'dashboard',
+                currentStep: shouldOverrideStep ? 'dashboard' : currentState.currentStep,
                 currentSection: draft.currentSection || 'patient-info',
               });
-              console.log('[DEBUG] State updated with draft data, currentStep set to "dashboard"');
+              console.log('[DEBUG] State updated with draft data, currentStep:', shouldOverrideStep ? '"dashboard"' : 'preserved');
             } else {
-              console.log('[DEBUG] No draft found, setting currentStep to "dashboard"');
-              set({ currentStep: 'dashboard' });
+              console.log('[DEBUG] No draft found');
+              // Only set currentStep to dashboard if it's not already set
+              const currentState = get();
+              if (!currentState.currentStep) {
+                console.log('[DEBUG] Setting currentStep to "dashboard"');
+                set({ currentStep: 'dashboard' });
+              } else {
+                console.log('[DEBUG] Preserving existing currentStep:', currentState.currentStep);
+              }
             }
             console.log('[DEBUG] loadDraft complete');
           } catch (error) {

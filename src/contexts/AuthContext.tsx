@@ -1,6 +1,6 @@
 'use client'
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react'
 import { User, AuthChangeEvent, Session } from '@supabase/supabase-js'
 import { createClient } from '@/lib/supabase'
 
@@ -28,7 +28,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsClient(true)
   }, [])
 
-  const fetchPharmacist = async (userId: string) => {
+  const fetchPharmacist = useCallback(async (userId: string) => {
     try {
       console.log('AuthContext: Fetching pharmacist for user:', userId)
       const supabase = createClient()
@@ -64,7 +64,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error('AuthContext: Exception in fetchPharmacist:', error)
       setPharmacist(null)
     }
-  }
+  }, [])
 
   useEffect(() => {
     if (!isClient) return

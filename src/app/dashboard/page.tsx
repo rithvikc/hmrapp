@@ -45,30 +45,38 @@ function DashboardContent() {
       console.log('Dashboard: User authenticated successfully, setting up dashboard...');
       setCurrentStep('dashboard');
       
-      // Check if this is a welcome redirect from signup/subscription
-      const isWelcome = searchParams.get('welcome');
-      const isTrialUser = searchParams.get('trial');
-      const subscriptionSuccess = searchParams.get('subscription');
-      
-      if (isWelcome === 'true') {
-        setShowWelcomeMessage(true);
+      // Only check for welcome message once when user is first authenticated
+      if (!showWelcomeMessage && !dashboardData) {
+        // Check if this is a welcome redirect from signup/subscription
+        const isWelcome = searchParams.get('welcome');
+        const isTrialUser = searchParams.get('trial');
+        const subscriptionSuccess = searchParams.get('subscription');
         
-        if (subscriptionSuccess === 'success') {
-          console.log('Welcome message: Subscription successful!');
-        } else if (isTrialUser === 'true') {
-          console.log('Welcome message: Trial user started!');
+        if (isWelcome === 'true') {
+          console.log('Dashboard: Setting welcome message');
+          setShowWelcomeMessage(true);
+          
+          if (subscriptionSuccess === 'success') {
+            console.log('Welcome message: Subscription successful!');
+          } else if (isTrialUser === 'true') {
+            console.log('Welcome message: Trial user started!');
+          }
+          
+          // Auto-hide welcome message after 5 seconds
+          setTimeout(() => {
+            console.log('Dashboard: Hiding welcome message');
+            setShowWelcomeMessage(false);
+          }, 5000);
         }
-        
-        // Auto-hide welcome message after 5 seconds
-        setTimeout(() => {
-          setShowWelcomeMessage(false);
-        }, 5000);
       }
       
-      // Fetch dashboard data with a small delay to ensure session is fully established
-      setTimeout(() => {
-        fetchDashboardData();
-      }, 1000);
+      // Fetch dashboard data only once
+      if (!dashboardData && !loadingData) {
+        console.log('Dashboard: Fetching dashboard data...');
+        setTimeout(() => {
+          fetchDashboardData();
+        }, 1000);
+      }
     }
   }, [user, loading, router, setCurrentStep, searchParams]);
 
