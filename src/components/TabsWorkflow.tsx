@@ -70,32 +70,15 @@ export default function TabsWorkflow({ onExit }: TabsWorkflowProps) {
     };
   }, [performAutoSave]);
 
-  // Auto-save before page unload
+  // Auto-save on window blur (when window loses focus) - but not on tab switch
   useEffect(() => {
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      console.log('TabsWorkflow: Page unloading, performing final auto-save...');
-      performAutoSave();
-      
-      // Show warning if there's unsaved work
-      if (hasUnsavedWork) {
-        const message = 'You have unsaved work. Are you sure you want to leave?';
-        event.returnValue = message;
-        return message;
+    const handleWindowBlur = (event: FocusEvent) => {
+      // Only save if the blur is not due to switching to another tab
+      // Check if the related target is within the same window
+      if (!event.relatedTarget || event.relatedTarget === null) {
+        console.log('TabsWorkflow: Window lost focus (not tab switch), performing auto-save...');
+        performAutoSave();
       }
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, [performAutoSave, hasUnsavedWork]);
-
-  // Auto-save on window blur (when window loses focus)
-  useEffect(() => {
-    const handleWindowBlur = () => {
-      console.log('TabsWorkflow: Window lost focus, performing auto-save...');
-      performAutoSave();
     };
 
     window.addEventListener('blur', handleWindowBlur);

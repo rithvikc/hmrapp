@@ -83,6 +83,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             } catch (signOutError) {
               console.error('AuthContext: Error signing out after refresh token error:', signOutError)
             }
+            // Don't redirect here - let the auth state change handle it
           }
         }
         

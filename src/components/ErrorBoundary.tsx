@@ -27,7 +27,7 @@ class ErrorBoundary extends React.Component<
     // Log the error
     console.error('ErrorBoundary caught an error:', error, errorInfo)
     
-    // Handle specific authentication errors
+    // Handle specific authentication errors - but only if they're actual errors
     if (error.message?.includes('refresh_token_not_found') || 
         error.message?.includes('Invalid Refresh Token') ||
         error.message?.includes('AuthApiError')) {
@@ -38,10 +38,13 @@ class ErrorBoundary extends React.Component<
       localStorage.removeItem('hmr-draft')
       localStorage.removeItem('hmr-store')
       
-      // Redirect to login after a short delay
+      // Redirect to login after a longer delay to avoid interfering with normal navigation
       setTimeout(() => {
-        window.location.href = '/login'
-      }, 2000)
+        // Only redirect if we're still on the same page and the error persists
+        if (this.state.hasError) {
+          window.location.href = '/login'
+        }
+      }, 5000) // Increased delay to 5 seconds
     }
     
     this.setState({ errorInfo })
