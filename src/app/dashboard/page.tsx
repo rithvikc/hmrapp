@@ -30,6 +30,9 @@ function DashboardContent() {
     // If not loading and no user, redirect to login
     if (!user) {
       console.log('Dashboard: No user found, redirecting to login...');
+      // Clear any potentially corrupted data before redirecting
+      localStorage.removeItem('hmr-draft');
+      localStorage.removeItem('hmr-store');
       router.push('/login');
       return;
     }

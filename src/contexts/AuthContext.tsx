@@ -73,6 +73,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (error) {
           console.error('AuthContext: Error getting session:', error)
+          
+          // Handle specific refresh token errors
+          if (error.message?.includes('refresh_token_not_found') || 
+              error.message?.includes('Invalid Refresh Token')) {
+            console.log('AuthContext: Invalid refresh token detected, clearing session...')
+            try {
+              await supabase.auth.signOut()
+            } catch (signOutError) {
+              console.error('AuthContext: Error signing out after refresh token error:', signOutError)
+            }
+          }
         }
         
         if (mounted) {
@@ -113,6 +124,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(null)
           setPharmacist(null)
           setLoading(false) // Ensure loading is false
+          return
+        }
+        
+        // Handle token refresh errors
+        if (event === 'TOKEN_REFRESHED' && !session) {
+          console.log('AuthContext: Token refresh failed, clearing session...')
+          setUser(null)
+          setPharmacist(null)
+          setLoading(false)
           return
         }
         
