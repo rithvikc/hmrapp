@@ -171,7 +171,7 @@ const Sidebar: React.FC<SidebarProps> = ({
               <Stethoscope className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-lg font-bold text-gray-900">LAL MedReviews</h1>
+              <h1 className="text-lg font-bold text-gray-900 font-serif">myHMR</h1>
               <p className="text-xs text-gray-500">Clinical Platform</p>
             </div>
           </div>
@@ -202,10 +202,12 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold text-gray-900 truncate">
-                {pharmacist?.name || user?.user_metadata?.name || 'Healthcare Professional'}
+                {pharmacist?.name || user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Healthcare Professional'}
               </p>
               <p className="text-xs text-gray-500 truncate">
-                {pharmacist?.registration_number ? `MRN: ${pharmacist.registration_number}` : 'Pharmacist'}
+                {pharmacist?.registration_number && !pharmacist.registration_number.startsWith('TEMP-') 
+                  ? `MRN: ${pharmacist.registration_number}` 
+                  : pharmacist?.email || user?.email || 'Pharmacist'}
               </p>
             </div>
           </div>

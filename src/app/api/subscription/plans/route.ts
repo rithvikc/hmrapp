@@ -1,33 +1,42 @@
 import { NextResponse } from 'next/server';
-import Database from 'better-sqlite3';
-import path from 'path';
-
-const dbPath = path.join(process.cwd(), 'hmr.db');
+import { createClient } from '@/lib/supabase';
 
 interface SubscriptionPlan {
   id: string;
   name: string;
   price_monthly: number;
   hmr_limit: number | null;
-  features: string;
+  features: string | string[];
   stripe_price_id: string | null;
+  sort_order: number;
+  is_active: boolean;
   created_at: string;
+  updated_at: string;
 }
 
 export async function GET() {
   try {
-    const db = new Database(dbPath);
+    const supabase = createClient();
     
-    const statement = db.prepare('SELECT * FROM subscription_plans ORDER BY price_monthly ASC');
-    const plans = statement.all() as SubscriptionPlan[];
+    const { data: plans, error } = await supabase
+      .from('subscription_plans')
+      .select('*')
+      .eq('is_active', true)
+      .order('sort_order');
+    
+    if (error) {
+      console.error('Error fetching subscription plans:', error);
+      return NextResponse.json(
+        { error: 'Failed to fetch subscription plans' },
+        { status: 500 }
+      );
+    }
     
     // Parse features JSON for each plan
-    const formattedPlans = plans.map(plan => ({
+    const formattedPlans = (plans as SubscriptionPlan[]).map(plan => ({
       ...plan,
-      features: JSON.parse(plan.features)
+      features: typeof plan.features === 'string' ? JSON.parse(plan.features) : plan.features
     }));
-    
-    db.close();
     
     return NextResponse.json({
       plans: formattedPlans

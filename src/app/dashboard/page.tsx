@@ -312,7 +312,7 @@ function DashboardContent() {
       {showWelcomeMessage && (
         <div className="fixed top-4 right-4 z-40 bg-green-500 text-white px-6 py-3 rounded-lg shadow-lg max-w-sm">
           <div className="flex items-center space-x-2">
-            <span>🎉 Welcome to LAL MedReviews!</span>
+            <span>🎉 Welcome to myHMR!</span>
             <button 
               onClick={() => setShowWelcomeMessage(false)}
               className="ml-2 text-white hover:text-gray-200"

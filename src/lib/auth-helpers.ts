@@ -114,6 +114,59 @@ export async function getAuthenticatedUser(request?: NextRequest) {
   }
 }
 
+// Enhanced auth helper that also fetches pharmacist data
+export async function getAuthenticatedUserWithPharmacist(request?: NextRequest) {
+  try {
+    console.log('Auth helpers: Starting enhanced authentication check...');
+    
+    const authResult = await getAuthenticatedUser(request);
+    
+    if (!authResult.user) {
+      return { user: null, pharmacist: null, error: authResult.error };
+    }
+    
+    // Create Supabase client to fetch pharmacist data
+    const supabase = createAuthenticatedSupabaseClient(request);
+    
+    console.log('Auth helpers: Fetching pharmacist data for user:', authResult.user.id);
+    
+    const { data: pharmacist, error: pharmacistError } = await supabase
+      .from('pharmacists')
+      .select('*')
+      .eq('user_id', authResult.user.id)
+      .single();
+    
+    if (pharmacistError) {
+      console.log('Auth helpers: Error fetching pharmacist:', pharmacistError.message);
+      return { 
+        user: authResult.user, 
+        pharmacist: null, 
+        error: `Pharmacist data not found: ${pharmacistError.message}` 
+      };
+    }
+    
+    if (!pharmacist) {
+      console.log('Auth helpers: No pharmacist record found for user');
+      return { 
+        user: authResult.user, 
+        pharmacist: null, 
+        error: 'Pharmacist profile not found' 
+      };
+    }
+    
+    console.log('Auth helpers: Pharmacist found:', pharmacist.name);
+    return { user: authResult.user, pharmacist, error: null };
+    
+  } catch (error) {
+    console.error('Auth helpers: Exception during enhanced authentication:', error);
+    return { 
+      user: null, 
+      pharmacist: null,
+      error: error instanceof Error ? error.message : 'Authentication failed' 
+    };
+  }
+}
+
 export function createAuthenticatedSupabaseClient(request?: NextRequest) {
   if (request) {
     return createServerClient(

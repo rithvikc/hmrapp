@@ -129,7 +129,7 @@ export default function SignupPage() {
             <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-green-100 mb-6">
               <Mail className="h-8 w-8 text-green-600" />
             </div>
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl font-bold text-gray-900 mb-4 font-serif">
               Check your email
             </h2>
             <p className="text-gray-600 mb-8">
@@ -169,8 +169,8 @@ export default function SignupPage() {
               <Stethoscope className="h-8 w-8 text-white" />
             </div>
           </button>
-          <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-            Join LAL MedReviews
+          <h2 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent font-serif">
+            Join myHMR
           </h2>
           <p className="mt-2 text-sm text-gray-600">
             Create your professional account to get started
@@ -383,10 +383,10 @@ export default function SignupPage() {
             <div className="flex items-start">
               <Shield className="h-5 w-5 text-blue-600 mt-0.5 mr-3 flex-shrink-0" />
               <div>
-                <h4 className="text-sm font-medium text-blue-900">HIPAA Compliant & Secure</h4>
+                <h4 className="text-sm font-medium text-blue-900">Privacy-First Design</h4>
                 <p className="text-xs text-blue-800 mt-1">
-                  Your data is protected with enterprise-grade security. All patient information 
-                  is encrypted and stored in compliance with HIPAA regulations.
+                  We store only essential patient identifiers (name, DOB, and ID). No sensitive health 
+                  information is retained on our platform, ensuring maximum privacy protection.
                 </p>
               </div>
             </div>

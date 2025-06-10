@@ -97,11 +97,10 @@ class PDFGenerator {
   }
 
   private addHeader() {
-    // LAL MedReviews Header
-    this.doc.setFontSize(20);
+    // myHMR Header
+    this.doc.setFontSize(16);
     this.doc.setFont('helvetica', 'bold');
-    this.doc.setTextColor(0, 100, 200); // Blue color
-    this.doc.text('LAL MedReviews', this.margin, this.currentY);
+    this.doc.text('myHMR', this.margin, this.currentY);
     
     this.doc.setFontSize(14);
     this.doc.setFont('helvetica', 'normal');

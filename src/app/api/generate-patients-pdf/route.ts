@@ -287,7 +287,7 @@ const generatePatientsHTML = (data: PatientsPDFData) => {
   <div class="patients-report">
     <!-- Header -->
     <div class="header">
-      <div class="logo">LAL MedReviews</div>
+      <div class="logo">myHMR</div>
       <div class="report-info">
         Generated: ${new Date(data.generated).toLocaleDateString('en-AU', {
           day: '2-digit',
@@ -395,7 +395,7 @@ const generatePatientsHTML = (data: PatientsPDFData) => {
 
     <!-- Footer -->
     <div class="footer">
-      <p>LAL MedReviews - Professional Home Medication Review Management System</p>
+      <p>myHMR - Professional Home Medication Review Management System</p>
       <p>This report contains confidential patient information. Handle in accordance with privacy regulations.</p>
     </div>
   </div>

@@ -5,20 +5,28 @@
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS trigger AS $$
 BEGIN
-  -- Only create pharmacist record if the user has the required metadata
+  -- Create pharmacist record if user has basic required metadata (name is required)
   IF NEW.raw_user_meta_data IS NOT NULL AND 
-     NEW.raw_user_meta_data->>'name' IS NOT NULL AND 
-     NEW.raw_user_meta_data->>'registration_number' IS NOT NULL THEN
+     NEW.raw_user_meta_data->>'name' IS NOT NULL THEN
     
     INSERT INTO public.pharmacists (user_id, email, name, registration_number, phone, practice_name, practice_address)
     VALUES (
       NEW.id,
       NEW.email,
       NEW.raw_user_meta_data->>'name',
-      NEW.raw_user_meta_data->>'registration_number',
+      COALESCE(NEW.raw_user_meta_data->>'registration_number', 'TEMP-' || substr(NEW.id::text, 1, 8)),
       NEW.raw_user_meta_data->>'phone',
       NEW.raw_user_meta_data->>'practice',
       NEW.raw_user_meta_data->>'location'
+    );
+  ELSE
+    -- If no metadata or name, create a basic record
+    INSERT INTO public.pharmacists (user_id, email, name, registration_number)
+    VALUES (
+      NEW.id,
+      NEW.email,
+      COALESCE(NEW.raw_user_meta_data->>'name', split_part(NEW.email, '@', 1)),
+      'TEMP-' || substr(NEW.id::text, 1, 8)
     );
   END IF;
   

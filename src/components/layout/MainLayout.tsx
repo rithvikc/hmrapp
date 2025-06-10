@@ -6,6 +6,7 @@ import PDFUpload from '@/components/PDFUpload';
 import PatientsView from '@/components/PatientsView';
 import TabsWorkflow from '@/components/TabsWorkflow';
 import DataDebugger from '@/components/DataDebugger';
+import Settings from '@/components/Settings';
 import { useHMRSelectors, Patient } from '@/store/hmr-store';
 import { Calendar } from 'lucide-react';
 import PDFGenerationProgress from '@/components/PDFGenerationProgress';
@@ -338,7 +339,7 @@ export default function MainLayout() {
         return (
           <div className="p-6">
             <div className="max-w-2xl mx-auto">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Add New Patient</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6 font-serif">Add New Patient</h2>
               <p className="text-gray-600">Patient registration form will be implemented here.</p>
             </div>
           </div>
@@ -349,7 +350,7 @@ export default function MainLayout() {
           <div className="p-6">
             <div className="max-w-4xl mx-auto">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Patient Details</h2>
+                <h2 className="text-2xl font-bold text-gray-900 font-serif">Patient Details</h2>
                 <button
                   onClick={() => setCurrentStep('patients-view')}
                   className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
@@ -361,7 +362,7 @@ export default function MainLayout() {
                 <div className="bg-white rounded-lg shadow-sm p-6">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Personal Information</h3>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 font-serif">Personal Information</h3>
                       <div className="space-y-3">
                         <div><span className="font-medium">Name:</span> {currentPatient.name}</div>
                         <div><span className="font-medium">Date of Birth:</span> {currentPatient.dob}</div>
@@ -372,7 +373,7 @@ export default function MainLayout() {
                       </div>
                     </div>
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Medical Information</h3>
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4 font-serif">Medical Information</h3>
                       <div className="space-y-3">
                         <div><span className="font-medium">Referring Doctor:</span> {currentPatient.referring_doctor}</div>
                         <div><span className="font-medium">Practice:</span> {currentPatient.practice_name || 'Not provided'}</div>
@@ -409,7 +410,7 @@ export default function MainLayout() {
           <div className="p-6">
             <div className="max-w-2xl mx-auto">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Edit Patient</h2>
+                <h2 className="text-2xl font-bold text-gray-900 font-serif">Edit Patient</h2>
                 <button
                   onClick={() => setCurrentStep('patients-view')}
                   className="flex items-center space-x-2 text-gray-600 hover:text-gray-800 transition-colors"
@@ -451,7 +452,7 @@ export default function MainLayout() {
           <div className="p-6">
             <div className="max-w-6xl mx-auto">
               <div className="flex items-center justify-between mb-6">
-                <h2 className="text-2xl font-bold text-gray-900">Scheduled Reviews</h2>
+                <h2 className="text-2xl font-bold text-gray-900 font-serif">Scheduled Reviews</h2>
                 <div className="flex space-x-3">
                   <button
                     onClick={() => {
@@ -482,7 +483,7 @@ export default function MainLayout() {
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                   {/* Calendar Integration Info */}
                   <div className="lg:col-span-2">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Calendar Integration</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 font-serif">Calendar Integration</h3>
                     <div className="space-y-4">
                       <div className="p-4 bg-blue-50 rounded-lg">
                         <h4 className="font-medium text-blue-900 mb-2">Google Calendar</h4>
@@ -514,7 +515,7 @@ export default function MainLayout() {
                   
                   {/* Quick Schedule */}
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Quick Schedule</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 font-serif">Quick Schedule</h3>
                     <div className="space-y-3">
                       <button
                         onClick={() => {
@@ -546,7 +547,7 @@ export default function MainLayout() {
                 </div>
                 
                 <div className="mt-6 pt-6 border-t border-gray-200">
-                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Upcoming Reviews</h3>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4 font-serif">Upcoming Reviews</h3>
                   <p className="text-gray-600">Scheduled HMR appointments will appear here once calendar integration is set up.</p>
                 </div>
               </div>
@@ -558,7 +559,7 @@ export default function MainLayout() {
         return (
           <div className="p-6">
             <div className="max-w-4xl mx-auto">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Medication Database</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6 font-serif">Medication Database</h2>
               <p className="text-gray-600">Drug database and interaction checker will be implemented here.</p>
             </div>
           </div>
@@ -568,7 +569,7 @@ export default function MainLayout() {
         return (
           <div className="p-6">
             <div className="max-w-4xl mx-auto">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Clinical Guidelines</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6 font-serif">Clinical Guidelines</h2>
               <p className="text-gray-600">Evidence-based clinical protocols and guidelines will be displayed here.</p>
             </div>
           </div>
@@ -578,7 +579,7 @@ export default function MainLayout() {
         return (
           <div className="p-6">
             <div className="max-w-4xl mx-auto">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Drug Interaction Checker</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6 font-serif">Drug Interaction Checker</h2>
               <p className="text-gray-600">Advanced drug interaction checking tools will be implemented here.</p>
             </div>
           </div>
@@ -588,7 +589,7 @@ export default function MainLayout() {
         return (
           <div className="p-6">
             <div className="max-w-4xl mx-auto">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Risk Assessment Tools</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6 font-serif">Risk Assessment Tools</h2>
               <p className="text-gray-600">Patient risk calculators and assessment tools will be implemented here.</p>
             </div>
           </div>
@@ -598,7 +599,7 @@ export default function MainLayout() {
         return (
           <div className="p-6">
             <div className="max-w-4xl mx-auto">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Clinical Analytics</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6 font-serif">Clinical Analytics</h2>
               <p className="text-gray-600">Advanced analytics and clinical outcome metrics will be displayed here.</p>
             </div>
           </div>
@@ -608,27 +609,20 @@ export default function MainLayout() {
         return (
           <div className="p-6">
             <div className="max-w-4xl mx-auto">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Reports & Export</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6 font-serif">Reports & Export</h2>
               <p className="text-gray-600">Report generation and data export functionality will be implemented here.</p>
             </div>
           </div>
         );
         
       case 'settings':
-        return (
-          <div className="p-6">
-            <div className="max-w-2xl mx-auto">
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Settings & Profile</h2>
-              <p className="text-gray-600">User settings and profile management will be implemented here.</p>
-            </div>
-          </div>
-        );
+        return <Settings />;
         
       default:
         return (
           <div className="p-6">
             <div className="max-w-2xl mx-auto text-center">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4">Feature Coming Soon</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4 font-serif">Feature Coming Soon</h2>
               <p className="text-gray-600">This feature is currently under development.</p>
             </div>
           </div>

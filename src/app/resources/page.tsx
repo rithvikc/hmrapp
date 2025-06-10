@@ -85,7 +85,7 @@ export default function ResourcesPage() {
       image: '/api/placeholder/400/240'
     },
     {
-      title: 'Getting Started with LAL MedReviews',
+      title: 'Getting Started with myHMR',
       description: 'Complete walkthrough of the platform features and how to generate your first report in under 15 minutes.',
       type: 'Video Tutorial',
       duration: '12 min',
@@ -159,7 +159,7 @@ export default function ResourcesPage() {
       {/* Hero Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-blue-50 via-white to-purple-50">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-8">
+          <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-8 font-serif">
             Resource Library
           </h1>
           <p className="text-xl text-gray-600 mb-8 leading-relaxed">
@@ -187,7 +187,7 @@ export default function ResourcesPage() {
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 font-serif">
               Browse by Category
             </h2>
             <p className="text-xl text-gray-600">
@@ -234,7 +234,7 @@ export default function ResourcesPage() {
               <Award className="h-4 w-4 mr-2" />
               Featured Resources
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 font-serif">
               Most Popular Resources
             </h2>
             <p className="text-xl text-gray-600">
@@ -298,7 +298,7 @@ export default function ResourcesPage() {
             
             {/* Recent Resources */}
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Recently Added</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6 font-serif">Recently Added</h2>
               <div className="space-y-4">
                 {recentResources.map((resource, index) => (
                   <div key={index} className="bg-white p-6 rounded-xl border border-gray-200 hover:shadow-md transition-shadow group cursor-pointer">
@@ -328,11 +328,11 @@ export default function ResourcesPage() {
 
             {/* Upcoming Webinars */}
             <div>
-              <h2 className="text-2xl font-bold text-gray-900 mb-6">Upcoming Webinars</h2>
+              <h2 className="text-2xl font-bold text-gray-900 mb-6 font-serif">Upcoming Webinars</h2>
               <div className="space-y-4">
                 {upcomingWebinars.map((webinar, index) => (
                   <div key={index} className="bg-gradient-to-r from-blue-50 to-purple-50 p-6 rounded-xl border border-blue-200">
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">{webinar.title}</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2 font-serif">{webinar.title}</h3>
                     <div className="space-y-2 text-sm text-gray-600 mb-4">
                       <div className="flex items-center">
                         <Calendar className="h-4 w-4 mr-2" />
@@ -369,7 +369,7 @@ export default function ResourcesPage() {
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gray-50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 font-serif">
               Quick Access
             </h2>
             <p className="text-xl text-gray-600">
@@ -410,7 +410,7 @@ export default function ResourcesPage() {
           <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-6">
             <Lightbulb className="h-8 w-8 text-white" />
           </div>
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6 font-serif">
             Can't Find What You're Looking For?
           </h2>
           <p className="text-xl text-blue-100 mb-8">

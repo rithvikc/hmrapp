@@ -62,8 +62,8 @@ export default {
       },
       fontFamily: {
         sans: [
-          'var(--font-plus-jakarta-sans)',
-          'Plus Jakarta Sans',
+          'var(--font-inter)',
+          'Inter',
           '-apple-system',
           'BlinkMacSystemFont',
           'Segoe UI',
@@ -77,6 +77,8 @@ export default {
           'sans-serif',
         ],
         serif: [
+          'var(--font-instrument-serif)',
+          'Instrument Serif',
           'Georgia',
           'Cambria',
           'Times New Roman',

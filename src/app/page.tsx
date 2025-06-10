@@ -7,7 +7,7 @@ import Footer from '@/components/layout/Footer';
 import { 
   Stethoscope, Shield, FileText, Clock, CheckCircle, ArrowRight,
   Users, BarChart3, Lock, Smartphone, Zap, Award, User, Pill,
-  MessageSquare, Activity, Mail, Timer, TrendingUp
+  MessageSquare, Activity, Mail, Timer, TrendingUp, Brain, Sparkles
 } from 'lucide-react';
 
 export default function HomePage() {
@@ -18,42 +18,42 @@ export default function HomePage() {
     {
       icon: User,
       title: 'Patient Registration',
-      description: 'Securely capture patient demographics, medical history, and current medications',
+      description: 'Quick patient demographics capture with automated data validation and duplicate detection',
       time: '1 min',
       traditionalTime: '15 min'
     },
     {
       icon: Pill,
       title: 'Medication Review',
-      description: 'Comprehensive medication analysis with automated drug interaction checking',
+      description: 'Intelligent medication analysis with automatic drug interaction detection and dosage optimization',
       time: '1 min',
       traditionalTime: '25 min'
     },
     {
       icon: MessageSquare,
       title: 'Patient Interview',
-      description: 'Guided interview process with smart questionnaires and clinical prompts',
+      description: 'Smart questionnaires with dynamic clinical prompts and personalized follow-up questions',
       time: '1 min',
       traditionalTime: '20 min'
     },
     {
       icon: Activity,
       title: 'Clinical Assessment',
-      description: 'AI-assisted recommendation generation and priority scoring',
+      description: 'Automated clinical recommendations with evidence-based priority scoring and risk assessment',
       time: '1 min',
       traditionalTime: '25 min'
     },
     {
       icon: FileText,
       title: 'Report Generation',
-      description: 'Automated PDF creation with professional formatting and Medicare compliance',
+      description: 'Instant PDF creation with professional formatting and automatic Medicare compliance checking',
       time: '30 sec',
       traditionalTime: '30 min'
     },
     {
       icon: Mail,
       title: 'GP Communication',
-      description: 'Pre-formatted email templates and secure document transmission',
+      description: 'Pre-formatted email templates and secure document transmission with delivery confirmation',
       time: '30 sec',
       traditionalTime: '10 min'
     }
@@ -88,22 +88,26 @@ export default function HomePage() {
       <section className="bg-gradient-to-br from-blue-50 via-white to-purple-50 py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center">
-            <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6">
-              Professional{' '}
+            <h1 className="text-4xl md:text-6xl font-bold text-gray-900 mb-6 font-serif">
+              Streamlined Home Medication{' '}
               <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Home Medication Reviews
+                Reviews
               </span>
             </h1>
-            <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
-              Streamline your HMR workflow with our comprehensive platform designed for Australian pharmacists. 
-              Generate professional reports, manage patient data securely, and enhance clinical outcomes.
+            <p className="text-xl text-gray-600 mb-4 max-w-3xl mx-auto">
+              Save hours on every HMR with intelligent automation designed for Australian pharmacists. 
+              Generate professional reports, streamline clinical assessments, and focus on patient care.
             </p>
+            <div className="inline-flex items-center bg-gradient-to-r from-emerald-100 to-blue-100 text-emerald-800 px-4 py-2 rounded-full text-sm font-medium mb-8">
+              <Timer className="h-4 w-4 mr-2" />
+              Save 95% of your documentation time
+            </div>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link 
                 href="/pricing"
                 className="group bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-4 rounded-xl text-lg font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 shadow-lg hover:shadow-xl flex items-center justify-center"
               >
-                Start Free Trial
+                Start 14-Day Free Trial
                 <ArrowRight className="ml-2 h-5 w-5 group-hover:translate-x-1 transition-transform" />
               </Link>
               <Link 
@@ -113,6 +117,9 @@ export default function HomePage() {
                 Watch Demo
               </Link>
             </div>
+            <p className="text-sm text-gray-500 mt-4 max-w-2xl mx-auto">
+              Start with Professional Plan • Cancel anytime during 14-day trial • No commitment required
+            </p>
           </div>
         </div>
       </section>
@@ -125,11 +132,11 @@ export default function HomePage() {
               <TrendingUp className="h-4 w-4 mr-2" />
               95% of pharmacists save at least 1 hour per report
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              See How Our Platform Works
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 font-serif">
+              How myHMR Saves You Time
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto mb-8">
-              From patient registration to GP communication - complete your HMR workflow in just 5 minutes instead of {Math.round(totalTraditionalTime)} minutes
+              Complete your entire HMR workflow in just 5 minutes instead of {Math.round(totalTraditionalTime)} minutes with intelligent automation
             </p>
             
             {/* Time Savings Highlight */}
@@ -138,7 +145,7 @@ export default function HomePage() {
                 <Timer className="h-8 w-8" />
                 <div className="text-left">
                   <div className="text-2xl font-bold">Save {Math.round(timeSaved)} minutes</div>
-                  <div className="text-green-100">per HMR report</div>
+                  <div className="text-green-100">per HMR report with AI</div>
                 </div>
               </div>
             </div>
@@ -149,7 +156,7 @@ export default function HomePage() {
             {/* Step Navigation */}
             <div className="space-y-4">
               <div className="flex items-center justify-between mb-6">
-                <h3 className="text-2xl font-bold text-gray-900">HMR Workflow Steps</h3>
+                <h3 className="text-2xl font-bold text-gray-900 font-serif">HMR Workflow Steps</h3>
                 <button
                   onClick={() => setIsAnimating(!isAnimating)}
                   className="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg hover:bg-blue-200 transition-colors text-sm font-medium"
@@ -220,7 +227,7 @@ export default function HomePage() {
             {/* Visual Progress */}
             <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
               <div className="text-center mb-8">
-                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                <h3 className="text-2xl font-bold text-gray-900 font-serif mb-2">
                   Current Step: {workflowSteps[activeStep].title}
                 </h3>
                 <div className="w-full bg-gray-200 rounded-full h-3 mb-4">
@@ -242,7 +249,7 @@ export default function HomePage() {
                       className: "h-12 w-12 text-white" 
                     })}
                   </div>
-                  <h4 className="text-xl font-bold text-gray-900 mb-2">
+                  <h4 className="text-xl font-bold text-gray-900 mb-2 font-serif">
                     {workflowSteps[activeStep].title}
                   </h4>
                   <p className="text-gray-600 mb-4">
@@ -259,7 +266,7 @@ export default function HomePage() {
                     </span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600">With LAL MedReviews:</span>
+                    <span className="text-sm text-gray-600">With AI:</span>
                     <span className="text-sm font-bold text-green-600">
                       {workflowSteps[activeStep].time}
                     </span>
@@ -299,7 +306,7 @@ export default function HomePage() {
               <div className="text-3xl font-bold text-green-600 mb-2">{Math.round((timeSaved / totalTraditionalTime) * 100)}%</div>
               <div className="text-gray-600">Time Reduction</div>
               <div className="text-sm text-green-600 font-medium mt-1">
-                Industry-leading efficiency
+                Industry-leading AI efficiency
               </div>
             </div>
             <div className="text-center bg-white p-6 rounded-xl shadow-lg border border-gray-100">
@@ -317,45 +324,45 @@ export default function HomePage() {
       <section className="py-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-16">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Everything You Need for Professional HMRs
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 font-serif">
+              Time-Saving Features for Professional HMRs
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              Built specifically for Australian pharmacists, our platform covers every aspect of the HMR process
+              Built specifically for Australian pharmacists to maximize efficiency and minimize documentation time
             </p>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {[
               {
-                icon: FileText,
+                icon: Brain,
                 title: 'Automated Report Generation',
-                description: 'Generate professional PDF reports that meet Medicare requirements with just a few clicks.'
+                description: 'Professional PDF reports instantly generated with intelligent formatting that meets Medicare requirements.'
               },
               {
-                icon: Shield,
-                title: 'HIPAA Compliant & Secure',
-                description: 'Full HIPAA compliance with encrypted data storage, secure payment processing, and bank-level security for all patient information.'
+                icon: Sparkles,
+                title: 'Smart Clinical Insights',
+                description: 'Intelligent drug interaction checking, dosage optimization, and evidence-based clinical recommendations.'
               },
               {
                 icon: Clock,
                 title: 'Streamlined Workflow',
-                description: 'Complete HMRs 50% faster with our guided interview process and smart templates.'
+                description: 'Complete HMRs 95% faster with guided interview processes and intelligent automation.'
               },
               {
-                icon: Users,
-                title: 'Patient Management',
-                description: 'Comprehensive patient profiles with medication history and clinical notes.'
+                icon: Lock,
+                title: 'Privacy-First Design',
+                description: 'Minimal data storage - only patient name, DOB, and ID are retained. No sensitive health data stored.'
               },
               {
-                icon: BarChart3,
-                title: 'Clinical Insights',
-                description: 'Drug interaction checking, dosage recommendations, and evidence-based suggestions.'
+                icon: FileText,
+                title: 'Professional Templates',
+                description: 'Smart templates that adapt to patient needs and clinical scenarios automatically.'
               },
               {
                 icon: Smartphone,
                 title: 'Mobile Optimized',
-                description: 'Access your platform anywhere with our responsive design and mobile apps.'
+                description: 'Access your platform anywhere with responsive design and mobile optimization.'
               }
             ].map((feature, index) => {
               const Icon = feature.icon;
@@ -364,7 +371,7 @@ export default function HomePage() {
                   <div className="w-12 h-12 bg-gradient-to-r from-blue-100 to-purple-100 rounded-xl flex items-center justify-center mb-6">
                     <Icon className="h-6 w-6 text-blue-600" />
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-3">{feature.title}</h3>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-3 font-serif">{feature.title}</h3>
                   <p className="text-gray-600">{feature.description}</p>
                 </div>
               );
@@ -373,60 +380,52 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Security & Compliance Section */}
+      {/* Privacy & Security Section */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-green-50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
             <div className="inline-flex items-center bg-green-100 text-green-800 px-4 py-2 rounded-full text-sm font-medium mb-6">
               <Shield className="h-4 w-4 mr-2" />
-              Enterprise-Grade Security
+              Privacy-First Approach
             </div>
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
-              Your Data Security is Our Priority
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 font-serif">
+              Your Privacy is Our Priority
             </h2>
             <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-              We understand the sensitive nature of patient health information and maintain the highest standards of security and compliance.
+              We believe in minimal data collection. Only essential patient identifiers are stored - no sensitive health information is retained on our platform.
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <div className="bg-white p-6 rounded-xl shadow-lg border border-green-200 text-center">
               <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-4">
                 <Shield className="h-6 w-6 text-green-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">HIPAA Compliant</h3>
-              <p className="text-sm text-gray-600">Full compliance with HIPAA regulations for healthcare data protection and privacy.</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2 font-serif">Minimal Data Storage</h3>
+              <p className="text-sm text-gray-600">Only patient name, date of birth, and unique ID are stored. No clinical data retention.</p>
             </div>
 
             <div className="bg-white p-6 rounded-xl shadow-lg border border-green-200 text-center">
               <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-4">
                 <Lock className="h-6 w-6 text-green-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Encrypted Storage</h3>
-              <p className="text-sm text-gray-600">All patient data encrypted at rest and in transit using industry-standard AES-256 encryption.</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2 font-serif">Encrypted Processing</h3>
+              <p className="text-sm text-gray-600">All data is encrypted during processing and transmission using industry-standard security.</p>
             </div>
 
             <div className="bg-white p-6 rounded-xl shadow-lg border border-green-200 text-center">
               <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-4">
                 <CheckCircle className="h-6 w-6 text-green-600" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Secure Payments</h3>
-              <p className="text-sm text-gray-600">Payment details are securely processed and never stored on our servers, ensuring complete financial security.</p>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl shadow-lg border border-green-200 text-center">
-              <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center mx-auto mb-4">
-                <Users className="h-6 w-6 text-green-600" />
-              </div>
-              <h3 className="text-lg font-semibold text-gray-900 mb-2">Access Controls</h3>
-              <p className="text-sm text-gray-600">Multi-factor authentication and role-based access controls protect sensitive information.</p>
+              <h3 className="text-lg font-semibold text-gray-900 mb-2 font-serif">Secure Payments</h3>
+              <p className="text-sm text-gray-600">Payment details are securely processed and never stored on our servers.</p>
             </div>
           </div>
 
           <div className="mt-12 text-center">
             <div className="inline-flex items-center bg-white px-6 py-3 rounded-full shadow-lg border border-green-200">
-              <span className="text-sm text-gray-600 mr-2">Trusted by healthcare professionals</span>
-              <span className="text-sm font-semibold text-green-600">SOC 2 Type II Certified</span>
+              <span className="text-sm text-gray-600 mr-2">Designed for healthcare professionals</span>
+              <span className="text-sm font-semibold text-green-600">Privacy by Design</span>
             </div>
           </div>
         </div>
@@ -437,30 +436,30 @@ export default function HomePage() {
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
-                Why Choose LAL MedReviews?
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6 font-serif">
+                Why Choose myHMR?
               </h2>
               <div className="space-y-6">
                 {[
                   {
                     icon: Award,
                     title: 'Medicare Compliant',
-                    description: 'All reports meet Medicare guidelines for HMR documentation and billing requirements.'
+                    description: 'All AI-generated reports meet Medicare guidelines for HMR documentation and billing requirements.'
                   },
                   {
                     icon: Zap,
-                    title: 'Save Time',
-                    description: 'Reduce documentation time by up to 50% with our intelligent automation features.'
+                    title: 'Maximum Efficiency',
+                    description: 'Reduce documentation time by up to 95% with intelligent automation and smart recommendations.'
                   },
                   {
                     icon: Lock,
-                    title: 'Secure & Private',
-                    description: 'Bank-level encryption ensures patient data remains confidential and secure.'
+                    title: 'Privacy-First',
+                    description: 'Minimal data collection ensures patient privacy while maintaining clinical effectiveness.'
                   },
                   {
                     icon: Users,
                     title: 'Professional Support',
-                    description: '24/7 support from our team of pharmacists and technical specialists.'
+                    description: '24/7 support from our team of pharmacists and AI specialists.'
                   }
                 ].map((benefit, index) => {
                   const Icon = benefit.icon;
@@ -470,7 +469,7 @@ export default function HomePage() {
                         <Icon className="h-5 w-5 text-blue-600" />
                       </div>
                       <div>
-                        <h3 className="text-lg font-semibold text-gray-900 mb-2">{benefit.title}</h3>
+                        <h3 className="text-lg font-semibold text-gray-900 mb-2 font-serif">{benefit.title}</h3>
                         <p className="text-gray-600">{benefit.description}</p>
                       </div>
                     </div>
@@ -480,15 +479,15 @@ export default function HomePage() {
             </div>
             
             <div className="bg-white p-8 rounded-2xl shadow-xl border border-gray-100">
-              <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center">Platform Highlights</h3>
+              <h3 className="text-2xl font-bold text-gray-900 mb-6 text-center font-serif">Platform Highlights</h3>
               <div className="space-y-4">
                 {[
-                  'Comprehensive medication review workflow',
-                  'Automated PDF report generation',
-                  'Clinical decision support tools',
-                  'Patient counselling documentation',
-                  'GP communication templates',
-                  'Secure cloud storage',
+                  'Streamlined medication review workflow',
+                  'Automated professional report generation',
+                  'Smart clinical decision support',
+                  'Intelligent patient interview guides',
+                  'Pre-formatted GP communication templates',
+                  'Privacy-first minimal data storage',
                   'Mobile-responsive design',
                   'Medicare billing integration'
                 ].map((highlight, index) => (
@@ -506,18 +505,18 @@ export default function HomePage() {
       {/* CTA Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-blue-600 to-purple-600">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
-            Ready to Transform Your HMR Practice?
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6 font-serif">
+            Ready to Save Hours on Every HMR?
           </h2>
           <p className="text-xl text-blue-100 mb-8">
-            Join hundreds of Australian pharmacists who trust LAL MedReviews for their professional practice
+            Join hundreds of Australian pharmacists who save 95% of their documentation time with myHMR
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link 
               href="/pricing"
               className="bg-white text-blue-600 px-8 py-4 rounded-xl text-lg font-semibold hover:bg-gray-50 transition-all duration-200 shadow-lg hover:shadow-xl"
             >
-              Start Your Free Trial
+              Start 14-Day Free Trial
             </Link>
             <Link 
               href="/contact"
@@ -526,6 +525,9 @@ export default function HomePage() {
               Contact Sales
             </Link>
           </div>
+          <p className="text-sm text-blue-100 mt-4">
+            Professional Plan required • 14-day free trial • Cancel anytime
+          </p>
         </div>
       </section>
 

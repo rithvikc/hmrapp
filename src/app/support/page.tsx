@@ -146,11 +146,11 @@ export default function SupportPage() {
       {/* Hero Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8 bg-gradient-to-br from-blue-50 via-white to-purple-50">
         <div className="max-w-4xl mx-auto text-center">
-          <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-8">
+          <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-8 font-serif">
             We're Here to Help
           </h1>
           <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-            Get the support you need to make the most of LAL MedReviews. Our team of experts is ready to assist you.
+            Get the support you need to make the most of myHMR. Our team of experts is ready to assist you.
           </p>
         </div>
       </section>
@@ -179,7 +179,7 @@ export default function SupportPage() {
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gray-50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 font-serif">
               Get in Touch
             </h2>
             <p className="text-xl text-gray-600">
@@ -202,7 +202,7 @@ export default function SupportPage() {
                   </div>
                   
                   <div className="text-center">
-                    <h3 className="text-xl font-semibold text-gray-900 mb-2">{option.title}</h3>
+                    <h3 className="text-xl font-semibold text-gray-900 mb-2 font-serif">{option.title}</h3>
                     <p className="text-gray-600 mb-4">{option.description}</p>
                     <div className="text-sm text-gray-500 mb-6">{option.availability}</div>
                     
@@ -225,11 +225,11 @@ export default function SupportPage() {
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 font-serif">
               Help Resources
             </h2>
             <p className="text-xl text-gray-600">
-              Find answers and learn how to get the most out of LAL MedReviews
+              Find answers and learn how to get the most out of myHMR
             </p>
           </div>
 
@@ -273,7 +273,7 @@ export default function SupportPage() {
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gray-50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 font-serif">
               Common Support Topics
             </h2>
             <p className="text-xl text-gray-600">
@@ -284,7 +284,7 @@ export default function SupportPage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
             {supportTopics.map((category, index) => (
               <div key={index} className="bg-white rounded-2xl p-6 shadow-sm">
-                <h3 className="text-lg font-semibold text-gray-900 mb-4">{category.category}</h3>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4 font-serif">{category.category}</h3>
                 <ul className="space-y-3">
                   {category.topics.map((topic, topicIndex) => (
                     <li key={topicIndex}>
@@ -309,7 +309,7 @@ export default function SupportPage() {
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <Phone className="h-8 w-8 text-red-600" />
           </div>
-          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900 mb-4 font-serif">
             Need Emergency Support?
           </h2>
           <p className="text-lg text-gray-600 mb-8">
@@ -329,11 +329,11 @@ export default function SupportPage() {
       {/* CTA Section */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-blue-600 to-purple-600">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6 font-serif">
             Still Need Help?
           </h2>
           <p className="text-xl text-blue-100 mb-8">
-            Our support team is standing by to help you succeed with LAL MedReviews.
+            Our support team is standing by to help you succeed with myHMR.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <button className="bg-white text-blue-600 px-8 py-3 rounded-lg font-semibold hover:bg-gray-50 transition-colors inline-flex items-center justify-center space-x-2">

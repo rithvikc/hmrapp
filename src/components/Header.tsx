@@ -30,7 +30,7 @@ export default function Header() {
                 <Stethoscope className="h-5 w-5 text-white" />
               </div>
               <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                LAL MedReviews
+                myHMR
               </h1>
             </button>
             <div className="animate-pulse">
@@ -54,7 +54,7 @@ export default function Header() {
               <Stethoscope className="h-5 w-5 text-white" />
             </div>
             <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              LAL MedReviews
+              myHMR
             </h1>
             <span className="hidden lg:block text-sm text-gray-500 ml-3 px-3 py-1 bg-gray-100 rounded-full">
               Clinical Excellence Platform
@@ -71,10 +71,12 @@ export default function Header() {
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-semibold text-gray-900">
-                      {pharmacist?.name || user?.user_metadata?.name || 'Healthcare Professional'}
+                      {pharmacist?.name || user?.user_metadata?.name || user?.user_metadata?.full_name || user?.email?.split('@')[0] || 'Healthcare Professional'}
                     </p>
                     <p className="text-xs text-gray-500">
-                      {pharmacist?.registration_number ? `MRN: ${pharmacist.registration_number}` : 'Pharmacist'}
+                      {pharmacist?.registration_number && !pharmacist.registration_number.startsWith('TEMP-') 
+                        ? `MRN: ${pharmacist.registration_number}` 
+                        : pharmacist?.email || user?.email || 'Pharmacist'}
                     </p>
                   </div>
                 </div>

@@ -13,6 +13,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, metadata: any) => Promise<any>
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<any>
+  updatePharmacist: (updatedData: any) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -50,14 +51,56 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('AuthContext: Found existing pharmacist:', existingPharmacist.name)
         setPharmacist(existingPharmacist)
       } else {
-        console.log('AuthContext: No pharmacist record found for user')
-        setPharmacist(null)
+        console.log('AuthContext: No pharmacist record found, checking if we can create one via API')
+        
+        // Try to get user info to create pharmacist record
+        const { data: { user: currentUser } } = await supabase.auth.getUser()
+        
+        if (currentUser && currentUser.id === userId) {
+          console.log('AuthContext: Attempting to create pharmacist record via API')
+          await createPharmacistViaAPI(currentUser)
+        } else {
+          console.log('AuthContext: Cannot create pharmacist record - user info not available')
+          setPharmacist(null)
+        }
       }
     } catch (error) {
       console.error('AuthContext: Exception in fetchPharmacist:', error)
       setPharmacist(null)
     }
   }, [])
+
+  const createPharmacistViaAPI = async (user: User) => {
+    try {
+      console.log('AuthContext: Creating pharmacist via API for user:', user.id)
+      
+      const response = await fetch('/api/auth/create-pharmacist', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          user_id: user.id,
+          email: user.email,
+          name: user.user_metadata?.name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'User',
+          registration_number: user.user_metadata?.registration_number || null,
+          phone: user.user_metadata?.phone || null,
+          practice_name: user.user_metadata?.practice || null,
+          practice_address: user.user_metadata?.location || null,
+        })
+      })
+      
+      if (response.ok) {
+        const result = await response.json()
+        console.log('AuthContext: Pharmacist created via API:', result.pharmacist?.name)
+        if (result.pharmacist) {
+          setPharmacist(result.pharmacist)
+        }
+      } else {
+        console.error('AuthContext: Failed to create pharmacist via API:', await response.text())
+      }
+    } catch (error) {
+      console.error('AuthContext: Exception creating pharmacist via API:', error)
+    }
+  }
 
   useEffect(() => {
     if (!isClient) return
@@ -261,7 +304,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           data: {
             full_name: metadata.name,
             ...metadata
-          }
+          },
+          emailRedirectTo: `${window.location.origin}/auth/confirm`
         }
       })
       
@@ -335,6 +379,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }
 
+  const updatePharmacist = (updatedData: any) => {
+    console.log('AuthContext: Updating pharmacist record')
+    setPharmacist(updatedData)
+  }
+
   // Show loading state until client-side initialization is complete
   if (!isClient) {
     return (
@@ -347,6 +396,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signUp: async () => ({ data: null, error: { message: 'Initializing...' } }),
         signOut: async () => {},
         resetPassword: async () => ({ data: null, error: { message: 'Initializing...' } }),
+        updatePharmacist: () => {},
       }}>
         {children}
       </AuthContext.Provider>
@@ -363,6 +413,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signUp,
       signOut,
       resetPassword,
+      updatePharmacist,
     }}>
       {children}
     </AuthContext.Provider>

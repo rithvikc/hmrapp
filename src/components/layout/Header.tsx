@@ -33,8 +33,8 @@ export default function Header() {
                 <Stethoscope className="h-6 w-6 text-white" />
               </div>
               <div className="hidden sm:block">
-                <span className="text-xl font-bold text-gray-900">LAL MedReviews</span>
-                <div className="text-xs text-gray-500">Clinical Platform</div>
+                <span className="text-xl font-bold text-gray-900">myHMR</span>
+                <div className="text-xs text-gray-500">Efficient HMR Platform</div>
               </div>
             </Link>
           </div>

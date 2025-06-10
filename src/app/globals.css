@@ -9,6 +9,10 @@
   --background-start-rgb: 214, 219, 220;
   --background-end-rgb: 255, 255, 255;
   
+  /* Font families */
+  --font-inter: var(--font-inter);
+  --font-instrument-serif: var(--font-instrument-serif);
+  
   /* Healthcare color palette */
   --clinical-blue: #3b82f6;
   --clinical-blue-light: #60a5fa;
@@ -405,7 +409,7 @@ textarea {
 
 @media (max-width: 640px) {
   .card-clinical {
-    @apply rounded-lg;
+    @apply p-4;
   }
   
   .btn-clinical,
@@ -413,4 +417,110 @@ textarea {
   .btn-clinical-danger {
     @apply text-sm px-3 py-2;
   }
+}
+
+/* 3D Flip Animation for Rotating Text */
+.flip-container {
+  perspective: 1000px;
+}
+
+.flip-card {
+  position: relative;
+  transform-style: preserve-3d;
+  transition: transform 0.3s ease-in-out;
+}
+
+.flip-card.flipped {
+  transform: rotateX(90deg);
+}
+
+@keyframes flipText {
+  0% {
+    transform: rotateX(0deg);
+  }
+  50% {
+    transform: rotateX(90deg);
+  }
+  100% {
+    transform: rotateX(0deg);
+  }
+}
+
+.rotate-text {
+  animation: flipText 0.6s ease-in-out;
+}
+
+/* Custom flip animation for rotating text */
+.text-flip-enter {
+  transform: rotateX(-90deg);
+  opacity: 0;
+}
+
+.text-flip-enter-active {
+  transform: rotateX(0deg);
+  opacity: 1;
+  transition: transform 300ms ease-in-out, opacity 300ms ease-in-out;
+}
+
+.text-flip-exit {
+  transform: rotateX(0deg);
+  opacity: 1;
+}
+
+.text-flip-exit-active {
+  transform: rotateX(90deg);
+  opacity: 0;
+  transition: transform 300ms ease-in-out, opacity 300ms ease-in-out;
+}
+
+/* Rotating Text Animations - Alarm Clock Style */
+@keyframes gradient-shift {
+  0% { 
+    background-position: 0% 50%; 
+  }
+  50% { 
+    background-position: 100% 50%; 
+  }
+  100% { 
+    background-position: 0% 50%; 
+  }
+}
+
+@keyframes alarm-clock-flip {
+  0% {
+    transform: rotateX(0deg);
+    opacity: 1;
+  }
+  50% {
+    transform: rotateX(90deg);
+    opacity: 0;
+  }
+  100% {
+    transform: rotateX(0deg);
+    opacity: 1;
+  }
+}
+
+.rotateX-90 {
+  transform: rotateX(90deg) !important;
+}
+
+.rotateX-0 {
+  transform: rotateX(0deg) !important;
+}
+
+.rotating-text-gradient {
+  background: linear-gradient(45deg, #3b82f6, #8b5cf6, #3b82f6);
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gradient-shift 3s ease-in-out infinite;
+  font-weight: 700;
+  transform-style: preserve-3d;
+  perspective: 1000px;
+}
+
+.alarm-clock-flip {
+  animation: alarm-clock-flip 0.6s ease-in-out;
 }

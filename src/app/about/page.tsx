@@ -50,11 +50,11 @@ export default function AboutPage() {
             <Stethoscope className="h-4 w-4 mr-2" />
             Our Story
           </div>
-          <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-8">
+          <h1 className="text-4xl md:text-6xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-8 font-serif">
             Built by Pharmacists, for Pharmacists
           </h1>
           <p className="text-xl text-gray-600 mb-8 leading-relaxed">
-            We started LAL MedReviews because we were frustrated with spending more time on paperwork 
+            We started myHMR because we were frustrated with spending more time on paperwork 
             than on what we love most - helping patients through comprehensive medication reviews.
           </p>
         </div>
@@ -65,7 +65,7 @@ export default function AboutPage() {
         <div className="max-w-7xl mx-auto">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6 font-serif">
                 The Problem We Solved
               </h2>
               <div className="space-y-6">
@@ -74,7 +74,7 @@ export default function AboutPage() {
                     <Clock className="h-5 w-5 text-red-600" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Reports Taking Forever</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2 font-serif">Reports Taking Forever</h3>
                     <p className="text-gray-600">
                       We were spending 2-3 hours writing up reports for 30-minute patient interviews. 
                       The documentation was taking longer than the actual clinical work.
@@ -87,7 +87,7 @@ export default function AboutPage() {
                     <FileText className="h-5 w-5 text-red-600" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Repetitive Administrative Work</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2 font-serif">Repetitive Administrative Work</h3>
                     <p className="text-gray-600">
                       Every report required the same formatting, patient details, and clinical structure. 
                       We were essentially doing data entry instead of clinical thinking.
@@ -100,7 +100,7 @@ export default function AboutPage() {
                     <Heart className="h-5 w-5 text-red-600" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Less Time for What Matters</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2 font-serif">Less Time for What Matters</h3>
                     <p className="text-gray-600">
                       The administrative burden meant we could help fewer patients and had less energy 
                       for the clinical work we were passionate about.
@@ -144,7 +144,7 @@ export default function AboutPage() {
                 <div className="text-lg text-gray-600 mb-6">New average time per report</div>
                 
                 <div className="bg-green-50 rounded-lg p-4">
-                  <div className="text-sm text-gray-500 mb-2">Time breakdown with LAL MedReviews</div>
+                  <div className="text-sm text-gray-500 mb-2">Time breakdown with myHMR</div>
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span className="text-gray-700">Patient interview</span>
@@ -164,7 +164,7 @@ export default function AboutPage() {
             </div>
             
             <div>
-              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6">
+              <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-6 font-serif">
                 Our Solution
               </h2>
               <div className="space-y-6">
@@ -173,7 +173,7 @@ export default function AboutPage() {
                     <CheckCircle className="h-5 w-5 text-green-600" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Automated Report Generation</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2 font-serif">Automated Report Generation</h3>
                     <p className="text-gray-600">
                       Our intelligent system converts your clinical interview data into professional, 
                       comprehensive HMR reports in minutes, not hours.
@@ -186,7 +186,7 @@ export default function AboutPage() {
                     <Target className="h-5 w-5 text-green-600" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Focus on Clinical Work</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2 font-serif">Focus on Clinical Work</h3>
                     <p className="text-gray-600">
                       Spend your time conducting thorough patient interviews and making clinical decisions, 
                       while we handle the administrative documentation.
@@ -199,7 +199,7 @@ export default function AboutPage() {
                     <Heart className="h-5 w-5 text-green-600" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-gray-900 mb-2">Help More Patients</h3>
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2 font-serif">Help More Patients</h3>
                     <p className="text-gray-600">
                       With faster report generation, you can conduct more HMRs per day and make a 
                       greater impact on patient health outcomes.
@@ -216,7 +216,7 @@ export default function AboutPage() {
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 font-serif">
               Our Impact
             </h2>
             <p className="text-xl text-gray-600">
@@ -245,7 +245,7 @@ export default function AboutPage() {
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gray-50">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4 font-serif">
               Our Values
             </h2>
             <p className="text-xl text-gray-600">
@@ -261,7 +261,7 @@ export default function AboutPage() {
                   <div className="w-12 h-12 bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg flex items-center justify-center mb-6">
                     <Icon className="h-6 w-6 text-white" />
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 mb-4">{value.title}</h3>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-4 font-serif">{value.title}</h3>
                   <p className="text-gray-600">{value.description}</p>
                 </div>
               );
@@ -273,7 +273,7 @@ export default function AboutPage() {
       {/* CTA Section */}
       <section className="py-16 px-4 sm:px-6 lg:px-8 bg-gradient-to-r from-blue-600 to-purple-600">
         <div className="max-w-4xl mx-auto text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-6 font-serif">
             Ready to Focus on What You Love?
           </h2>
           <p className="text-xl text-blue-100 mb-8">

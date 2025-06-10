@@ -10,7 +10,9 @@ import {
   CheckCircle, 
   AlertCircle,
   User,
-  Download
+  Download,
+  Crown,
+  TrendingUp
 } from 'lucide-react';
 import { useHMRSelectors } from '@/store/hmr-store';
 import { format } from 'date-fns';
@@ -24,6 +26,24 @@ interface DashboardProps {
   onGenerateReports: () => void;
 }
 
+interface SubscriptionData {
+  subscription: {
+    status: string;
+    plan_name: string;
+    current_period_end: string;
+    subscription_plans: {
+      name: string;
+      hmr_limit: number;
+    };
+  };
+  usage: {
+    current_month: string;
+    hmr_count: number;
+    limit: number;
+    can_create: boolean;
+  };
+}
+
 const Dashboard: React.FC<DashboardProps> = ({
   onNewReview,
   onContinueDraft,
@@ -33,6 +53,9 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   console.log('[DEBUG] Dashboard: Rendering component');
   const [mounted, setMounted] = useState(false);
+  const [subscriptionData, setSubscriptionData] = useState<SubscriptionData | null>(null);
+  const [loadingSubscription, setLoadingSubscription] = useState(true);
+  
   const {
     pendingReviews,
     completedReviews,
@@ -54,6 +77,9 @@ const Dashboard: React.FC<DashboardProps> = ({
     loadDashboardData();
     console.log('[DEBUG] Dashboard: After loadDashboardData()');
     
+    // Load subscription data
+    fetchSubscriptionData();
+    
     // Force render after 3 seconds to prevent infinite loading
     const timer = setTimeout(() => {
       console.log('[DEBUG] Dashboard: Force rendering after timeout');
@@ -62,6 +88,22 @@ const Dashboard: React.FC<DashboardProps> = ({
     
     return () => clearTimeout(timer);
   }, [loadDashboardData]);
+
+  const fetchSubscriptionData = async () => {
+    try {
+      const response = await fetch('/api/subscription/current');
+      if (response.ok) {
+        const data = await response.json();
+        setSubscriptionData(data);
+      } else {
+        console.error('Failed to fetch subscription data');
+      }
+    } catch (error) {
+      console.error('Error fetching subscription data:', error);
+    } finally {
+      setLoadingSubscription(false);
+    }
+  };
 
   // Don't render until mounted to prevent hydration issues
   if (!mounted) {
@@ -117,6 +159,28 @@ const Dashboard: React.FC<DashboardProps> = ({
     }
   };
 
+  const getSubscriptionStatusColor = (status: string) => {
+    switch (status) {
+      case 'active':
+        return 'bg-green-100 text-green-800';
+      case 'trialing':
+        return 'bg-blue-100 text-blue-800';
+      case 'canceled':
+        return 'bg-red-100 text-red-800';
+      case 'past_due':
+        return 'bg-orange-100 text-orange-800';
+      default:
+        return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getUsageColor = (used: number, limit: number) => {
+    const percentage = (used / limit) * 100;
+    if (percentage >= 90) return 'text-red-600';
+    if (percentage >= 75) return 'text-orange-600';
+    return 'text-green-600';
+  };
+
   if (isLoading && !forceRender) {
     console.log('[DEBUG] Dashboard: isLoading is true, showing spinner');
     return (
@@ -131,7 +195,7 @@ const Dashboard: React.FC<DashboardProps> = ({
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Error Loading Dashboard</h2>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2 font-serif">Error Loading Dashboard</h2>
           <p className="text-gray-600 mb-4">{error}</p>
           <button 
             onClick={loadDashboardData}
@@ -152,7 +216,7 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="flex items-center justify-between">
             <div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2 font-serif">
-                LAL MedReviews Dashboard
+                myHMR Dashboard
               </h1>
               <p className="text-gray-600">
                 Professional Home Medication Review Management System
@@ -160,11 +224,89 @@ const Dashboard: React.FC<DashboardProps> = ({
             </div>
             <div className="text-right">
               <p className="text-sm text-gray-500">Pharmacist</p>
-              <p className="font-semibold text-gray-900 font-serif">Avishkar Lal</p>
-              <p className="text-sm text-gray-500">MRN: 8362</p>
+              <p className="font-semibold text-gray-900 font-serif">Admin User</p>
+              <p className="text-sm text-gray-500">MRN: MRN-ADMIN-001</p>
+              
+              {/* Subscription Status */}
+              {subscriptionData && (
+                <div className="mt-2 flex items-center space-x-2">
+                  <Crown className="h-4 w-4 text-yellow-500" />
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${getSubscriptionStatusColor(subscriptionData.subscription.status)}`}>
+                    {subscriptionData.subscription.plan_name}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
+
+        {/* Subscription Usage Card */}
+        {subscriptionData && (
+          <div className="mb-8">
+            <div className="bg-white rounded-xl shadow-md p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-semibold text-gray-900 font-serif">Monthly Usage</h2>
+                <TrendingUp className="h-5 w-5 text-gray-400" />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Reports Generated</p>
+                  <p className={`text-2xl font-bold ${getUsageColor(subscriptionData.usage.hmr_count, subscriptionData.usage.limit)}`}>
+                    {subscriptionData.usage.hmr_count}
+                  </p>
+                </div>
+                
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Monthly Limit</p>
+                  <p className="text-2xl font-bold text-gray-900">
+                    {subscriptionData.usage.limit}
+                  </p>
+                </div>
+                
+                <div>
+                  <p className="text-sm text-gray-500 mb-1">Remaining</p>
+                  <p className="text-2xl font-bold text-blue-600">
+                    {Math.max(0, subscriptionData.usage.limit - subscriptionData.usage.hmr_count)}
+                  </p>
+                </div>
+              </div>
+              
+              {/* Usage Progress Bar */}
+              <div className="mt-4">
+                <div className="flex justify-between text-sm text-gray-600 mb-2">
+                  <span>Usage Progress</span>
+                  <span>{Math.round((subscriptionData.usage.hmr_count / subscriptionData.usage.limit) * 100)}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className={`h-2 rounded-full transition-all duration-300 ${
+                      subscriptionData.usage.hmr_count / subscriptionData.usage.limit >= 0.9 
+                        ? 'bg-red-500' 
+                        : subscriptionData.usage.hmr_count / subscriptionData.usage.limit >= 0.75 
+                        ? 'bg-orange-500' 
+                        : 'bg-green-500'
+                    }`}
+                    style={{ 
+                      width: `${Math.min(100, (subscriptionData.usage.hmr_count / subscriptionData.usage.limit) * 100)}%` 
+                    }}
+                  ></div>
+                </div>
+              </div>
+              
+              {!subscriptionData.usage.can_create && (
+                <div className="mt-4 p-3 bg-red-50 border border-red-200 rounded-lg">
+                  <div className="flex items-center">
+                    <AlertCircle className="h-5 w-5 text-red-500 mr-2" />
+                    <p className="text-red-700 text-sm">
+                      You've reached your monthly limit. Upgrade your plan to generate more reports.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Quick Actions */}
         <div className="mb-8">
@@ -172,7 +314,12 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <button
               onClick={onNewReview}
-              className="bg-blue-600 hover:bg-blue-700 text-white p-6 rounded-lg shadow-sm transition-colors flex items-center justify-center space-x-3"
+              disabled={subscriptionData ? !subscriptionData.usage.can_create : false}
+              className={`p-6 rounded-lg shadow-sm transition-colors flex items-center justify-center space-x-3 ${
+                subscriptionData && !subscriptionData.usage.can_create
+                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+              }`}
             >
               <Plus className="w-6 h-6" />
               <span className="font-semibold">Start New HMR</span>

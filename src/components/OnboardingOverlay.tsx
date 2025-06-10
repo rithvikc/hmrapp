@@ -33,7 +33,7 @@ export default function OnboardingOverlay({
   const steps: OnboardingStep[] = [
     {
       id: 'welcome',
-      title: `Welcome to LAL MedReviews, ${pharmacistName}!`,
+      title: `Welcome to myHMR, ${pharmacistName}!`,
       description: `You're now part of the leading platform for Home Medicine Reviews. ${isTrialUser ? 'Your 14-day trial gives you access to 5 HMR reports.' : 'Let\'s get you started with creating your first HMR.'} This quick tour will show you everything you need to know.`,
       icon: <Sparkles className="h-8 w-8 text-purple-600" />
     },
@@ -135,7 +135,7 @@ export default function OnboardingOverlay({
                 {currentStepData.icon}
               </div>
               <div>
-                <h2 className="text-xl font-bold">{currentStepData.title}</h2>
+                <h2 className="text-xl font-bold font-serif">{currentStepData.title}</h2>
                 <p className="text-blue-100 text-sm">
                   Step {currentStep + 1} of {steps.length}
                 </p>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import puppeteer from 'puppeteer';
 import chromium from '@sparticuz/chromium';
+import { createClient } from '@/lib/supabase';
 
 interface Patient {
   name?: string;
@@ -1079,7 +1080,7 @@ const generateHMRHTML = (data: HMRData) => {
     <!-- Modern Header -->
     <div class="header">
       <div>
-        <div class="logo">LAL MedReviews</div>
+        <div class="logo">myHMR</div>
         <div class="logo-subtitle">Accredited Clinical Pharmacy Services</div>
       </div>
       <div class="pharmacist-details">
@@ -1285,7 +1286,7 @@ const generateHMRHTML = (data: HMRData) => {
         Accredited Pharmacist (MRN 8362)<br>
         Phone: 0490 417 047<br>
         Email: avishkarlal01@gmail.com<br>
-        <em>LAL MedReviews - Professional Clinical Services</em>
+        <em>myHMR - Professional Clinical Services</em>
       </div>
     </div>
   </div>
@@ -1296,6 +1297,43 @@ const generateHMRHTML = (data: HMRData) => {
 
 export async function POST(request: NextRequest) {
   try {
+    const supabase = createClient();
+    
+    // Get the authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    // Get the pharmacist record
+    const { data: pharmacist, error: pharmacistError } = await supabase
+      .from('pharmacists')
+      .select('id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (pharmacistError || !pharmacist) {
+      return NextResponse.json({ error: 'Pharmacist record not found' }, { status: 404 });
+    }
+
+    // Check HMR limits before generating PDF
+    const { data: limitCheck, error: limitError } = await supabase
+      .rpc('check_hmr_limit', { p_pharmacist_id: pharmacist.id });
+
+    if (limitError) {
+      console.error('Error checking HMR limit:', limitError);
+      return NextResponse.json({ error: 'Error checking usage limits' }, { status: 500 });
+    }
+
+    if (!limitCheck.can_create) {
+      return NextResponse.json({ 
+        error: 'Monthly report limit reached',
+        details: `You have reached your monthly limit of ${limitCheck.limit} reports. Current usage: ${limitCheck.current_usage}/${limitCheck.limit}`,
+        usage: limitCheck
+      }, { status: 403 });
+    }
+
     const requestData = await request.json();
     console.log('PDF Generation started with data:', JSON.stringify(requestData, null, 2));
 
@@ -1365,6 +1403,17 @@ export async function POST(request: NextRequest) {
 
     console.log('PDF generated successfully, size:', pdfBuffer.length, 'bytes');
     await browser.close();
+
+    // Increment usage tracking after successful PDF generation
+    const { error: usageError } = await supabase
+      .rpc('increment_hmr_usage', { p_pharmacist_id: pharmacist.id });
+
+    if (usageError) {
+      console.error('Error incrementing usage:', usageError);
+      // Don't fail the request if usage tracking fails, just log it
+    } else {
+      console.log('Usage tracking incremented successfully');
+    }
 
     // Return the PDF as a blob response
     return new NextResponse(pdfBuffer, {
