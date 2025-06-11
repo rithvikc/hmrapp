@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase';
@@ -14,7 +14,7 @@ import {
   Home
 } from 'lucide-react';
 
-export default function ConfirmPage() {
+function ConfirmPageContent() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('');
   const router = useRouter();
@@ -200,17 +200,47 @@ export default function ConfirmPage() {
             </div>
           )}
         </div>
+      </div>
+    </div>
+  );
+}
 
-        {/* Footer */}
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="max-w-md w-full space-y-8">
         <div className="text-center">
-          <p className="text-sm text-gray-500">
-            Need help?{' '}
-            <Link href="/contact" className="text-blue-600 hover:text-blue-500 transition-colors">
-              Contact Support
-            </Link>
-          </p>
+          <Link href="/" className="flex justify-center mb-6 hover:opacity-80 transition-opacity">
+            <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+              <Stethoscope className="h-8 w-8 text-white" />
+            </div>
+          </Link>
+          <h1 className="text-3xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-8">
+            myHMR
+          </h1>
+        </div>
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
+          <div className="text-center">
+            <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-blue-100 mb-6">
+              <Loader2 className="h-8 w-8 text-blue-600 animate-spin" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Loading...
+            </h2>
+            <p className="text-gray-600">
+              Please wait while we prepare your confirmation page.
+            </p>
+          </div>
         </div>
       </div>
     </div>
+  );
+}
+
+export default function ConfirmPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <ConfirmPageContent />
+    </Suspense>
   );
 } 

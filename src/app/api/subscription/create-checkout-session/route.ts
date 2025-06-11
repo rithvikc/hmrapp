@@ -2,12 +2,27 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getAuthenticatedUserWithPharmacist } from '@/lib/auth-helpers';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-05-28.basil',
-});
+// Initialize Stripe with proper error handling
+const getStripe = () => {
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  if (!secretKey) {
+    throw new Error('Stripe secret key not configured');
+  }
+  return new Stripe(secretKey);
+};
 
 export async function POST(request: NextRequest) {
   try {
+    // Check for Stripe configuration first
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return NextResponse.json(
+        { error: 'Payment processing not configured' },
+        { status: 503 }
+      );
+    }
+
+    const stripe = getStripe();
+    
     const { user, pharmacist } = await getAuthenticatedUserWithPharmacist(request);
     
     if (!user || !pharmacist) {
