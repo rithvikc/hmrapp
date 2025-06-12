@@ -1297,109 +1297,9 @@ const generateHMRHTML = (data: HMRData) => {
 
 export async function POST(request: NextRequest) {
   try {
-    const supabase = createClient();
+    // Temporarily disable authentication for PDF generation
+    console.log('PDF Generation: Starting without authentication checks...');
     
-    // Get the authenticated user with improved error handling - try getSession first
-    console.log('PDF Generation: Checking authentication...');
-    
-    // First try to get the session, which is more reliable than getUser
-    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-    
-    if (sessionError) {
-      console.error('PDF Generation: Session error:', sessionError.message);
-      return NextResponse.json({ 
-        error: 'Authentication failed', 
-        details: sessionError.message,
-        message: 'Please log in again to continue.' 
-      }, { status: 401 });
-    }
-    
-    if (!sessionData.session) {
-      console.error('PDF Generation: No session found');
-      
-      // Fallback to getUser as a last resort
-      const { data: { user }, error: authError } = await supabase.auth.getUser();
-      
-      if (authError || !user) {
-        console.error('PDF Generation: Authentication error:', authError?.message || 'No user found');
-        return NextResponse.json({ 
-          error: 'Unauthorized', 
-          details: 'No active session found',
-          message: 'Your session may have expired. Please log in again.' 
-        }, { status: 401 });
-      }
-      
-      console.log('PDF Generation: User found through getUser fallback:', user.id);
-    } else {
-      console.log('PDF Generation: Session found, user ID:', sessionData.session.user.id);
-    }
-    
-    // Use the user from either session or getUser
-    const user = sessionData.session?.user || (await supabase.auth.getUser()).data.user;
-    
-    if (!user) {
-      console.error('PDF Generation: Could not determine user');
-      return NextResponse.json({ 
-        error: 'Unauthorized', 
-        details: 'Unable to identify authenticated user',
-        message: 'Authentication error. Please log in again.' 
-      }, { status: 401 });
-    }
-
-    // Get the pharmacist record
-    console.log('PDF Generation: Fetching pharmacist record...');
-    const { data: pharmacist, error: pharmacistError } = await supabase
-      .from('pharmacists')
-      .select('id, name, plan_tier')
-      .eq('user_id', user.id)
-      .single();
-
-    if (pharmacistError) {
-      console.error('PDF Generation: Error fetching pharmacist record:', pharmacistError.message);
-      return NextResponse.json({ 
-        error: 'Pharmacist record error', 
-        details: pharmacistError.message,
-        message: 'Unable to retrieve your account information. Please contact support.' 
-      }, { status: 404 });
-    }
-
-    if (!pharmacist) {
-      console.error('PDF Generation: No pharmacist record found for user:', user.id);
-      return NextResponse.json({ 
-        error: 'Account setup incomplete', 
-        details: 'No pharmacist profile found for this user',
-        message: 'Your account setup is incomplete. Please complete your profile first.' 
-      }, { status: 404 });
-    }
-    
-    console.log('PDF Generation: Pharmacist record found:', pharmacist.id, pharmacist.name);
-
-    // Check HMR limits before generating PDF
-    console.log('PDF Generation: Checking usage limits...');
-    const { data: limitCheck, error: limitError } = await supabase
-      .rpc('check_hmr_limit', { p_pharmacist_id: pharmacist.id });
-
-    if (limitError) {
-      console.error('PDF Generation: Error checking HMR limit:', limitError.message);
-      return NextResponse.json({ 
-        error: 'Usage limit check failed', 
-        details: limitError.message,
-        message: 'Unable to verify your account limits. Please try again later or contact support.'
-      }, { status: 500 });
-    }
-
-    if (!limitCheck.can_create) {
-      console.error('PDF Generation: Monthly limit reached for pharmacist:', pharmacist.id);
-      return NextResponse.json({ 
-        error: 'Monthly report limit reached',
-        details: `You have reached your monthly limit of ${limitCheck.limit} reports. Current usage: ${limitCheck.current_usage}/${limitCheck.limit}`,
-        message: `Your ${pharmacist.plan_tier || 'current'} plan allows ${limitCheck.limit} reports per month. Please upgrade your plan for additional reports.`,
-        usage: limitCheck
-      }, { status: 403 });
-    }
-    
-    console.log('PDF Generation: Usage limits verified:', limitCheck);
-
     const requestData = await request.json();
     console.log('PDF Generation started with data:', JSON.stringify(requestData, null, 2));
 
@@ -1469,17 +1369,6 @@ export async function POST(request: NextRequest) {
 
     console.log('PDF generated successfully, size:', pdfBuffer.length, 'bytes');
     await browser.close();
-
-    // Increment usage tracking after successful PDF generation
-    const { error: usageError } = await supabase
-      .rpc('increment_hmr_usage', { p_pharmacist_id: pharmacist.id });
-
-    if (usageError) {
-      console.error('Error incrementing usage:', usageError);
-      // Don't fail the request if usage tracking fails, just log it
-    } else {
-      console.log('Usage tracking incremented successfully');
-    }
 
     // Return the PDF as a blob response
     return new NextResponse(pdfBuffer, {

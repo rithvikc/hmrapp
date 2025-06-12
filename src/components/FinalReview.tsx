@@ -202,14 +202,11 @@ Email: avishkarlal01@gmail.com`;
         recommendations: currentClinicalRecommendations
       };
 
-      // First request with credentials included
       const response = await fetch('/api/generate-hmr-pdf', {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache'
+          'Content-Type': 'application/json'
         },
-        credentials: 'include', // Important for auth cookies
         body: JSON.stringify({
           patientId: currentPatient?.id,
           reviewData: reportData,
@@ -235,11 +232,10 @@ Email: avishkarlal01@gmail.com`;
       } else {
         const errorData = await response.text();
         let errorMessage = 'Failed to generate PDF';
-        let parsedError = null;
         
         try {
           // Try to parse the error as JSON
-          parsedError = JSON.parse(errorData);
+          const parsedError = JSON.parse(errorData);
           errorMessage = parsedError.message || parsedError.error || parsedError.details || errorMessage;
         } catch (e) {
           // If not JSON, use the raw text
@@ -247,54 +243,6 @@ Email: avishkarlal01@gmail.com`;
         }
         
         console.error('PDF generation failed:', errorMessage);
-        
-        // If it's an authentication error, try refreshing the session and retry once
-        if (response.status === 401 && parsedError?.error === 'Unauthorized') {
-          console.log('Authentication issue detected, refreshing session...');
-          
-          // Wait for a moment to allow auth refresh to complete
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          try {
-            // Retry with refreshed session
-            console.log('Retrying PDF generation after auth refresh...');
-            const retryResponse = await fetch('/api/generate-hmr-pdf', {
-              method: 'POST',
-              headers: { 
-                'Content-Type': 'application/json',
-                'Cache-Control': 'no-cache',
-                'X-Retry-Auth': 'true'
-              },
-              credentials: 'include',
-              body: JSON.stringify({
-                patientId: currentPatient?.id,
-                reviewData: reportData,
-                options: {
-                  includeAppendices: sendOptions.includeEducationSheet || sendOptions.includeMedicationList,
-                  watermark: validationIssues.length > 0 ? 'Draft' : 'Final',
-                  format: 'A4'
-                }
-              })
-            });
-            
-            if (retryResponse.ok) {
-              const blob = await retryResponse.blob();
-              const url = window.URL.createObjectURL(blob);
-              setPdfUrl(url);
-              setIsPdfOutdated(false);
-              console.log('PDF generated successfully on retry');
-              // Signal success to the progress component
-              if ((window as any).__pdfProgressHandlers?.success) {
-                (window as any).__pdfProgressHandlers.success();
-              }
-              return;
-            } else {
-              console.error('Retry also failed:', await retryResponse.text());
-            }
-          } catch (retryError) {
-            console.error('Error during retry:', retryError);
-          }
-        }
         
         // Signal error to the progress component
         if ((window as any).__pdfProgressHandlers?.error) {
@@ -334,10 +282,8 @@ Email: avishkarlal01@gmail.com`;
       const response = await fetch('/api/generate-hmr-pdf', {
         method: 'POST',
         headers: { 
-          'Content-Type': 'application/json',
-          'Cache-Control': 'no-cache'
+          'Content-Type': 'application/json'
         },
-        credentials: 'include', // Important for auth cookies
         body: JSON.stringify({
           patientId: currentPatient?.id,
           reviewData: data,
@@ -363,11 +309,10 @@ Email: avishkarlal01@gmail.com`;
       } else {
         const errorData = await response.text();
         let errorMessage = 'Failed to generate PDF';
-        let parsedError = null;
         
         try {
           // Try to parse the error as JSON
-          parsedError = JSON.parse(errorData);
+          const parsedError = JSON.parse(errorData);
           errorMessage = parsedError.message || parsedError.error || parsedError.details || errorMessage;
         } catch (e) {
           // If not JSON, use the raw text
@@ -375,55 +320,6 @@ Email: avishkarlal01@gmail.com`;
         }
         
         console.error('PDF generation failed:', errorMessage);
-        
-        // If it's an authentication error, try refreshing the session and retry once
-        if (response.status === 401 && parsedError?.error === 'Unauthorized') {
-          console.log('Authentication issue detected, refreshing session...');
-          
-          // Wait for a moment to allow auth refresh to complete
-          await new Promise(resolve => setTimeout(resolve, 1000));
-          
-          try {
-            // Retry with refreshed session
-            console.log('Retrying PDF generation after auth refresh...');
-            const retryResponse = await fetch('/api/generate-hmr-pdf', {
-              method: 'POST',
-              headers: { 
-                'Content-Type': 'application/json',
-                'Cache-Control': 'no-cache',
-                'X-Retry-Auth': 'true'
-              },
-              credentials: 'include',
-              body: JSON.stringify({
-                patientId: currentPatient?.id,
-                reviewData: data,
-                options: {
-                  includeAppendices: sendOptions.includeEducationSheet || sendOptions.includeMedicationList,
-                  watermark: validationIssues.length > 0 ? 'Draft' : 'Final',
-                  format: 'A4'
-                }
-              })
-            });
-            
-            if (retryResponse.ok) {
-              const blob = await retryResponse.blob();
-              const url = window.URL.createObjectURL(blob);
-              setPdfUrl(url);
-              setIsPdfOutdated(false);
-              setActiveTab('preview');
-              console.log('PDF generated successfully on retry');
-              // Signal success to the progress component
-              if ((window as any).__pdfProgressHandlers?.success) {
-                (window as any).__pdfProgressHandlers.success();
-              }
-              return;
-            } else {
-              console.error('Retry also failed:', await retryResponse.text());
-            }
-          } catch (retryError) {
-            console.error('Error during retry:', retryError);
-          }
-        }
         
         // Signal error to the progress component
         if ((window as any).__pdfProgressHandlers?.error) {

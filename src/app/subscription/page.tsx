@@ -69,28 +69,28 @@ export default function SubscriptionPage() {
         setCreatingCheckout(false);
         setSelectedPlan('');
         return;
-      }
+        }
 
       // Create Stripe checkout session for Professional and Business plans
-      const response = await fetch('/api/subscription/create-checkout-session', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          plan_id: planId,
-          success_url: `${window.location.origin}/dashboard?welcome=true&subscription=success`,
-          cancel_url: `${window.location.origin}/subscription`,
-        }),
-      });
+        const response = await fetch('/api/subscription/create-checkout-session', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            plan_id: planId,
+            success_url: `${window.location.origin}/dashboard?welcome=true&subscription=success`,
+            cancel_url: `${window.location.origin}/subscription`,
+          }),
+        });
 
-      const data = await response.json();
+        const data = await response.json();
 
-      if (response.ok && data.url) {
-        // Redirect to Stripe checkout
-        window.location.href = data.url;
-      } else {
-        throw new Error(data.error || 'Failed to create checkout session');
+        if (response.ok && data.url) {
+          // Redirect to Stripe checkout
+          window.location.href = data.url;
+        } else {
+          throw new Error(data.error || 'Failed to create checkout session');
       }
     } catch (error) {
       console.error('Error selecting plan:', error);
@@ -138,75 +138,75 @@ export default function SubscriptionPage() {
               const isEnterprise = plan.id === 'enterprise';
               
               return (
-                <div
-                  key={plan.id}
-                  className={`relative bg-white rounded-2xl shadow-xl border-2 transition-all duration-300 hover:shadow-2xl ${
+            <div
+              key={plan.id}
+              className={`relative bg-white rounded-2xl shadow-xl border-2 transition-all duration-300 hover:shadow-2xl ${
                     isPopular
                       ? 'border-blue-500 scale-105'
                       : 'border-gray-200'
-                  }`}
-                >
+              }`}
+            >
                   {isPopular && (
-                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
                       <span className="bg-blue-600 text-white px-4 py-2 rounded-full text-sm font-semibold">
-                        Most Popular
-                      </span>
-                    </div>
-                  )}
+                    Most Popular
+                  </span>
+                </div>
+              )}
 
-                  <div className="p-8">
-                    {/* Plan Name */}
-                    <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                      {plan.name}
-                    </h3>
+              <div className="p-8">
+                {/* Plan Name */}
+                <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                  {plan.name}
+                </h3>
 
-                    {/* Price */}
-                    <div className="mb-6">
+                {/* Price */}
+                <div className="mb-6">
                       {isEnterprise ? (
-                        <>
+                    <>
                           <span className="text-3xl font-bold text-gray-900">Contact Sales</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="text-4xl font-bold text-gray-900">
-                            {formatPrice(plan.price_monthly)}
-                          </span>
-                          <span className="text-gray-500 ml-2">/month</span>
-                        </>
-                      )}
-                    </div>
+                    </>
+                  ) : (
+                    <>
+                      <span className="text-4xl font-bold text-gray-900">
+                        {formatPrice(plan.price_monthly)}
+                      </span>
+                      <span className="text-gray-500 ml-2">/month</span>
+                    </>
+                  )}
+                </div>
 
-                    {/* HMR Limit */}
-                    <div className="mb-6">
+                {/* HMR Limit */}
+                <div className="mb-6">
                       <div className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">
                         {plan.hmr_limit === null ? '∞ Unlimited HMRs' : `${plan.hmr_limit} HMRs/month`}
-                      </div>
-                    </div>
+                  </div>
+                </div>
 
-                    {/* Features */}
-                    <ul className="space-y-3 mb-8">
-                      {plan.features.map((feature, index) => (
-                        <li key={index} className="flex items-start">
-                          <Check className="h-5 w-5 text-green-500 shrink-0 mt-0.5 mr-3" />
-                          <span className="text-gray-600">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
+                {/* Features */}
+                <ul className="space-y-3 mb-8">
+                  {plan.features.map((feature, index) => (
+                    <li key={index} className="flex items-start">
+                      <Check className="h-5 w-5 text-green-500 shrink-0 mt-0.5 mr-3" />
+                      <span className="text-gray-600">{feature}</span>
+                    </li>
+                  ))}
+                </ul>
 
-                    {/* CTA Button */}
-                    <button
-                      onClick={() => handlePlanSelect(plan.id)}
-                      disabled={creatingCheckout && selectedPlan === plan.id}
-                      className={`w-full py-3 px-6 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center ${
+                {/* CTA Button */}
+                <button
+                  onClick={() => handlePlanSelect(plan.id)}
+                  disabled={creatingCheckout && selectedPlan === plan.id}
+                  className={`w-full py-3 px-6 rounded-xl font-semibold transition-all duration-300 flex items-center justify-center ${
                         isPopular
                           ? 'bg-blue-600 text-white hover:bg-blue-700'
                           : 'bg-gray-900 text-white hover:bg-gray-800'
-                      } disabled:opacity-50 disabled:cursor-not-allowed`}
-                    >
-                      {creatingCheckout && selectedPlan === plan.id ? (
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      ) : (
-                        <>
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  {creatingCheckout && selectedPlan === plan.id ? (
+                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                  ) : (
+                    <>
                           {isEnterprise ? (
                             <>
                               <MessageSquare className="mr-2 h-4 w-4" />
@@ -215,20 +215,20 @@ export default function SubscriptionPage() {
                           ) : (
                             <>
                               Get Started
-                              <ArrowRight className="ml-2 h-4 w-4" />
+                      <ArrowRight className="ml-2 h-4 w-4" />
                             </>
                           )}
-                        </>
-                      )}
-                    </button>
+                    </>
+                  )}
+                </button>
 
                     {!isEnterprise && (
-                      <p className="text-xs text-gray-500 text-center mt-3">
+                  <p className="text-xs text-gray-500 text-center mt-3">
                         Start immediately • Cancel anytime
-                      </p>
-                    )}
-                  </div>
-                </div>
+                  </p>
+                )}
+              </div>
+            </div>
               );
             })}
         </div>

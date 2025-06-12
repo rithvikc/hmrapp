@@ -213,17 +213,17 @@ export default function PricingPage() {
                     Contact Sales
                   </a>
                 ) : (
-                  <Link
-                    href="/signup"
-                    className={`w-full py-3 px-6 rounded-lg font-semibold text-center block transition-all duration-200 ${
+                <Link
+                  href="/signup"
+                  className={`w-full py-3 px-6 rounded-lg font-semibold text-center block transition-all duration-200 ${
                       isPopular(plan.id)
                         ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg' 
                         : 'bg-gray-900 text-white hover:bg-gray-800'
                     } flex items-center justify-center`}
-                  >
+                >
                     Get Started
                     <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
+                </Link>
                 )}
               </div>
             ))}

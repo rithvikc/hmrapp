@@ -32,15 +32,15 @@ export default function Footer() {
           {/* Product Links */}
           <div>
             <h3 className="text-sm font-semibold text-gray-900 mb-4 font-serif">Product</h3>
-            <ul className="space-y-3">
+              <ul className="space-y-3">
               <li><Link href="/pricing" className="text-gray-600 hover:text-gray-900 text-sm transition-colors">Pricing</Link></li>
               <li><Link href="/about" className="text-gray-600 hover:text-gray-900 text-sm transition-colors">About</Link></li>
               <li><Link href="/resources" className="text-gray-600 hover:text-gray-900 text-sm transition-colors">Resources</Link></li>
-            </ul>
-          </div>
+              </ul>
+      </div>
 
           {/* Support Links */}
-          <div>
+            <div>
             <h3 className="text-sm font-semibold text-gray-900 mb-4 font-serif">Support</h3>
             <ul className="space-y-3">
               <li><Link href="/support" className="text-gray-600 hover:text-gray-900 text-sm transition-colors">Help Center</Link></li>
@@ -56,7 +56,7 @@ export default function Footer() {
               <div className="flex items-center text-gray-600 text-sm">
                 <Mail className="h-4 w-4 mr-2" />
                 support@myhmr.ai
-              </div>
+        </div>
               <div className="flex items-center text-gray-600 text-sm">
                 <Phone className="h-4 w-4 mr-2" />
                 1-800-MY-HMR
