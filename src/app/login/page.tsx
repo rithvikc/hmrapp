@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
@@ -15,7 +15,8 @@ import {
   ArrowRight
 } from 'lucide-react';
 
-export default function LoginPage() {
+// Component that uses useSearchParams must be wrapped in Suspense
+function LoginContent() {
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -351,4 +352,24 @@ export default function LoginPage() {
       </div>
     </div>
   );
-} 
+}
+
+// Simple loading UI for Suspense fallback
+function LoginLoading() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="flex flex-col items-center justify-center space-y-4">
+        <Loader2 className="h-10 w-10 text-blue-600 animate-spin" />
+        <p className="text-blue-600 text-lg">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<LoginLoading />}>
+      <LoginContent />
+    </Suspense>
+  );
+}
