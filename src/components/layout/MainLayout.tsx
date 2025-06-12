@@ -77,6 +77,18 @@ export default function MainLayout() {
   }
 
   const handleNavigate = (step: string) => {
+    // Handle special sidebar quick actions
+    if (step === 'new-review') {
+      handleNewReview();
+      return;
+    }
+    
+    if (step === 'schedule') {
+      handleScheduleReview();
+      return;
+    }
+    
+    // Handle regular navigation
     setCurrentStep(step as any);
   };
 

@@ -93,11 +93,11 @@ export default function FinalReview({ onNext, onPrevious }: FinalReviewProps) {
   // Add beforeunload protection to prevent accidental tab closure
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      // Only show warning if there are unsaved changes or if we're in the middle of PDF generation
-      if (showProgress || isPdfOutdated) {
+      // Only show warning if PDF generation is actively in progress
+      if (showProgress) {
         e.preventDefault();
-        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
-        return 'You have unsaved changes. Are you sure you want to leave?';
+        e.returnValue = 'PDF generation is in progress. Are you sure you want to leave?';
+        return 'PDF generation is in progress. Are you sure you want to leave?';
       }
     };
 
@@ -106,7 +106,7 @@ export default function FinalReview({ onNext, onPrevious }: FinalReviewProps) {
     return () => {
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
-  }, [showProgress, isPdfOutdated]);
+  }, [showProgress]);
 
   const validateReview = useCallback(() => {
     const issues: string[] = [];
