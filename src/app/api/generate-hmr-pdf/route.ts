@@ -1299,29 +1299,52 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createClient();
     
-    // Get the authenticated user with improved error handling
+    // Get the authenticated user with improved error handling - try getSession first
     console.log('PDF Generation: Checking authentication...');
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
     
-    if (authError) {
-      console.error('PDF Generation: Authentication error:', authError.message);
+    // First try to get the session, which is more reliable than getUser
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+    
+    if (sessionError) {
+      console.error('PDF Generation: Session error:', sessionError.message);
       return NextResponse.json({ 
         error: 'Authentication failed', 
-        details: authError.message,
+        details: sessionError.message,
         message: 'Please log in again to continue.' 
       }, { status: 401 });
     }
     
-    if (!user) {
-      console.error('PDF Generation: No authenticated user found');
-      return NextResponse.json({ 
-        error: 'Unauthorized', 
-        details: 'No authenticated user found',
-        message: 'Your session may have expired. Please log in again.' 
-      }, { status: 401 });
+    if (!sessionData.session) {
+      console.error('PDF Generation: No session found');
+      
+      // Fallback to getUser as a last resort
+      const { data: { user }, error: authError } = await supabase.auth.getUser();
+      
+      if (authError || !user) {
+        console.error('PDF Generation: Authentication error:', authError?.message || 'No user found');
+        return NextResponse.json({ 
+          error: 'Unauthorized', 
+          details: 'No active session found',
+          message: 'Your session may have expired. Please log in again.' 
+        }, { status: 401 });
+      }
+      
+      console.log('PDF Generation: User found through getUser fallback:', user.id);
+    } else {
+      console.log('PDF Generation: Session found, user ID:', sessionData.session.user.id);
     }
     
-    console.log('PDF Generation: User authenticated successfully:', user.id);
+    // Use the user from either session or getUser
+    const user = sessionData.session?.user || (await supabase.auth.getUser()).data.user;
+    
+    if (!user) {
+      console.error('PDF Generation: Could not determine user');
+      return NextResponse.json({ 
+        error: 'Unauthorized', 
+        details: 'Unable to identify authenticated user',
+        message: 'Authentication error. Please log in again.' 
+      }, { status: 401 });
+    }
 
     // Get the pharmacist record
     console.log('PDF Generation: Fetching pharmacist record...');

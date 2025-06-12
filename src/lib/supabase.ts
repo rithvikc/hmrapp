@@ -4,6 +4,9 @@ import { Database } from '@/types/database'
 // Single client instance
 let supabaseInstance: any = null
 
+// Check if we're in the browser
+const isBrowser = typeof window !== 'undefined'
+
 // Client-side Supabase client with singleton pattern
 export const createClient = () => {
   // Only initialize if we have the required environment variables
@@ -34,6 +37,11 @@ export const createClient = () => {
   }
 
   if (!supabaseInstance) {
+    // Use different configuration based on environment
+    const isProduction = process.env.NODE_ENV === 'production'
+    
+    console.log(`Creating Supabase client in ${isProduction ? 'production' : 'development'} environment. Browser: ${isBrowser}`)
+    
     supabaseInstance = createSupabaseClient<Database>(supabaseUrl, supabaseAnonKey, {
       auth: {
         autoRefreshToken: true,
@@ -42,6 +50,11 @@ export const createClient = () => {
         flowType: 'pkce'
       }
     })
+    
+    // Add debug logging in production to help diagnose authentication issues
+    if (isProduction) {
+      console.log('Supabase client created with production settings')
+    }
   }
   return supabaseInstance
 }
