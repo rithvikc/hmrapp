@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { 
@@ -25,9 +25,25 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
   const [resetSent, setResetSent] = useState(false);
+  const [existingAccountMessage, setExistingAccountMessage] = useState('');
   
   const { signIn, signInWithGoogle, resetPassword } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  // Check URL parameters on component mount
+  useEffect(() => {
+    const email = searchParams.get('email');
+    const existingAccount = searchParams.get('existingAccount');
+    
+    if (email) {
+      setFormData(prev => ({ ...prev, email }));
+    }
+    
+    if (existingAccount === 'true') {
+      setExistingAccountMessage('An account with this email already exists. Please sign in instead.');
+    }
+  }, [searchParams]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -167,6 +183,14 @@ export default function LoginPage() {
             </div>
           ) : (
             <>
+              {existingAccountMessage && (
+                <div className="rounded-lg bg-yellow-50 p-4 border border-yellow-200 mb-4">
+                  <div className="flex items-center">
+                    <AlertCircle className="h-5 w-5 text-yellow-400 mr-2" />
+                    <span className="text-sm text-yellow-800">{existingAccountMessage}</span>
+                  </div>
+                </div>
+              )}
               <form className="space-y-6" onSubmit={handleSubmit}>
                 {error && (
                   <div className="rounded-lg bg-red-50 p-4 border border-red-200">

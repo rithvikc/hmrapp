@@ -83,7 +83,9 @@ export default function SignupPage() {
       
       if (authError) {
         if (authError.message.includes('already registered')) {
-          setError('An account with this email already exists. Please sign in instead.');
+          // Redirect to login page with a message indicating the email is already registered
+          router.push(`/login?email=${encodeURIComponent(formData.email)}&existingAccount=true`);
+          return;
         } else if (authError.message.includes('weak password')) {
           setError('Password is too weak. Please use a stronger password.');
         } else {
