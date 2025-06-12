@@ -61,10 +61,14 @@ interface HMRData {
   medications: Medication[];
   interview: Interview;
   recommendations: Recommendation[];
+  userEmail?: string;
 }
 
 const generateHMRHTML = (data: HMRData) => {
   const { patient, medications, interview, recommendations } = data;
+  
+  // Use provided user email or fallback to default
+  const pharmacistEmail = data.userEmail || 'avishkarlal01@gmail.com';
   
   // Determine pronouns
   const pronoun = patient?.gender?.toLowerCase() === 'female' ? 'She' : 'He';
@@ -1086,7 +1090,7 @@ const generateHMRHTML = (data: HMRData) => {
       <div class="pharmacist-details">
         <strong>Accredited Pharmacist:</strong><br>
         ${data.interview?.pharmacist_name || 'Avishkar Lal (MRN 8362)'}<br>
-        <strong>Email:</strong> avishkarlal01@gmail.com<br>
+        <strong>Email:</strong> ${pharmacistEmail}<br>
         <strong>Phone:</strong> 0490 417 047
       </div>
     </div>
@@ -1271,7 +1275,7 @@ const generateHMRHTML = (data: HMRData) => {
     <div class="closing-section">
       <h3 class="section-header">Clinical Summary & Follow-up Plan</h3>
       
-      <p>Please review the recommendations outlined in this report and implement as clinically appropriate. Follow-up medication review recommended in ${interview?.next_review_date ? formatDate(interview.next_review_date) : '6 months from interview date'}. Please complete the attached Medication Management Report and forward a copy to avishkarlal01@gmail.com for MBS billing (item 900).</p>
+      <p>Please review the recommendations outlined in this report and implement as clinically appropriate. Follow-up medication review recommended in ${interview?.next_review_date ? formatDate(interview.next_review_date) : '6 months from interview date'}. Please complete the attached Medication Management Report and forward a copy to ${pharmacistEmail} for MBS billing (item 900).</p>
       
       <p>As the accredited pharmacist responsible for conducting this comprehensive Home Medication Review, I acknowledge that clinical judgment and individual patient factors may influence the implementation of these recommendations. I welcome discussion regarding any suggestions and remain available to provide additional clinical information or clarification.</p>
       
@@ -1285,7 +1289,7 @@ const generateHMRHTML = (data: HMRData) => {
       <div class="credentials">
         Accredited Pharmacist (MRN 8362)<br>
         Phone: 0490 417 047<br>
-        Email: avishkarlal01@gmail.com<br>
+        Email: ${pharmacistEmail}<br>
         <em>myHMR - Professional Clinical Services</em>
       </div>
     </div>
@@ -1303,6 +1307,9 @@ export async function POST(request: NextRequest) {
     const requestData = await request.json();
     console.log('PDF Generation started with data:', JSON.stringify(requestData, null, 2));
 
+    // Extract user email from request data
+    const userEmail = requestData.userEmail || requestData.pharmacistEmail;
+
     // Handle different data structures
     let reviewData;
     if (requestData.reviewData) {
@@ -1316,6 +1323,9 @@ export async function POST(request: NextRequest) {
     } else {
       throw new Error('Invalid data structure: neither reviewData nor patient found');
     }
+
+    // Add user email to review data
+    reviewData.userEmail = userEmail;
 
     console.log('Final reviewData:', JSON.stringify(reviewData, null, 2));
 

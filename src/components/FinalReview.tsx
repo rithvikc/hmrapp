@@ -85,6 +85,29 @@ export default function FinalReview({ onNext, onPrevious }: FinalReviewProps) {
     }
   }, [currentInterviewResponse, pharmacist, user, setCurrentInterviewResponse]);
 
+  // Get user email for PDF generation
+  const getUserEmail = () => {
+    return pharmacist?.email || user?.email || 'avishkarlal01@gmail.com';
+  };
+
+  // Add beforeunload protection to prevent accidental tab closure
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      // Only show warning if there are unsaved changes or if we're in the middle of PDF generation
+      if (showProgress || isPdfOutdated) {
+        e.preventDefault();
+        e.returnValue = 'You have unsaved changes. Are you sure you want to leave?';
+        return 'You have unsaved changes. Are you sure you want to leave?';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [showProgress, isPdfOutdated]);
+
   const validateReview = useCallback(() => {
     const issues: string[] = [];
     
@@ -120,6 +143,7 @@ export default function FinalReview({ onNext, onPrevious }: FinalReviewProps) {
     if (!currentPatient) return;
     
     const pronoun = currentPatient.gender?.toLowerCase() === 'female' ? 'She' : 'He';
+    const userEmail = getUserEmail();
     
     const highPriorityCount = currentClinicalRecommendations.filter(rec => rec.priority_level === 'High').length;
     const isUrgent = highPriorityCount > 0;
@@ -145,10 +169,10 @@ Please review the attached report urgently and contact me if you require any cla
 I would be pleased to discuss any aspects of this review or provide supporting literature for any recommendations.
 
 Regards,
-Avishkar Lal
-Accredited Pharmacist MRN 8362
+${currentInterviewResponse?.pharmacist_name || pharmacist?.name || 'Avishkar Lal'}
+Accredited Pharmacist MRN ${pharmacist?.registration_number || '8362'}
 Phone: 0490 417 047
-Email: avishkarlal01@gmail.com`;
+Email: ${userEmail}`;
     } else {
       template = `Subject: Home Medication Review - ${currentPatient.name} - ${new Date().toLocaleDateString('en-AU')}
 
@@ -166,17 +190,17 @@ I have identified ${currentClinicalRecommendations.length} issue${currentClinica
 
 I would be pleased to discuss any aspects of this review or provide supporting literature for any recommendations.
 
-Please complete the attached Medication Management Report and forward a copy to avishkarlal01@gmail.com. MBS item number 900 can then be claimed.
+Please complete the attached Medication Management Report and forward a copy to ${userEmail}. MBS item number 900 can then be claimed.
 
 Regards,
-Avishkar Lal
-Accredited Pharmacist MRN 8362
+${currentInterviewResponse?.pharmacist_name || pharmacist?.name || 'Avishkar Lal'}
+Accredited Pharmacist MRN ${pharmacist?.registration_number || '8362'}
 Phone: 0490 417 047
-Email: avishkarlal01@gmail.com`;
+Email: ${userEmail}`;
     }
     
     setEmailTemplate(template);
-  }, [currentPatient, currentInterviewResponse, currentClinicalRecommendations]);
+  }, [currentPatient, currentInterviewResponse, currentClinicalRecommendations, pharmacist, getUserEmail]);
 
   useEffect(() => {
     validateReview();
@@ -210,6 +234,7 @@ Email: avishkarlal01@gmail.com`;
         body: JSON.stringify({
           patientId: currentPatient?.id,
           reviewData: reportData,
+          userEmail: getUserEmail(),
           options: {
             includeAppendices: sendOptions.includeEducationSheet || sendOptions.includeMedicationList,
             watermark: validationIssues.length > 0 ? 'Draft' : 'Final',
@@ -287,6 +312,7 @@ Email: avishkarlal01@gmail.com`;
         body: JSON.stringify({
           patientId: currentPatient?.id,
           reviewData: data,
+          userEmail: getUserEmail(),
           options: {
             includeAppendices: sendOptions.includeEducationSheet || sendOptions.includeMedicationList,
             watermark: validationIssues.length > 0 ? 'Draft' : 'Final',
@@ -894,7 +920,7 @@ Email: avishkarlal01@gmail.com`;
             <h4 className="font-medium text-yellow-900 mb-2">Email Details:</h4>
             <div className="text-sm text-yellow-800 space-y-1">
               <div><strong>To:</strong> {currentPatient?.doctor_email || 'Doctor email not provided'}</div>
-              <div><strong>BCC:</strong> avishkarlal01@gmail.com (for records)</div>
+              <div><strong>BCC:</strong> {getUserEmail()} (for records)</div>
               <div><strong>Attachments:</strong> HMR Report PDF</div>
               {sendOptions.includeEducationSheet && (
                 <div><strong>Additional:</strong> Patient Education Sheet</div>
