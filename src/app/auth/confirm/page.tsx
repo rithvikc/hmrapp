@@ -25,7 +25,7 @@ function ConfirmPageContent() {
       const token_hash = searchParams.get('token_hash');
       const type = searchParams.get('type');
       
-      if (!token_hash || type !== 'signup') {
+      if (!token_hash || (type !== 'signup' && type !== 'email')) {
         setStatus('error');
         setMessage('Invalid confirmation link. The link may be expired or already used.');
         return;
@@ -35,7 +35,7 @@ function ConfirmPageContent() {
         const supabase = createClient();
         const { error } = await supabase.auth.verifyOtp({
           token_hash,
-          type: 'signup'
+          type: type as 'signup' | 'email'
         });
 
         if (error) {
