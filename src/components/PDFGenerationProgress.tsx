@@ -1,7 +1,7 @@
 'use client'
 
 import React, { useState, useEffect } from 'react'
-import { FileText, Zap, CheckCircle, Star, Pill, Heart, Activity } from 'lucide-react'
+import { FileText, Zap, CheckCircle, Star, Pill, Heart, Activity, AlertTriangle } from 'lucide-react'
 
 interface PDFGenerationProgressProps {
   isVisible: boolean
@@ -17,6 +17,8 @@ const PDFGenerationProgress: React.FC<PDFGenerationProgressProps> = ({
   const [progress, setProgress] = useState(0)
   const [currentStep, setCurrentStep] = useState(0)
   const [showSuccess, setShowSuccess] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isAnimationPaused, setIsAnimationPaused] = useState(false)
 
   const steps = [
     { label: 'Analyzing patient data', icon: Heart, color: 'text-red-500', duration: 0.2 },
@@ -26,21 +28,37 @@ const PDFGenerationProgress: React.FC<PDFGenerationProgressProps> = ({
     { label: 'Finalizing PDF', icon: Zap, color: 'text-yellow-500', duration: 0.1 }
   ]
 
+  // Reset error state when component becomes visible
+  useEffect(() => {
+    if (isVisible) {
+      setError(null)
+      setIsAnimationPaused(false)
+    }
+  }, [isVisible])
+
   useEffect(() => {
     if (!isVisible) {
       setProgress(0)
       setCurrentStep(0)
       setShowSuccess(false)
+      setError(null)
       return
     }
 
-    let timeElapsed = 0
+    // Always start with at least 5% progress to avoid the appearance of being stuck
+    setProgress(5)
+    
+    let timeElapsed = duration * 0.05 // Start at 5% of total time
     const updateInterval = 100 // Update every 100ms
     const totalDuration = duration
+    let isPaused = false
 
     const interval = setInterval(() => {
+      if (isPaused) return
+      
       timeElapsed += updateInterval
-      const newProgress = Math.min((timeElapsed / totalDuration) * 100, 100)
+      // Calculate new progress, ensuring we don't reach 100% until explicitly set
+      const newProgress = Math.min((timeElapsed / totalDuration) * 100, 95) // Cap at 95% until success
       
       // Update current step based on progress with step durations
       let cumulativeDuration = 0
@@ -58,28 +76,86 @@ const PDFGenerationProgress: React.FC<PDFGenerationProgressProps> = ({
       setCurrentStep(Math.min(stepIndex, steps.length - 1))
       setProgress(newProgress)
       
-      if (newProgress >= 100) {
-        clearInterval(interval)
-        setShowSuccess(true)
+      // If we're near the end but still waiting, slow down the progress
+      if (newProgress > 80 && timeElapsed > totalDuration * 0.8) {
+        isPaused = true
+        setIsAnimationPaused(true)
+        
+        // Resume with slower progression after a short pause
         setTimeout(() => {
-          onComplete?.()
-        }, 2000) // Show success for 2 seconds
+          isPaused = false
+          setIsAnimationPaused(false)
+        }, 1000)
       }
     }, updateInterval)
 
+    // Cleanup interval on unmount
     return () => clearInterval(interval)
-  }, [isVisible, onComplete, duration, steps])
+  }, [isVisible, duration, steps])
+
+  // Function to handle successful PDF generation
+  const handleSuccess = () => {
+    setProgress(100)
+    setShowSuccess(true)
+    setTimeout(() => {
+      onComplete?.()
+    }, 2000) // Show success for 2 seconds
+  }
+
+  // Function to handle errors
+  const handleError = (errorMessage: string) => {
+    setError(errorMessage)
+    setIsAnimationPaused(true)
+  }
+
+  // Expose these functions to parent components
+  useEffect(() => {
+    if (isVisible) {
+      // Attach these functions to window for parent component access
+      (window as any).__pdfProgressHandlers = {
+        success: handleSuccess,
+        error: handleError
+      }
+    }
+    
+    return () => {
+      // Clean up when component unmounts
+      delete (window as any).__pdfProgressHandlers
+    }
+  }, [isVisible])
 
   if (!isVisible) return null
 
   return (
     <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8 text-center">
-        {!showSuccess ? (
+        {error ? (
+          // Error state
+          <div className="text-center">
+            <div className="relative mb-6">
+              <div className="w-20 h-20 mx-auto bg-gradient-to-br from-red-500 to-orange-600 rounded-full flex items-center justify-center shadow-lg">
+                <AlertTriangle className="w-12 h-12 text-white" />
+              </div>
+            </div>
+            
+            <h3 className="text-2xl font-bold text-gray-800 mb-2">
+              Error Generating PDF
+            </h3>
+            <p className="text-gray-600 mb-4">
+              {error || "An error occurred during PDF generation."}
+            </p>
+            <button
+              onClick={onComplete}
+              className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-colors"
+            >
+              Close
+            </button>
+          </div>
+        ) : !showSuccess ? (
           <>
             {/* Animated PDF Icon */}
             <div className="relative mb-8">
-              <div className="w-20 h-20 mx-auto bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg transform animate-pulse">
+              <div className={`w-20 h-20 mx-auto bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg transform ${isAnimationPaused ? '' : 'animate-pulse'}`}>
                 <FileText className="w-10 h-10 text-white" />
               </div>
               
@@ -88,7 +164,7 @@ const PDFGenerationProgress: React.FC<PDFGenerationProgressProps> = ({
                 {[...Array(8)].map((_, i) => (
                   <div
                     key={i}
-                    className={`absolute w-2 h-2 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 animate-ping`}
+                    className={`absolute w-2 h-2 rounded-full bg-gradient-to-r from-blue-400 to-purple-500 ${isAnimationPaused ? '' : 'animate-ping'}`}
                     style={{
                       left: `${20 + Math.random() * 60}%`,
                       top: `${20 + Math.random() * 60}%`,
@@ -104,8 +180,8 @@ const PDFGenerationProgress: React.FC<PDFGenerationProgressProps> = ({
             <div className="mb-6">
               <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
                 <div 
-                  className="h-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full transition-all duration-300 ease-out relative"
-                  style={{ width: `${progress}%` }}
+                  className={`h-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 rounded-full transition-all duration-300 ease-out relative ${isAnimationPaused ? 'animate-pulse' : ''}`}
+                  style={{ width: `${Math.max(5, progress)}%` }}
                 >
                   <div className="absolute inset-0 bg-white/30 animate-pulse" />
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent animate-shimmer" />
@@ -120,7 +196,7 @@ const PDFGenerationProgress: React.FC<PDFGenerationProgressProps> = ({
             <div className="mb-6">
               <div className="flex items-center justify-center space-x-3 mb-4">
                 {React.createElement(steps[currentStep]?.icon || FileText, {
-                  className: `w-6 h-6 ${steps[currentStep]?.color || 'text-blue-500'} animate-bounce`
+                  className: `w-6 h-6 ${steps[currentStep]?.color || 'text-blue-500'} ${isAnimationPaused ? 'animate-pulse' : 'animate-bounce'}`
                 })}
                 <span className="text-lg font-medium text-gray-800">
                   {steps[currentStep]?.label || 'Processing...'}

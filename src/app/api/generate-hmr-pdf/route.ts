@@ -1299,40 +1299,83 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createClient();
     
-    // Get the authenticated user
+    // Get the authenticated user with improved error handling
+    console.log('PDF Generation: Checking authentication...');
     const { data: { user }, error: authError } = await supabase.auth.getUser();
     
-    if (authError || !user) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    if (authError) {
+      console.error('PDF Generation: Authentication error:', authError.message);
+      return NextResponse.json({ 
+        error: 'Authentication failed', 
+        details: authError.message,
+        message: 'Please log in again to continue.' 
+      }, { status: 401 });
     }
+    
+    if (!user) {
+      console.error('PDF Generation: No authenticated user found');
+      return NextResponse.json({ 
+        error: 'Unauthorized', 
+        details: 'No authenticated user found',
+        message: 'Your session may have expired. Please log in again.' 
+      }, { status: 401 });
+    }
+    
+    console.log('PDF Generation: User authenticated successfully:', user.id);
 
     // Get the pharmacist record
+    console.log('PDF Generation: Fetching pharmacist record...');
     const { data: pharmacist, error: pharmacistError } = await supabase
       .from('pharmacists')
-      .select('id')
+      .select('id, name, plan_tier')
       .eq('user_id', user.id)
       .single();
 
-    if (pharmacistError || !pharmacist) {
-      return NextResponse.json({ error: 'Pharmacist record not found' }, { status: 404 });
+    if (pharmacistError) {
+      console.error('PDF Generation: Error fetching pharmacist record:', pharmacistError.message);
+      return NextResponse.json({ 
+        error: 'Pharmacist record error', 
+        details: pharmacistError.message,
+        message: 'Unable to retrieve your account information. Please contact support.' 
+      }, { status: 404 });
     }
 
+    if (!pharmacist) {
+      console.error('PDF Generation: No pharmacist record found for user:', user.id);
+      return NextResponse.json({ 
+        error: 'Account setup incomplete', 
+        details: 'No pharmacist profile found for this user',
+        message: 'Your account setup is incomplete. Please complete your profile first.' 
+      }, { status: 404 });
+    }
+    
+    console.log('PDF Generation: Pharmacist record found:', pharmacist.id, pharmacist.name);
+
     // Check HMR limits before generating PDF
+    console.log('PDF Generation: Checking usage limits...');
     const { data: limitCheck, error: limitError } = await supabase
       .rpc('check_hmr_limit', { p_pharmacist_id: pharmacist.id });
 
     if (limitError) {
-      console.error('Error checking HMR limit:', limitError);
-      return NextResponse.json({ error: 'Error checking usage limits' }, { status: 500 });
+      console.error('PDF Generation: Error checking HMR limit:', limitError.message);
+      return NextResponse.json({ 
+        error: 'Usage limit check failed', 
+        details: limitError.message,
+        message: 'Unable to verify your account limits. Please try again later or contact support.'
+      }, { status: 500 });
     }
 
     if (!limitCheck.can_create) {
+      console.error('PDF Generation: Monthly limit reached for pharmacist:', pharmacist.id);
       return NextResponse.json({ 
         error: 'Monthly report limit reached',
         details: `You have reached your monthly limit of ${limitCheck.limit} reports. Current usage: ${limitCheck.current_usage}/${limitCheck.limit}`,
+        message: `Your ${pharmacist.plan_tier || 'current'} plan allows ${limitCheck.limit} reports per month. Please upgrade your plan for additional reports.`,
         usage: limitCheck
       }, { status: 403 });
     }
+    
+    console.log('PDF Generation: Usage limits verified:', limitCheck);
 
     const requestData = await request.json();
     console.log('PDF Generation started with data:', JSON.stringify(requestData, null, 2));
@@ -1436,6 +1479,7 @@ export async function POST(request: NextRequest) {
         success: false, 
         error: 'Failed to generate PDF', 
         details: errorMessage,
+        message: 'An error occurred while generating your PDF. Please try again or contact support if the issue persists.',
         stack: errorDetails
       },
       { status: 500 }

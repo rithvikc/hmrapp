@@ -15,6 +15,7 @@ export async function middleware(request: NextRequest) {
       return response
     }
 
+    // Create Supabase server client
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -41,11 +42,26 @@ export async function middleware(request: NextRequest) {
       }
     )
 
+    // Log the request path for debugging
+    console.log('Middleware: Processing request for:', request.nextUrl.pathname);
+    
     // Get the current user
     const { data: { user }, error } = await supabase.auth.getUser()
     
     if (error) {
-      console.log('Middleware: Auth error:', error.message)
+      console.log('Middleware: Auth error:', error.message);
+      // Add debug headers if in development mode
+      if (process.env.NODE_ENV === 'development') {
+        response.headers.set('X-Auth-Error', error.message);
+      }
+    } else if (user) {
+      console.log('Middleware: Authenticated user:', user.id, 'accessing:', request.nextUrl.pathname);
+      // Add debug headers if in development mode
+      if (process.env.NODE_ENV === 'development') {
+        response.headers.set('X-Auth-User-Id', user.id);
+      }
+    } else {
+      console.log('Middleware: No authenticated user for:', request.nextUrl.pathname);
     }
     
     // Only block API routes if authentication is required
@@ -53,7 +69,6 @@ export async function middleware(request: NextRequest) {
       // Allow these API routes without authentication
       const publicApiRoutes = [
         '/api/auth/',
-        '/api/generate-hmr-pdf',
         '/api/process-pdf',
         '/api/send-hmr-report'
       ]
@@ -65,24 +80,26 @@ export async function middleware(request: NextRequest) {
       if (!isPublicRoute && !user) {
         console.log('Middleware: Blocking unauthenticated API request to:', request.nextUrl.pathname)
         return NextResponse.json(
-          { error: 'Authentication required' },
+          { 
+            error: 'Authentication required',
+            message: 'Please log in to access this resource' 
+          }, 
           { status: 401 }
         )
-      }
-      
-      if (user) {
-        console.log('Middleware: Authenticated user accessing:', request.nextUrl.pathname)
       }
     }
 
     // For dashboard routes, redirect to login if not authenticated
-    if (request.nextUrl.pathname === '/dashboard' && !user && !error) {
+    if (request.nextUrl.pathname.startsWith('/dashboard') && !user && !error) {
       console.log('Middleware: Redirecting unauthenticated user to login')
       return NextResponse.redirect(new URL('/login', request.url))
     }
 
   } catch (error) {
-    console.error('Middleware error:', error)
+    console.error('Middleware error:', error instanceof Error ? error.message : 'Unknown error')
+    if (error instanceof Error && error.stack) {
+      console.error('Middleware error stack:', error.stack)
+    }
   }
 
   return response

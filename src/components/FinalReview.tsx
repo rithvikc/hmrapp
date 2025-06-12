@@ -223,16 +223,38 @@ Email: avishkarlal01@gmail.com`;
         setPdfUrl(url);
         setIsPdfOutdated(false);
         console.log('PDF generated successfully');
+        // Signal success to the progress component
+        if ((window as any).__pdfProgressHandlers?.success) {
+          (window as any).__pdfProgressHandlers.success();
+        }
       } else {
-        const errorText = await response.text();
-        console.error('PDF generation failed:', errorText);
-        setShowProgress(false);
-        alert(`Failed to generate PDF: ${errorText}`);
+        const errorData = await response.text();
+        let errorMessage = 'Failed to generate PDF';
+        
+        try {
+          // Try to parse the error as JSON
+          const parsedError = JSON.parse(errorData);
+          errorMessage = parsedError.error || parsedError.details || errorMessage;
+        } catch (e) {
+          // If not JSON, use the raw text
+          errorMessage = errorData || errorMessage;
+        }
+        
+        console.error('PDF generation failed:', errorMessage);
+        
+        // Signal error to the progress component
+        if ((window as any).__pdfProgressHandlers?.error) {
+          (window as any).__pdfProgressHandlers.error(errorMessage);
+        }
       }
     } catch (error) {
       console.error('Error generating PDF:', error);
-      setShowProgress(false);
-      alert(`Error generating PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      // Signal error to the progress component
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if ((window as any).__pdfProgressHandlers?.error) {
+        (window as any).__pdfProgressHandlers.error(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
@@ -276,16 +298,38 @@ Email: avishkarlal01@gmail.com`;
         setIsPdfOutdated(false);
         setActiveTab('preview');
         console.log('Preview PDF generated successfully');
+        // Signal success to the progress component
+        if ((window as any).__pdfProgressHandlers?.success) {
+          (window as any).__pdfProgressHandlers.success();
+        }
       } else {
-        const errorText = await response.text();
-        console.error('PDF generation failed:', errorText);
-        setShowProgress(false);
-        alert(`Failed to generate PDF: ${errorText}`);
+        const errorData = await response.text();
+        let errorMessage = 'Failed to generate PDF';
+        
+        try {
+          // Try to parse the error as JSON
+          const parsedError = JSON.parse(errorData);
+          errorMessage = parsedError.error || parsedError.details || errorMessage;
+        } catch (e) {
+          // If not JSON, use the raw text
+          errorMessage = errorData || errorMessage;
+        }
+        
+        console.error('PDF generation failed:', errorMessage);
+        
+        // Signal error to the progress component
+        if ((window as any).__pdfProgressHandlers?.error) {
+          (window as any).__pdfProgressHandlers.error(errorMessage);
+        }
       }
     } catch (error) {
       console.error('Error generating PDF:', error);
-      setShowProgress(false);
-      alert(`Error generating PDF: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      
+      // Signal error to the progress component
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if ((window as any).__pdfProgressHandlers?.error) {
+        (window as any).__pdfProgressHandlers.error(errorMessage);
+      }
     } finally {
       setLoading(false);
     }
