@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase';
+import { createServerClient } from '@/lib/supabase';
 
 export async function POST(request: NextRequest) {
   try {
@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    const supabase = createClient();
+    const supabase = createServerClient();
     
     // Check if pharmacist record already exists
     const { data: existingPharmacist, error: checkError } = await supabase

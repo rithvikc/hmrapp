@@ -16,6 +16,7 @@ import {
   Clock
 } from 'lucide-react';
 
+// Component that uses useSearchParams must be wrapped in Suspense
 function LoginContent() {
   const [formData, setFormData] = useState({
     email: '',
@@ -27,14 +28,26 @@ function LoginContent() {
   const [error, setError] = useState('');
   const [resetSent, setResetSent] = useState(false);
   const [sessionExpired, setSessionExpired] = useState(false);
+  const [existingAccountMessage, setExistingAccountMessage] = useState('');
   
   const { signIn, signInWithGoogle, resetPassword } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
 
+  // Check URL parameters on component mount
   useEffect(() => {
-    // Check for session expired parameter
+    const email = searchParams.get('email');
+    const existingAccount = searchParams.get('existingAccount');
     const errorParam = searchParams.get('error');
+    
+    if (email) {
+      setFormData(prev => ({ ...prev, email }));
+    }
+    
+    if (existingAccount === 'true') {
+      setExistingAccountMessage('An account with this email already exists. Please sign in instead.');
+    }
+    
     if (errorParam === 'session_expired') {
       setSessionExpired(true);
       // Clear the URL parameter
@@ -53,6 +66,7 @@ function LoginContent() {
     // Clear error and session expired message when user starts typing
     if (error) setError('');
     if (sessionExpired) setSessionExpired(false);
+    if (existingAccountMessage) setExistingAccountMessage('');
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -200,6 +214,14 @@ function LoginContent() {
             </div>
           ) : (
             <>
+              {existingAccountMessage && (
+                <div className="rounded-lg bg-yellow-50 p-4 border border-yellow-200 mb-4">
+                  <div className="flex items-center">
+                    <AlertCircle className="h-5 w-5 text-yellow-400 mr-2" />
+                    <span className="text-sm text-yellow-800">{existingAccountMessage}</span>
+                  </div>
+                </div>
+              )}
               <form className="space-y-6" onSubmit={handleSubmit}>
                 {error && (
                   <div className="rounded-lg bg-red-50 p-4 border border-red-200">
@@ -362,14 +384,22 @@ function LoginContent() {
   );
 }
 
+// Simple loading UI for Suspense fallback
+function LoginLoading() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
+      <div className="flex flex-col items-center justify-center space-y-4">
+        <Loader2 className="h-10 w-10 text-blue-600 animate-spin" />
+        <p className="text-blue-600 text-lg">Loading...</p>
+      </div>
+    </div>
+  );
+}
+
 export default function LoginPage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    }>
+    <Suspense fallback={<LoginLoading />}>
       <LoginContent />
     </Suspense>
   );
-} 
+}
