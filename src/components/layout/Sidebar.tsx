@@ -26,13 +26,17 @@ interface SidebarProps {
   onNavigate: (step: string) => void;
   isCollapsed: boolean;
   onToggleCollapse: () => void;
+  hasActiveSubscription: boolean;
+  canCreateHMR: boolean;
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ 
   currentStep, 
   onNavigate, 
   isCollapsed, 
-  onToggleCollapse 
+  onToggleCollapse,
+  hasActiveSubscription,
+  canCreateHMR
 }) => {
   const { pharmacist, user } = useAuth();
 
@@ -146,13 +150,19 @@ const Sidebar: React.FC<SidebarProps> = ({
       id: 'new-review', 
       label: 'New Review', 
       icon: Plus, 
-      color: 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
+      color: hasActiveSubscription && canCreateHMR 
+        ? 'bg-blue-100 text-blue-700 hover:bg-blue-200' 
+        : 'bg-gray-100 text-gray-400 cursor-not-allowed',
+      disabled: !hasActiveSubscription || !canCreateHMR
     },
     { 
       id: 'schedule', 
       label: 'Schedule Review', 
       icon: Calendar, 
-      color: 'bg-green-100 text-green-700 hover:bg-green-200'
+      color: hasActiveSubscription 
+        ? 'bg-green-100 text-green-700 hover:bg-green-200'
+        : 'bg-gray-100 text-gray-400 cursor-not-allowed',
+      disabled: !hasActiveSubscription
     }
   ];
 
@@ -224,14 +234,20 @@ const Sidebar: React.FC<SidebarProps> = ({
             {quickActions.map((action) => (
               <button
                 key={action.id}
-                onClick={() => onNavigate(action.id)}
+                onClick={() => !action.disabled && onNavigate(action.id)}
+                disabled={action.disabled}
                 className={`
                   w-full flex items-center space-x-2 px-3 py-2 rounded-lg text-sm font-medium
                   transition-colors duration-200 ${action.color}
+                  ${action.disabled ? 'opacity-60' : ''}
                 `}
+                title={action.disabled ? 'Subscription required' : ''}
               >
                 <action.icon className="h-4 w-4" />
                 <span className="flex-1 text-left">{action.label}</span>
+                {action.disabled && (
+                  <span className="text-xs text-gray-400">🔒</span>
+                )}
               </button>
             ))}
           </div>

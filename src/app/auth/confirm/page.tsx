@@ -17,8 +17,43 @@ import {
 function ConfirmPageContent() {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('');
+  const [redirecting, setRedirecting] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
+  
+  const redirectToStripeCheckout = async (planId: string, userId: string) => {
+    try {
+      setRedirecting(true);
+      const response = await fetch('/api/subscription/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          plan_id: planId,
+          success_url: `${window.location.origin}/dashboard?welcome=true&subscription=success`,
+          cancel_url: `${window.location.origin}/dashboard?welcome=true`,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.url) {
+        // Clear the stored plan since we're processing it
+        sessionStorage.removeItem('selectedPlan');
+        // Redirect to Stripe checkout
+        window.location.href = data.url;
+      } else {
+        console.error('Failed to create checkout session:', data.error);
+        // Fallback to dashboard if checkout fails
+        router.push('/dashboard?welcome=true');
+      }
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
+      // Fallback to dashboard if checkout fails
+      router.push('/dashboard?welcome=true');
+    }
+  };
   
   useEffect(() => {
     const confirmSignup = async () => {
@@ -79,13 +114,23 @@ function ConfirmPageContent() {
                   console.error('Confirm page: Failed to create pharmacist record');
                 }
               }
+
+              // Check for selected plan and redirect to Stripe if needed
+              const selectedPlan = user.user_metadata?.selected_plan || sessionStorage.getItem('selectedPlan');
+              if (selectedPlan && selectedPlan !== 'enterprise') {
+                console.log('Confirm page: Redirecting to Stripe checkout for plan:', selectedPlan);
+                setTimeout(() => {
+                  redirectToStripeCheckout(selectedPlan, user.id);
+                }, 2000);
+                return; // Don't redirect to dashboard, let Stripe handle it
+              }
             }
           } catch (createError) {
             console.error('Confirm page: Error during pharmacist creation:', createError);
             // Don't fail the confirmation process if pharmacist creation fails
           }
           
-          // Redirect to dashboard after a short delay
+          // Redirect to dashboard after a short delay (only if no plan selected)
           setTimeout(() => {
             router.push('/dashboard?welcome=true');
           }, 3000);
@@ -140,8 +185,13 @@ function ConfirmPageContent() {
                   Email Confirmed!
                 </h2>
                 <p className="text-gray-600 mb-8">
-                  {message} You'll be redirected to your dashboard shortly.
+                  {message} {redirecting ? "Redirecting to payment setup..." : "You'll be redirected to your dashboard shortly."}
                 </p>
+                {redirecting && (
+                  <div className="mb-6">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                  </div>
+                )}
                 <div className="space-y-4">
                   <Link
                     href="/dashboard"

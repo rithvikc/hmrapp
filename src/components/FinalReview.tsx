@@ -6,7 +6,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import PDFEditScreen from './PDFEditScreen';
 import { 
   FileText, Mail, Eye, Edit, CheckCircle, AlertTriangle, 
-  Clock, Printer, Smartphone, Save, X, Edit3
+  Clock, Printer, Smartphone, Save, X, Edit3, Upload, 
+  FileImage, Trash2, MapPin
 } from 'lucide-react';
 import PDFGenerationProgress from './PDFGenerationProgress'
 
@@ -15,7 +16,16 @@ interface FinalReviewProps {
   onPrevious: () => void;
 }
 
-type ReviewTab = 'summary' | 'preview' | 'edit' | 'template';
+type ReviewTab = 'summary' | 'preview' | 'edit' | 'template' | 'custom-templates';
+
+interface CustomTemplate {
+  id: string;
+  name: string;
+  file: File;
+  type: 'pdf' | 'docx';
+  fields: string[];
+  mapping: Record<string, string>;
+}
 
 export default function FinalReview({ onNext, onPrevious }: FinalReviewProps) {
   const {
@@ -935,6 +945,329 @@ Email: ${userEmail}`;
     </div>
   );
 
+  // Add template-related state
+  const [customTemplates, setCustomTemplates] = useState<CustomTemplate[]>([]);
+  const [selectedTemplate, setSelectedTemplate] = useState<CustomTemplate | null>(null);
+  const [isUploadingTemplate, setIsUploadingTemplate] = useState(false);
+  const [showMappingInterface, setShowMappingInterface] = useState(false);
+
+  // Add template-related functions
+  const handleTemplateUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const allowedTypes = ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+    if (!allowedTypes.includes(file.type)) {
+      alert('Please upload only PDF or DOCX files.');
+      return;
+    }
+
+    setIsUploadingTemplate(true);
+    try {
+      // Extract fields from template
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch('/api/extract-template-fields', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to extract template fields');
+      }
+
+      const { fields } = await response.json();
+
+      const newTemplate: CustomTemplate = {
+        id: Date.now().toString(),
+        name: file.name,
+        file: file,
+        type: file.type.includes('pdf') ? 'pdf' : 'docx',
+        fields: fields,
+        mapping: {}
+      };
+
+      setCustomTemplates(prev => [...prev, newTemplate]);
+      setSelectedTemplate(newTemplate);
+      setShowMappingInterface(true);
+    } catch (error) {
+      console.error('Error uploading template:', error);
+      alert('Failed to upload template. Please try again.');
+    } finally {
+      setIsUploadingTemplate(false);
+      // Reset the input
+      event.target.value = '';
+    }
+  };
+
+  const handleDeleteTemplate = (templateId: string) => {
+    setCustomTemplates(prev => prev.filter(t => t.id !== templateId));
+    if (selectedTemplate?.id === templateId) {
+      setSelectedTemplate(null);
+      setShowMappingInterface(false);
+    }
+  };
+
+  const handleGenerateFromTemplate = async (template: CustomTemplate) => {
+    setLoading(true);
+    setShowProgress(true);
+    try {
+      const reportData = editedData || {
+        patient: currentPatient,
+        medications: currentMedications,
+        interview: currentInterviewResponse,
+        recommendations: currentClinicalRecommendations
+      };
+
+      const formData = new FormData();
+      formData.append('template', template.file);
+      formData.append('reportData', JSON.stringify(reportData));
+      formData.append('mapping', JSON.stringify(template.mapping));
+      formData.append('templateType', template.type);
+
+      const response = await fetch('/api/generate-custom-template', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (response.ok) {
+        const blob = await response.blob();
+        const url = window.URL.createObjectURL(blob);
+        
+        // Download the filled template
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `${template.name.replace(/\.[^/.]+$/, '')}_filled.${template.type}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        window.URL.revokeObjectURL(url);
+
+        console.log('Custom template generated successfully');
+        
+        // Signal success to the progress component
+        if ((window as any).__pdfProgressHandlers?.success) {
+          (window as any).__pdfProgressHandlers.success();
+        }
+      } else {
+        throw new Error('Failed to generate custom template');
+      }
+    } catch (error) {
+      console.error('Error generating custom template:', error);
+      
+      // Signal error to the progress component
+      if ((window as any).__pdfProgressHandlers?.error) {
+        (window as any).__pdfProgressHandlers.error('Failed to generate custom template');
+      }
+    } finally {
+      setLoading(false);
+      setShowProgress(false);
+    }
+  };
+
+  const getAvailableReportFields = () => {
+    return [
+      // Patient fields
+      'patient.name', 'patient.dob', 'patient.gender', 'patient.medicare_number',
+      'patient.address', 'patient.phone', 'patient.referring_doctor', 'patient.doctor_email',
+      'patient.practice_name', 'patient.known_allergies', 'patient.current_conditions',
+      
+      // Interview fields
+      'interview.interview_date', 'interview.pharmacist_name', 'interview.medication_understanding',
+      'interview.medication_administration', 'interview.medication_adherence', 'interview.fluid_intake',
+      'interview.eating_habits', 'interview.smoking_status', 'interview.alcohol_consumption',
+      
+      // Medications summary
+      'medications.count', 'medications.list', 'medications.compliance_summary',
+      
+      // Recommendations summary
+      'recommendations.count', 'recommendations.high_priority', 'recommendations.summary',
+      
+      // System fields
+      'report.generated_date', 'report.pharmacist_email'
+    ];
+  };
+
+  const renderCustomTemplateTab = () => (
+    <div className="space-y-6">
+      {/* Template Upload Section */}
+      <div className="bg-white border border-gray-200 rounded-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-gray-900">Custom Templates</h3>
+          <label className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors cursor-pointer flex items-center space-x-2">
+            <Upload className="w-4 h-4" />
+            <span>{isUploadingTemplate ? 'Uploading...' : 'Upload Template'}</span>
+            <input
+              type="file"
+              accept=".pdf,.docx"
+              onChange={handleTemplateUpload}
+              className="hidden"
+              disabled={isUploadingTemplate}
+            />
+          </label>
+        </div>
+        
+        <p className="text-sm text-gray-600 mb-4">
+          Upload custom PDF or DOCX templates with form fields that can be filled with your report data.
+        </p>
+
+        {/* Template List */}
+        {customTemplates.length > 0 ? (
+          <div className="space-y-3">
+            {customTemplates.map((template) => (
+              <div key={template.id} className="border border-gray-200 rounded-lg p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-3">
+                    <div className="flex-shrink-0">
+                      {template.type === 'pdf' ? (
+                        <FileText className="w-8 h-8 text-red-500" />
+                      ) : (
+                        <FileImage className="w-8 h-8 text-blue-500" />
+                      )}
+                    </div>
+                    <div>
+                      <div className="font-medium text-gray-900">{template.name}</div>
+                      <div className="text-sm text-gray-500">
+                        {template.fields.length} fields detected • {template.type.toUpperCase()}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      onClick={() => {
+                        setSelectedTemplate(template);
+                        setShowMappingInterface(true);
+                      }}
+                      className="px-3 py-1 bg-gray-100 text-gray-700 rounded text-sm hover:bg-gray-200 transition-colors flex items-center space-x-1"
+                    >
+                      <MapPin className="w-3 h-3" />
+                      <span>Map Fields</span>
+                    </button>
+                    <button
+                      onClick={() => handleGenerateFromTemplate(template)}
+                      className="px-3 py-1 bg-green-100 text-green-700 rounded text-sm hover:bg-green-200 transition-colors"
+                      disabled={Object.keys(template.mapping).length === 0}
+                    >
+                      Generate
+                    </button>
+                    <button
+                      onClick={() => handleDeleteTemplate(template.id)}
+                      className="px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200 transition-colors"
+                    >
+                      <Trash2 className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+                
+                {/* Mapping Status */}
+                {template.fields.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-gray-100">
+                    <div className="text-sm text-gray-600">
+                      <span className="font-medium">Field Mapping:</span> {Object.keys(template.mapping).length}/{template.fields.length} mapped
+                    </div>
+                    <div className="mt-1 w-full bg-gray-200 rounded-full h-2">
+                      <div 
+                        className="bg-blue-600 h-2 rounded-full transition-all duration-300" 
+                        style={{ width: `${(Object.keys(template.mapping).length / template.fields.length) * 100}%` }}
+                      ></div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-8 border-2 border-dashed border-gray-300 rounded-lg">
+            <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <p className="text-gray-500">No custom templates uploaded yet</p>
+            <p className="text-sm text-gray-400">Upload a PDF or DOCX template to get started</p>
+          </div>
+        )}
+      </div>
+
+      {/* Field Mapping Interface */}
+      {showMappingInterface && selectedTemplate && (
+        <div className="bg-white border border-gray-200 rounded-lg p-6">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold text-gray-900">
+              Map Fields for "{selectedTemplate.name}"
+            </h3>
+            <button
+              onClick={() => setShowMappingInterface(false)}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+          
+          <p className="text-sm text-gray-600 mb-6">
+            Map template fields to report data. Unmapped fields will remain empty in the generated document.
+          </p>
+
+          <div className="space-y-4 max-h-96 overflow-y-auto">
+            {selectedTemplate.fields.map((field) => (
+              <div key={field} className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Template Field: <span className="font-mono text-blue-600">{field}</span>
+                  </label>
+                </div>
+                <div>
+                  <select
+                    value={selectedTemplate.mapping[field] || ''}
+                    onChange={(e) => {
+                      const updatedTemplate = {
+                        ...selectedTemplate,
+                        mapping: {
+                          ...selectedTemplate.mapping,
+                          [field]: e.target.value
+                        }
+                      };
+                      setSelectedTemplate(updatedTemplate);
+                      setCustomTemplates(prev => 
+                        prev.map(t => t.id === selectedTemplate.id ? updatedTemplate : t)
+                      );
+                    }}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                  >
+                    <option value="">Select report field...</option>
+                    {getAvailableReportFields().map((reportField) => (
+                      <option key={reportField} value={reportField}>
+                        {reportField}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 flex justify-end space-x-3">
+            <button
+              onClick={() => setShowMappingInterface(false)}
+              className="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={() => {
+                setShowMappingInterface(false);
+                // Automatically generate if all fields are mapped
+                if (Object.keys(selectedTemplate.mapping).length === selectedTemplate.fields.length) {
+                  handleGenerateFromTemplate(selectedTemplate);
+                }
+              }}
+              className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            >
+              Save Mapping
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <div className="max-w-6xl mx-auto p-6">
       {/* Header */}
@@ -964,7 +1297,8 @@ Email: ${userEmail}`;
           { key: 'summary', label: 'Review Summary', icon: FileText },
           { key: 'preview', label: 'PDF Preview', icon: Eye },
           { key: 'edit', label: 'Edit PDF', icon: Edit3 },
-          { key: 'template', label: 'Email Template', icon: Mail }
+          { key: 'template', label: 'Email Template', icon: Mail },
+          { key: 'custom-templates', label: 'Custom Templates', icon: Upload }
         ].map((tab) => {
           const Icon = tab.icon;
           return (
@@ -996,6 +1330,7 @@ Email: ${userEmail}`;
           />
         )}
         {activeTab === 'template' && renderTemplateTab()}
+        {activeTab === 'custom-templates' && renderCustomTemplateTab()}
       </div>
 
       {/* Navigation Buttons */}
@@ -1015,7 +1350,7 @@ Email: ${userEmail}`;
             <Save className="w-4 h-4" />
             <span>Save Progress</span>
           </button>
-          {activeTab === 'template' ? (
+          {activeTab === 'template' || activeTab === 'custom-templates' ? (
             <button
               onClick={onNext}
               className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
@@ -1025,7 +1360,7 @@ Email: ${userEmail}`;
           ) : (
             <button
               onClick={() => {
-                const tabs: ReviewTab[] = ['summary', 'preview', 'edit', 'template'];
+                const tabs: ReviewTab[] = ['summary', 'preview', 'edit', 'template', 'custom-templates'];
                 const currentIndex = tabs.indexOf(activeTab);
                 if (currentIndex < tabs.length - 1) {
                   setActiveTab(tabs[currentIndex + 1]);

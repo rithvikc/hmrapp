@@ -10,6 +10,8 @@ import Settings from '@/components/Settings';
 import { useHMRSelectors, Patient } from '@/store/hmr-store';
 import { Calendar } from 'lucide-react';
 import PDFGenerationProgress from '@/components/PDFGenerationProgress';
+import SubscriptionOverlay from '../SubscriptionOverlay';
+import { useSubscription } from '@/hooks/useSubscription';
 
 // Extended type for all navigation steps
 type ExtendedStep = 
@@ -37,6 +39,7 @@ export default function MainLayout() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [showProgress, setShowProgress] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [showSubscriptionOverlay, setShowSubscriptionOverlay] = useState(false);
   
   const {
     currentStep,
@@ -51,6 +54,13 @@ export default function MainLayout() {
     setCurrentPatient,
     currentPatient
   } = useHMRSelectors();
+
+  const { 
+    hasActiveSubscription, 
+    canCreateHMR, 
+    subscriptionStatus, 
+    loading: subscriptionLoading 
+  } = useSubscription();
 
   useEffect(() => {
     setMounted(true);
@@ -68,6 +78,17 @@ export default function MainLayout() {
     return () => clearTimeout(timer);
   }, [loadDraft]);
 
+  // Check subscription status and show overlay if needed
+  useEffect(() => {
+    if (!subscriptionLoading && !hasActiveSubscription) {
+      // Show overlay after a short delay to ensure smooth loading
+      const timer = setTimeout(() => {
+        setShowSubscriptionOverlay(true);
+      }, 1000);
+      return () => clearTimeout(timer);
+    }
+  }, [subscriptionLoading, hasActiveSubscription]);
+
   if (!mounted) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -77,6 +98,12 @@ export default function MainLayout() {
   }
 
   const handleNavigate = (step: string) => {
+    // Check subscription for protected actions
+    if ((step === 'new-review' || step === 'upload') && !hasActiveSubscription) {
+      setShowSubscriptionOverlay(true);
+      return;
+    }
+
     // Handle special sidebar quick actions
     if (step === 'new-review') {
       handleNewReview();
@@ -98,6 +125,18 @@ export default function MainLayout() {
 
   const handleNewReview = () => {
     console.log('MainLayout: Starting new HMR review...');
+    
+    // Check subscription first
+    if (!hasActiveSubscription) {
+      setShowSubscriptionOverlay(true);
+      return;
+    }
+
+    // Check if user can create more HMRs
+    if (!canCreateHMR) {
+      setShowSubscriptionOverlay(true);
+      return;
+    }
     
     if (hasUnsavedWork) {
       const confirmNewReview = window.confirm(
@@ -129,10 +168,20 @@ export default function MainLayout() {
   };
 
   const handleGenerateReports = () => {
+    // Check subscription for report generation
+    if (!hasActiveSubscription) {
+      setShowSubscriptionOverlay(true);
+      return;
+    }
     alert('Generate Reports functionality - will show options to generate batch reports, statistics, and export data');
   };
 
   const handleScheduleReview = () => {
+    // Check subscription for scheduling
+    if (!hasActiveSubscription) {
+      setShowSubscriptionOverlay(true);
+      return;
+    }
     alert('Schedule Review functionality - will show calendar interface for scheduling reviews');
   };
 
@@ -213,6 +262,18 @@ export default function MainLayout() {
 
   const handleStartReview = async (patientId: number) => {
     try {
+      // Check subscription first
+      if (!hasActiveSubscription) {
+        setShowSubscriptionOverlay(true);
+        return;
+      }
+
+      // Check if user can create more HMRs
+      if (!canCreateHMR) {
+        setShowSubscriptionOverlay(true);
+        return;
+      }
+
       setLoading(true);
       console.log('Starting review for patient ID:', patientId);
       
@@ -404,7 +465,12 @@ export default function MainLayout() {
                     </button>
                     <button
                       onClick={() => handleStartReview(currentPatient.id!)}
-                      className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+                      className={`px-4 py-2 rounded-lg transition-colors ${
+                        hasActiveSubscription && canCreateHMR
+                          ? 'bg-green-600 text-white hover:bg-green-700'
+                          : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                      }`}
+                      disabled={!hasActiveSubscription || !canCreateHMR}
                     >
                       Start HMR Review
                     </button>
@@ -634,8 +700,14 @@ export default function MainLayout() {
         return (
           <div className="p-6">
             <div className="max-w-2xl mx-auto text-center">
-              <h2 className="text-2xl font-bold text-gray-900 mb-4 font-serif">Feature Coming Soon</h2>
-              <p className="text-gray-600">This feature is currently under development.</p>
+              <h2 className="text-2xl font-bold text-gray-900 mb-4 font-serif">Page Not Found</h2>
+              <p className="text-gray-600 mb-6">The requested page could not be found.</p>
+              <button
+                onClick={() => setCurrentStep('dashboard')}
+                className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Return to Dashboard
+              </button>
             </div>
           </div>
         );
@@ -650,6 +722,8 @@ export default function MainLayout() {
         onNavigate={handleNavigate}
         isCollapsed={sidebarCollapsed}
         onToggleCollapse={handleToggleSidebar}
+        hasActiveSubscription={hasActiveSubscription}
+        canCreateHMR={canCreateHMR}
       />
       
       {/* Top Navigation */}
@@ -660,6 +734,8 @@ export default function MainLayout() {
         onScheduleReview={handleScheduleReview}
         onResumeReview={handleResumeReview}
         onSearch={handleGlobalSearch}
+        hasActiveSubscription={hasActiveSubscription}
+        canCreateHMR={canCreateHMR}
       />
       
       {/* Main Content */}
@@ -685,6 +761,18 @@ export default function MainLayout() {
         isVisible={showProgress}
         onComplete={() => setShowProgress(false)}
         duration={15000} // 15 seconds for HMR PDF generation
+      />
+
+      {/* Subscription Overlay */}
+      <SubscriptionOverlay
+        isVisible={showSubscriptionOverlay}
+        onClose={() => setShowSubscriptionOverlay(false)}
+        title={!hasActiveSubscription ? "Subscription Required" : "Usage Limit Reached"}
+        message={
+          !hasActiveSubscription 
+            ? "Your subscription is not active. Please select a plan to continue using myHMR features."
+            : "You've reached your monthly HMR limit. Upgrade your plan to create more reports."
+        }
       />
     </div>
   );

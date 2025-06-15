@@ -14,6 +14,7 @@ interface AuthContextType {
   signOut: () => Promise<void>
   resetPassword: (email: string) => Promise<any>
   updatePharmacist: (updatedData: any) => void
+  clearAuthError: () => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -23,11 +24,62 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [pharmacist, setPharmacist] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [isClient, setIsClient] = useState(false)
+  const [authError, setAuthError] = useState<string | null>(null)
   
   // Ensure we're on the client side
   useEffect(() => {
     setIsClient(true)
   }, [])
+
+  // Clear any stored auth data and reset state
+  const clearAuthState = useCallback(() => {
+    console.log('AuthContext: Clearing auth state')
+    setUser(null)
+    setPharmacist(null)
+    setAuthError(null)
+    
+    // Clear any stored session data
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('supabase.auth.token')
+      sessionStorage.removeItem('selectedPlan')
+    }
+  }, [])
+
+  // Handle authentication errors gracefully
+  const handleAuthError = useCallback(async (error: any) => {
+    console.error('AuthContext: Handling auth error:', error)
+    
+    const errorMessage = error?.message || ''
+    
+    // Check for refresh token errors
+    if (errorMessage.includes('refresh_token_not_found') || 
+        errorMessage.includes('Invalid Refresh Token') ||
+        errorMessage.includes('Refresh Token Not Found') ||
+        errorMessage.includes('invalid_grant')) {
+      
+      console.log('AuthContext: Refresh token error detected, clearing session...')
+      
+      try {
+        const supabase = createClient()
+        await supabase.auth.signOut({ scope: 'local' }) // Only clear local session
+      } catch (signOutError) {
+        console.error('AuthContext: Error during local sign out:', signOutError)
+      }
+      
+      clearAuthState()
+      setAuthError('Your session has expired. Please sign in again.')
+      return true // Indicates error was handled
+    }
+    
+    // Handle other auth errors
+    if (errorMessage.includes('Invalid login credentials') ||
+        errorMessage.includes('Email not confirmed')) {
+      setAuthError(errorMessage)
+      return true
+    }
+    
+    return false // Error not handled
+  }, [clearAuthState])
 
   const fetchPharmacist = useCallback(async (userId: string) => {
     try {
@@ -54,7 +106,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         console.log('AuthContext: No pharmacist record found, checking if we can create one via API')
         
         // Try to get user info to create pharmacist record
-        const { data: { user: currentUser } } = await supabase.auth.getUser()
+        const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser()
+        
+        if (userError) {
+          await handleAuthError(userError)
+          return
+        }
         
         if (currentUser && currentUser.id === userId) {
           console.log('AuthContext: Attempting to create pharmacist record via API')
@@ -66,9 +123,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (error) {
       console.error('AuthContext: Exception in fetchPharmacist:', error)
-      setPharmacist(null)
+      const handled = await handleAuthError(error)
+      if (!handled) {
+        setPharmacist(null)
+      }
     }
-  }, [])
+  }, [handleAuthError])
 
   const createPharmacistViaAPI = async (user: User) => {
     try {
@@ -116,18 +176,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (error) {
           console.error('AuthContext: Error getting session:', error)
+          const handled = await handleAuthError(error)
           
-          // Handle specific refresh token errors
-          if (error.message?.includes('refresh_token_not_found') || 
-              error.message?.includes('Invalid Refresh Token')) {
-            console.log('AuthContext: Invalid refresh token detected, clearing session...')
-            try {
-              await supabase.auth.signOut()
-            } catch (signOutError) {
-              console.error('AuthContext: Error signing out after refresh token error:', signOutError)
+          if (mounted) {
+            if (!handled) {
+              setUser(null)
+              setPharmacist(null)
             }
-            // Don't redirect here - let the auth state change handle it
+            setLoading(false)
           }
+          return
         }
         
         if (mounted) {
@@ -148,8 +206,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       } catch (error) {
         console.error('AuthContext: Error during initial session fetch:', error)
         if (mounted) {
-          setUser(null)
-          setPharmacist(null)
+          await handleAuthError(error)
           console.log('AuthContext: Setting loading to false after error')
           setLoading(false)
         }
@@ -163,19 +220,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         
         if (!mounted) return
         
+        // Clear any previous auth errors on successful events
+        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          setAuthError(null)
+        }
+        
         // Handle different auth events
         if (event === 'SIGNED_OUT') {
-          setUser(null)
-          setPharmacist(null)
-          setLoading(false) // Ensure loading is false
+          clearAuthState()
+          setLoading(false)
           return
         }
         
         // Handle token refresh errors
         if (event === 'TOKEN_REFRESHED' && !session) {
           console.log('AuthContext: Token refresh failed, clearing session...')
-          setUser(null)
-          setPharmacist(null)
+          clearAuthState()
+          setAuthError('Your session has expired. Please sign in again.')
           setLoading(false)
           return
         }
@@ -183,7 +244,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         // For SIGNED_IN events, update user state immediately
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           setUser(session?.user ?? null)
-          setLoading(false) // Ensure loading is false
+          setLoading(false)
           
           // Fetch pharmacist data asynchronously (don't block)
           if (session?.user) {
@@ -205,7 +266,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       mounted = false
       subscription.unsubscribe()
     }
-  }, [isClient, fetchPharmacist])
+  }, [isClient, fetchPharmacist, handleAuthError, clearAuthState])
 
   const createPharmacistRecord = async (user: User, metadata: any) => {
     try {
@@ -242,6 +303,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     console.log('AuthContext: Signing in with email/password')
+    setAuthError(null) // Clear any previous errors
     
     try {
       const supabase = createClient()
@@ -252,6 +314,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
       if (error) {
         console.error('AuthContext: Sign in error:', error)
+        await handleAuthError(error)
         return { data, error }
       }
       
@@ -260,6 +323,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
     } catch (error) {
       console.error('AuthContext: Sign in failed:', error)
+      await handleAuthError(error)
       return { 
         data: null, 
         error: { 
@@ -271,6 +335,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signInWithGoogle = async () => {
     console.log('AuthContext: Signing in with Google')
+    setAuthError(null) // Clear any previous errors
+    
     try {
       const supabase = createClient()
       const { data, error } = await supabase.auth.signInWithOAuth({
@@ -282,6 +348,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { data, error }
     } catch (error) {
       console.error('AuthContext: Google sign in failed:', error)
+      await handleAuthError(error)
       return { 
         data: null, 
         error: { 
@@ -293,6 +360,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, metadata: any) => {
     console.log('AuthContext: Starting signup process...')
+    setAuthError(null) // Clear any previous errors
     
     try {
       const supabase = createClient()
@@ -312,6 +380,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // If there was an auth error, return it immediately
       if (error) {
         console.error('AuthContext: Auth signup failed:', error)
+        await handleAuthError(error)
         return { data, error }
       }
       
@@ -341,6 +410,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       
     } catch (error) {
       console.error('AuthContext: Unexpected error during signup:', error)
+      await handleAuthError(error)
       return { 
         data: null, 
         error: { 
@@ -352,6 +422,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const resetPassword = async (email: string) => {
     console.log('AuthContext: Sending password reset email')
+    setAuthError(null) // Clear any previous errors
+    
     try {
       const supabase = createClient()
       const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -360,6 +432,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { data, error }
     } catch (error) {
       console.error('AuthContext: Password reset failed:', error)
+      await handleAuthError(error)
       return { 
         data: null, 
         error: { 
@@ -374,14 +447,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       const supabase = createClient()
       await supabase.auth.signOut()
+      clearAuthState()
     } catch (error) {
       console.error('AuthContext: Sign out failed:', error)
+      // Even if sign out fails, clear local state
+      clearAuthState()
     }
   }
 
   const updatePharmacist = (updatedData: any) => {
     console.log('AuthContext: Updating pharmacist record')
     setPharmacist(updatedData)
+  }
+
+  const clearAuthError = () => {
+    setAuthError(null)
   }
 
   // Show loading state until client-side initialization is complete
@@ -397,6 +477,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         signOut: async () => {},
         resetPassword: async () => ({ data: null, error: { message: 'Initializing...' } }),
         updatePharmacist: () => {},
+        clearAuthError: () => {},
       }}>
         {children}
       </AuthContext.Provider>
@@ -414,6 +495,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       signOut,
       resetPassword,
       updatePharmacist,
+      clearAuthError,
     }}>
       {children}
     </AuthContext.Provider>

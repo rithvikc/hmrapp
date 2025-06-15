@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Link from 'next/link';
 import { 
@@ -12,10 +12,11 @@ import {
   Loader2, 
   AlertCircle,
   Stethoscope,
-  ArrowRight
+  ArrowRight,
+  Clock
 } from 'lucide-react';
 
-export default function LoginPage() {
+function LoginContent() {
   const [formData, setFormData] = useState({
     email: '',
     password: ''
@@ -25,9 +26,22 @@ export default function LoginPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
   const [resetSent, setResetSent] = useState(false);
+  const [sessionExpired, setSessionExpired] = useState(false);
   
   const { signIn, signInWithGoogle, resetPassword } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    // Check for session expired parameter
+    const errorParam = searchParams.get('error');
+    if (errorParam === 'session_expired') {
+      setSessionExpired(true);
+      // Clear the URL parameter
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, '', newUrl);
+    }
+  }, [searchParams]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -36,8 +50,9 @@ export default function LoginPage() {
       [name]: value
     }));
     
-    // Clear error when user starts typing
+    // Clear error and session expired message when user starts typing
     if (error) setError('');
+    if (sessionExpired) setSessionExpired(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -50,6 +65,7 @@ export default function LoginPage() {
 
     setLoading(true);
     setError('');
+    setSessionExpired(false);
 
     try {
       console.log('LoginPage: Attempting sign in...');
@@ -87,6 +103,7 @@ export default function LoginPage() {
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     setError('');
+    setSessionExpired(false);
 
     try {
       const { error: authError } = await signInWithGoogle();
@@ -110,6 +127,7 @@ export default function LoginPage() {
 
     setLoading(true);
     setError('');
+    setSessionExpired(false);
 
     try {
       const { error: resetError } = await resetPassword(formData.email);
@@ -146,6 +164,21 @@ export default function LoginPage() {
             Sign in to your myHMR account
           </p>
         </div>
+
+        {/* Session Expired Notice */}
+        {sessionExpired && (
+          <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <Clock className="h-5 w-5 text-amber-600 mr-2" />
+              <div>
+                <h4 className="text-sm font-medium text-amber-800">Session Expired</h4>
+                <p className="text-sm text-amber-700 mt-1">
+                  Your session has expired for security reasons. Please sign in again to continue.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Sign In Form */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
@@ -326,5 +359,17 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 } 

@@ -24,6 +24,8 @@ interface TopNavigationProps {
   onScheduleReview: () => void;
   onResumeReview?: () => void;
   onSearch: (query: string) => void;
+  hasActiveSubscription: boolean;
+  canCreateHMR: boolean;
 }
 
 const TopNavigation: React.FC<TopNavigationProps> = ({
@@ -32,7 +34,9 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
   onNewReview,
   onScheduleReview,
   onResumeReview,
-  onSearch
+  onSearch,
+  hasActiveSubscription,
+  canCreateHMR
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showNotifications, setShowNotifications] = useState(false);
@@ -182,20 +186,36 @@ const TopNavigation: React.FC<TopNavigationProps> = ({
             <div className="flex items-center space-x-2">
               <button
                 onClick={onNewReview}
-                className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg
-                         hover:bg-blue-700 transition-colors text-sm font-medium"
+                disabled={!hasActiveSubscription || !canCreateHMR}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+                  hasActiveSubscription && canCreateHMR
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+                title={!hasActiveSubscription ? 'Subscription required' : !canCreateHMR ? 'Usage limit reached' : ''}
               >
                 <Plus className="h-4 w-4" />
                 <span>New Review</span>
+                {(!hasActiveSubscription || !canCreateHMR) && (
+                  <span className="text-xs">🔒</span>
+                )}
               </button>
               
               <button
                 onClick={onScheduleReview}
-                className="flex items-center space-x-2 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg
-                         hover:bg-gray-200 transition-colors text-sm font-medium"
+                disabled={!hasActiveSubscription}
+                className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors text-sm font-medium ${
+                  hasActiveSubscription
+                    ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                }`}
+                title={!hasActiveSubscription ? 'Subscription required' : ''}
               >
                 <Calendar className="h-4 w-4" />
                 <span>Schedule</span>
+                {!hasActiveSubscription && (
+                  <span className="text-xs">🔒</span>
+                )}
               </button>
             </div>
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { getAuthenticatedUserWithPharmacist } from '@/lib/auth-helpers';
+import { createClient } from '@/lib/supabase';
 
 // Initialize Stripe with proper error handling
 const getStripe = () => {
@@ -44,7 +45,6 @@ export async function POST(request: NextRequest) {
     }
 
     // Get plan details from database
-    const { createClient } = await import('@/lib/supabase');
     const supabase = createClient();
     
     const { data: plan, error: planError } = await supabase
@@ -59,6 +59,20 @@ export async function POST(request: NextRequest) {
         { error: 'Plan not found' },
         { status: 404 }
       );
+    }
+
+    // Store the selected plan in user metadata for tracking
+    try {
+      await supabase.auth.admin.updateUserById(user.id, {
+        user_metadata: {
+          ...user.user_metadata,
+          selected_plan: plan_id,
+          plan_selection_timestamp: new Date().toISOString()
+        }
+      });
+    } catch (metadataError) {
+      console.error('Error updating user metadata:', metadataError);
+      // Continue with checkout even if metadata update fails
     }
 
     // Create or retrieve Stripe customer
@@ -81,6 +95,7 @@ export async function POST(request: NextRequest) {
         metadata: {
           pharmacist_id: pharmacist.id,
           user_id: user.id,
+          selected_plan: plan_id,
         },
       });
       stripeCustomerId = customer.id;
@@ -113,6 +128,20 @@ export async function POST(request: NextRequest) {
         .eq('id', plan_id);
     }
 
+    // Create or update subscription record to track the selected plan
+    const subscriptionData = {
+      pharmacist_id: pharmacist.id,
+      plan_id: plan_id,
+      stripe_customer_id: stripeCustomerId,
+      status: 'pending', // Will be updated to 'active' by webhook
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    await supabase
+      .from('user_subscriptions')
+      .upsert(subscriptionData, { onConflict: 'pharmacist_id' });
+
     // Create checkout session
     const session = await stripe.checkout.sessions.create({
       customer: stripeCustomerId,
@@ -138,10 +167,11 @@ export async function POST(request: NextRequest) {
       metadata: {
         pharmacist_id: pharmacist.id,
         plan_id: plan_id,
+        user_id: user.id,
       },
     });
 
-    console.log('Checkout session created:', session.id, 'for pharmacist:', pharmacist.id);
+    console.log('Checkout session created:', session.id, 'for pharmacist:', pharmacist.id, 'plan:', plan_id);
 
     return NextResponse.json({
       sessionId: session.id,

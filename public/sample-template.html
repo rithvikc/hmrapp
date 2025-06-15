@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HMR Custom Template</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 40px auto;
+            padding: 20px;
+            line-height: 1.6;
+            color: #333;
+        }
+        .header {
+            text-align: center;
+            border-bottom: 2px solid #2c3e50;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+        }
+        .field {
+            margin: 10px 0;
+            padding: 8px;
+            border: 1px dashed #ccc;
+            background-color: #f9f9f9;
+            font-family: monospace;
+            color: #666;
+        }
+        .section {
+            margin: 30px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .section h3 {
+            margin-top: 0;
+            color: #2c3e50;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .instructions {
+            background-color: #e8f4f8;
+            padding: 15px;
+            border-left: 4px solid #3498db;
+            margin-bottom: 30px;
+        }
+    </style>
+</head>
+<body>
+    <div class="instructions">
+        <strong>Instructions:</strong> This is a sample template for testing the custom template feature. 
+        Save this as a Word document (.docx) and replace the bracketed placeholders with form fields, 
+        or save as PDF with form fields. The fields shown below can be mapped to your HMR report data.
+    </div>
+
+    <div class="header">
+        <h1>Home Medication Review Report</h1>
+        <h2>Custom Template</h2>
+    </div>
+
+    <div class="section">
+        <h3>Patient Information</h3>
+        <p><strong>Patient Name:</strong> <span class="field">{patient_name}</span></p>
+        <p><strong>Date of Birth:</strong> <span class="field">{date_of_birth}</span></p>
+        <p><strong>Address:</strong> <span class="field">{address}</span></p>
+        <p><strong>Phone:</strong> <span class="field">{phone}</span></p>
+        <p><strong>Medicare Number:</strong> <span class="field">[patient.medicare_number]</span></p>
+    </div>
+
+    <div class="section">
+        <h3>Review Details</h3>
+        <p><strong>Interview Date:</strong> <span class="field">{interview_date}</span></p>
+        <p><strong>Pharmacist Name:</strong> <span class="field">{pharmacist_name}</span></p>
+        <p><strong>Referring Doctor:</strong> <span class="field">{referring_doctor}</span></p>
+        <p><strong>Report Generated:</strong> <span class="field">[report.generated_date]</span></p>
+    </div>
+
+    <div class="section">
+        <h3>Medications Summary</h3>
+        <p><strong>Total Medications:</strong> <span class="field">[medications.count]</span></p>
+        <p><strong>Medications List:</strong></p>
+        <div class="field" style="min-height: 100px; white-space: pre-line;">{medications_list}</div>
+        <p><strong>Compliance Summary:</strong> <span class="field">[medications.compliance_summary]</span></p>
+    </div>
+
+    <div class="section">
+        <h3>Clinical Recommendations</h3>
+        <p><strong>Total Recommendations:</strong> <span class="field">[recommendations.count]</span></p>
+        <p><strong>High Priority Issues:</strong> <span class="field">[recommendations.high_priority]</span></p>
+        <p><strong>Recommendations Summary:</strong></p>
+        <div class="field" style="min-height: 150px; white-space: pre-line;">{recommendations}</div>
+    </div>
+
+    <div class="section">
+        <h3>Additional Information</h3>
+        <p><strong>Known Allergies:</strong> <span class="field">[patient.known_allergies]</span></p>
+        <p><strong>Current Conditions:</strong> <span class="field">[patient.current_conditions]</span></p>
+        <p><strong>Medication Understanding:</strong> <span class="field">[interview.medication_understanding]</span></p>
+        <p><strong>Smoking Status:</strong> <span class="field">[interview.smoking_status]</span></p>
+        <p><strong>Alcohol Consumption:</strong> <span class="field">[interview.alcohol_consumption]</span></p>
+    </div>
+
+    <div class="section">
+        <h3>Next Steps</h3>
+        <p><strong>Next Review Date:</strong> <span class="field">{next_review_date}</span></p>
+        <p><strong>Follow-up Required:</strong> <span class="field">[ ] Yes  [ ] No</span></p>
+        <p><strong>Additional Notes:</strong></p>
+        <div class="field" style="min-height: 80px;"></div>
+    </div>
+
+    <div style="margin-top: 50px; text-align: center; border-top: 1px solid #ccc; padding-top: 20px;">
+        <p><strong>Pharmacist Signature:</strong> ________________________</p>
+        <p><strong>Date:</strong> ________________________</p>
+        <p><em>This report was generated using the HMR Automation System</em></p>
+    </div>
+</body>
+</html> 

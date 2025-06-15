@@ -15,6 +15,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 import { useHMRSelectors } from '@/store/hmr-store';
+import { useSubscription } from '@/hooks/useSubscription';
 import { format } from 'date-fns';
 import { FaRegFile, FaClipboardList } from 'react-icons/fa';
 
@@ -53,8 +54,6 @@ const Dashboard: React.FC<DashboardProps> = ({
 }) => {
   console.log('[DEBUG] Dashboard: Rendering component');
   const [mounted, setMounted] = useState(false);
-  const [subscriptionData, setSubscriptionData] = useState<SubscriptionData | null>(null);
-  const [loadingSubscription, setLoadingSubscription] = useState(true);
   
   const {
     pendingReviews,
@@ -67,6 +66,13 @@ const Dashboard: React.FC<DashboardProps> = ({
     loadDashboardData
   } = useHMRSelectors();
 
+  const { 
+    subscriptionData, 
+    hasActiveSubscription, 
+    canCreateHMR, 
+    loading: subscriptionLoading 
+  } = useSubscription();
+
   // Force render after 3 seconds even if isLoading is still true
   const [forceRender, setForceRender] = useState(false);
   
@@ -77,9 +83,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     loadDashboardData();
     console.log('[DEBUG] Dashboard: After loadDashboardData()');
     
-    // Load subscription data
-    fetchSubscriptionData();
-    
     // Force render after 3 seconds to prevent infinite loading
     const timer = setTimeout(() => {
       console.log('[DEBUG] Dashboard: Force rendering after timeout');
@@ -88,42 +91,6 @@ const Dashboard: React.FC<DashboardProps> = ({
     
     return () => clearTimeout(timer);
   }, [loadDashboardData]);
-
-  const fetchSubscriptionData = async () => {
-    try {
-      const response = await fetch('/api/subscription/current');
-      if (response.ok) {
-        const data = await response.json();
-        setSubscriptionData(data);
-      } else {
-        console.error('Failed to fetch subscription data');
-      }
-    } catch (error) {
-      console.error('Error fetching subscription data:', error);
-    } finally {
-      setLoadingSubscription(false);
-    }
-  };
-
-  // Don't render until mounted to prevent hydration issues
-  if (!mounted) {
-    console.log('[DEBUG] Dashboard: Not mounted, showing spinner');
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-blue-600"></div>
-      </div>
-    );
-  }
-
-  console.log('[DEBUG] Dashboard: Mounted, checking isLoading =', isLoading, 'forceRender =', forceRender);
-
-  const recentActivity = reviews
-    .sort((a, b) => {
-      const dateA = new Date(a.interview_date || '').getTime();
-      const dateB = new Date(b.interview_date || '').getTime();
-      return dateB - dateA;
-    })
-    .slice(0, 5);
 
   const formatDate = (dateString: string) => {
     try {
@@ -314,15 +281,19 @@ const Dashboard: React.FC<DashboardProps> = ({
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <button
               onClick={onNewReview}
-              disabled={subscriptionData ? !subscriptionData.usage.can_create : false}
+              disabled={!hasActiveSubscription || !canCreateHMR}
               className={`p-6 rounded-lg shadow-sm transition-colors flex items-center justify-center space-x-3 ${
-                subscriptionData && !subscriptionData.usage.can_create
-                  ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700 text-white'
+                hasActiveSubscription && canCreateHMR
+                  ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                  : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
+              title={!hasActiveSubscription ? 'Subscription required' : !canCreateHMR ? 'Usage limit reached' : ''}
             >
               <Plus className="w-6 h-6" />
               <span className="font-semibold">Start New HMR</span>
+              {(!hasActiveSubscription || !canCreateHMR) && (
+                <span className="text-sm">🔒</span>
+              )}
             </button>
             
             <button
@@ -335,10 +306,19 @@ const Dashboard: React.FC<DashboardProps> = ({
             
             <button
               onClick={onGenerateReports}
-              className="bg-gray-100 hover:bg-gray-200 text-gray-700 p-6 rounded-lg shadow-sm transition-colors flex items-center justify-center space-x-3"
+              disabled={!hasActiveSubscription}
+              className={`p-6 rounded-lg shadow-sm transition-colors flex items-center justify-center space-x-3 ${
+                hasActiveSubscription
+                  ? 'bg-gray-100 hover:bg-gray-200 text-gray-700'
+                  : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+              }`}
+              title={!hasActiveSubscription ? 'Subscription required' : ''}
             >
               <FileText className="w-6 h-6" />
               <span className="font-semibold">Generate Reports</span>
+              {!hasActiveSubscription && (
+                <span className="text-sm">🔒</span>
+              )}
             </button>
           </div>
         </div>
@@ -487,11 +467,11 @@ const Dashboard: React.FC<DashboardProps> = ({
               </h3>
             </div>
             <div className="p-6">
-              {recentActivity.length === 0 ? (
+              {reviews.length === 0 ? (
                 <p className="text-gray-500 text-center py-8">No recent activity</p>
               ) : (
                 <div className="space-y-4">
-                  {recentActivity.map((review) => {
+                  {reviews.slice(0, 5).map((review) => {
                     const patient = patients.find(p => p.id === review.patient_id);
                     return (
                       <div

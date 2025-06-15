@@ -17,9 +17,15 @@ import {
   BarChart3,
   Stethoscope,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  User,
+  Search,
+  Filter,
+  Bell,
+  Settings
 } from 'lucide-react';
 import { useHMRSelectors, Patient } from '@/store/hmr-store';
+import { useSubscription } from '@/hooks/useSubscription';
 import { format } from 'date-fns';
 
 interface EnhancedDashboardProps {
@@ -39,6 +45,9 @@ const EnhancedDashboard: React.FC<EnhancedDashboardProps> = ({
 }) => {
   const [mounted, setMounted] = useState(false);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [activeTab, setActiveTab] = useState<'overview' | 'patients' | 'reviews' | 'analytics'>('overview');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'pending' | 'completed'>('all');
   
   const {
     pendingReviews,
@@ -51,6 +60,13 @@ const EnhancedDashboard: React.FC<EnhancedDashboardProps> = ({
     loadDashboardData,
     currentPatient
   } = useHMRSelectors();
+
+  const { 
+    subscriptionData, 
+    hasActiveSubscription, 
+    canCreateHMR, 
+    loading: subscriptionLoading 
+  } = useSubscription();
 
   useEffect(() => {
     setMounted(true);
@@ -243,15 +259,54 @@ const EnhancedDashboard: React.FC<EnhancedDashboardProps> = ({
             <div className="flex items-center space-x-4">
               <button
                 onClick={onNewReview}
-                className="flex items-center space-x-2 px-6 py-3 bg-blue-600 text-white rounded-lg
-                         hover:bg-blue-700 transition-colors shadow-sm font-medium"
+                disabled={!hasActiveSubscription || !canCreateHMR}
+                className={`flex items-center space-x-2 px-6 py-3 rounded-lg transition-colors shadow-sm font-medium ${
+                  hasActiveSubscription && canCreateHMR
+                    ? 'bg-blue-600 text-white hover:bg-blue-700'
+                    : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                }`}
+                title={!hasActiveSubscription ? 'Subscription required' : !canCreateHMR ? 'Usage limit reached' : ''}
               >
                 <Plus className="h-5 w-5" />
                 <span>New HMR</span>
+                {(!hasActiveSubscription || !canCreateHMR) && (
+                  <span className="text-sm">🔒</span>
+                )}
               </button>
             </div>
           </div>
         </div>
+
+        {/* Subscription Status Banner */}
+        {subscriptionData && !hasActiveSubscription && (
+          <div className="mb-6 bg-amber-50 border border-amber-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <AlertTriangle className="h-5 w-5 text-amber-600 mr-3" />
+              <div>
+                <h4 className="text-sm font-medium text-amber-800">Subscription Required</h4>
+                <p className="text-sm text-amber-700 mt-1">
+                  Your subscription is not active. Please select a plan to continue using myHMR features.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Usage Limit Warning */}
+        {subscriptionData && hasActiveSubscription && !canCreateHMR && (
+          <div className="mb-6 bg-red-50 border border-red-200 rounded-lg p-4">
+            <div className="flex items-center">
+              <AlertTriangle className="h-5 w-5 text-red-600 mr-3" />
+              <div>
+                <h4 className="text-sm font-medium text-red-800">Usage Limit Reached</h4>
+                <p className="text-sm text-red-700 mt-1">
+                  You've reached your monthly HMR limit ({subscriptionData.usage.hmr_count}/{subscriptionData.usage.limit}). 
+                  Upgrade your plan to create more reports.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Current Patient Section - Only show if there's an actual current patient */}
         {currentPatient && (
@@ -284,6 +339,65 @@ const EnhancedDashboard: React.FC<EnhancedDashboardProps> = ({
             </div>
           </div>
         )}
+
+        {/* Quick Stats Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-1">Total Patients</p>
+                <p className="text-3xl font-bold text-gray-900">{patients?.length || 0}</p>
+                <p className="text-xs text-green-600 mt-1">↗ +12% from last month</p>
+              </div>
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Users className="h-6 w-6 text-blue-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-1">Completed Reviews</p>
+                <p className="text-3xl font-bold text-gray-900">{completedReviews?.length || 0}</p>
+                <p className="text-xs text-green-600 mt-1">↗ +8% from last month</p>
+              </div>
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <CheckCircle className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-1">Pending Reviews</p>
+                <p className="text-3xl font-bold text-gray-900">{pendingReviews?.length || 0}</p>
+                <p className="text-xs text-orange-600 mt-1">→ Same as last month</p>
+              </div>
+              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <Clock className="h-6 w-6 text-orange-600" />
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-600 mb-1">This Month</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {subscriptionData?.usage?.hmr_count || 0}
+                </p>
+                <p className="text-xs text-gray-500 mt-1">
+                  of {subscriptionData?.usage?.limit || '∞'} HMRs
+                </p>
+              </div>
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="h-6 w-6 text-purple-600" />
+              </div>
+            </div>
+          </div>
+        </div>
 
         {/* Clinical Metrics Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">

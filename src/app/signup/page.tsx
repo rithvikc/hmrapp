@@ -1,15 +1,25 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { 
   Mail, Lock, Eye, EyeOff, Loader2, AlertCircle,
-  Stethoscope, User, ArrowRight, Shield, Check, CheckCircle
+  Stethoscope, User, ArrowRight, Shield, Check, CheckCircle, Crown, Sparkles
 } from 'lucide-react';
 
-export default function SignupPage() {
+interface SubscriptionPlan {
+  id: string;
+  name: string;
+  price_monthly: number;
+  hmr_limit: number | null;
+  features: string[];
+  stripe_price_id: string | null;
+  sort_order: number;
+}
+
+function SignupContent() {
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -23,9 +33,40 @@ export default function SignupPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [error, setError] = useState('');
   const [emailSent, setEmailSent] = useState(false);
+  const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan | null>(null);
+  const [plansLoading, setPlansLoading] = useState(true);
   
   const { signUp, signInWithGoogle } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const planId = searchParams.get('plan') || sessionStorage.getItem('selectedPlan');
+    if (planId) {
+      fetchPlanDetails(planId);
+    } else {
+      setPlansLoading(false);
+    }
+  }, [searchParams]);
+
+  const fetchPlanDetails = async (planId: string) => {
+    try {
+      const response = await fetch('/api/subscription/plans');
+      if (response.ok) {
+        const data = await response.json();
+        const plan = data.plans.find((p: SubscriptionPlan) => p.id === planId);
+        if (plan) {
+          setSelectedPlan(plan);
+          // Store in sessionStorage for persistence
+          sessionStorage.setItem('selectedPlan', planId);
+        }
+      }
+    } catch (error) {
+      console.error('Error fetching plan details:', error);
+    } finally {
+      setPlansLoading(false);
+    }
+  };
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -63,6 +104,41 @@ export default function SignupPage() {
     return true;
   };
 
+  const redirectToStripeCheckout = async (userId: string) => {
+    if (!selectedPlan || selectedPlan.id === 'enterprise') return;
+
+    try {
+      const response = await fetch('/api/subscription/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          plan_id: selectedPlan.id,
+          success_url: `${window.location.origin}/dashboard?welcome=true&subscription=success`,
+          cancel_url: `${window.location.origin}/signup?plan=${selectedPlan.id}`,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok && data.url) {
+        // Clear the stored plan since we're processing it
+        sessionStorage.removeItem('selectedPlan');
+        // Redirect to Stripe checkout
+        window.location.href = data.url;
+      } else {
+        console.error('Failed to create checkout session:', data.error);
+        // Fallback to dashboard if checkout fails
+        router.push('/dashboard?welcome=true');
+      }
+    } catch (error) {
+      console.error('Error creating checkout session:', error);
+      // Fallback to dashboard if checkout fails
+      router.push('/dashboard?welcome=true');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -77,7 +153,8 @@ export default function SignupPage() {
         formData.password,
         {
           name: formData.name,
-          registration_number: formData.registrationNumber
+          registration_number: formData.registrationNumber,
+          selected_plan: selectedPlan?.id || null
         }
       );
       
@@ -92,9 +169,15 @@ export default function SignupPage() {
       } else if (data.user && !data.user.email_confirmed_at) {
         // Email confirmation required
         setEmailSent(true);
-      } else {
-        // User is signed up and confirmed (or email confirmation is disabled)
-        router.push('/dashboard?welcome=true');
+      } else if (data.user) {
+        // User is signed up and confirmed
+        if (selectedPlan && selectedPlan.id !== 'enterprise') {
+          // Redirect to Stripe checkout for paid plans
+          await redirectToStripeCheckout(data.user.id);
+        } else {
+          // No plan selected or enterprise plan, go to dashboard
+          router.push('/dashboard?welcome=true');
+        }
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
@@ -121,6 +204,10 @@ export default function SignupPage() {
     }
   };
 
+  const formatPrice = (priceInCents: number) => {
+    return `$${(priceInCents / 100).toFixed(0)}`;
+  };
+
   if (emailSent) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -136,6 +223,13 @@ export default function SignupPage() {
               We've sent a confirmation link to <strong>{formData.email}</strong>. 
               Please click the link in your email to activate your account.
             </p>
+            {selectedPlan && (
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                <p className="text-sm text-blue-800">
+                  After confirming your email, you'll be redirected to complete your <strong>{selectedPlan.name}</strong> plan setup.
+                </p>
+              </div>
+            )}
             <div className="space-y-4">
               <Link
                 href="/login"
@@ -176,6 +270,45 @@ export default function SignupPage() {
             Create your professional account to get started
           </p>
         </div>
+
+        {/* Selected Plan Display */}
+        {selectedPlan && !plansLoading && (
+          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center space-x-3">
+                {selectedPlan.id === 'business' && <Sparkles className="h-5 w-5 text-blue-600" />}
+                {selectedPlan.id === 'enterprise' && <Crown className="h-5 w-5 text-purple-600" />}
+                <h3 className="text-lg font-semibold text-gray-900">{selectedPlan.name} Plan</h3>
+              </div>
+              <div className="text-right">
+                {selectedPlan.id === 'enterprise' ? (
+                  <span className="text-lg font-bold text-gray-900">Contact Sales</span>
+                ) : (
+                  <>
+                    <span className="text-2xl font-bold text-gray-900">{formatPrice(selectedPlan.price_monthly)}</span>
+                    <span className="text-gray-600 text-sm">/month</span>
+                  </>
+                )}
+              </div>
+            </div>
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-gray-600">
+                {selectedPlan.hmr_limit === null ? 'Unlimited HMRs' : `${selectedPlan.hmr_limit} HMRs/month`}
+              </span>
+              <Link
+                href="/pricing"
+                className="text-blue-600 hover:text-blue-700 font-medium"
+              >
+                Change plan
+              </Link>
+            </div>
+            {selectedPlan.id !== 'enterprise' && (
+              <div className="mt-3 text-xs text-gray-500">
+                You'll be redirected to secure payment after account creation
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Signup Form */}
         <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-8">
@@ -335,7 +468,7 @@ export default function SignupPage() {
                   <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
                   <>
-                    Create Account
+                    {selectedPlan && selectedPlan.id !== 'enterprise' ? 'Create Account & Continue to Payment' : 'Create Account'}
                     <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" />
                   </>
                 )}
@@ -416,5 +549,17 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function SignupPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-purple-50 flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      </div>
+    }>
+      <SignupContent />
+    </Suspense>
   );
 } 

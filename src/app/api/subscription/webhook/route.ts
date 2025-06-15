@@ -87,6 +87,7 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
   
   const pharmacistId = session.metadata?.pharmacist_id;
   const planId = session.metadata?.plan_id;
+  const userId = session.metadata?.user_id;
 
   if (!pharmacistId || !planId) {
     console.error('Missing metadata in checkout session:', session.id);
@@ -95,25 +96,85 @@ async function handleCheckoutSessionCompleted(session: Stripe.Checkout.Session) 
 
   const supabase = createClient();
 
-  // Create or update subscription record
-  const subscriptionData = {
-    pharmacist_id: pharmacistId,
-    plan_id: planId,
-    stripe_customer_id: session.customer as string,
-    stripe_subscription_id: session.subscription as string,
-    status: 'active',
-    current_period_start: new Date(),
-    current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
-  };
+  try {
+    // Get subscription details from Stripe
+    let subscriptionId = session.subscription as string;
+    let currentPeriodStart = new Date();
+    let currentPeriodEnd = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // Default 30 days
 
-  const { error } = await supabase
-    .from('user_subscriptions')
-    .upsert(subscriptionData, { onConflict: 'pharmacist_id' });
+    if (subscriptionId) {
+      try {
+        const stripe = getStripe();
+        const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+        currentPeriodStart = new Date((subscription as any).current_period_start * 1000);
+        currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
+      } catch (stripeError) {
+        console.error('Error fetching subscription from Stripe:', stripeError);
+      }
+    }
 
-  if (error) {
-    console.error('Error creating subscription record:', error);
-  } else {
-    console.log('Subscription record created for pharmacist:', pharmacistId);
+    // Create or update subscription record
+    const subscriptionData = {
+      pharmacist_id: pharmacistId,
+      plan_id: planId,
+      stripe_customer_id: session.customer as string,
+      stripe_subscription_id: subscriptionId,
+      status: 'active',
+      current_period_start: currentPeriodStart.toISOString(),
+      current_period_end: currentPeriodEnd.toISOString(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+
+    const { error: upsertError } = await supabase
+      .from('user_subscriptions')
+      .upsert(subscriptionData, { onConflict: 'pharmacist_id' });
+
+    if (upsertError) {
+      console.error('Error creating/updating subscription record:', upsertError);
+      return;
+    }
+
+    console.log('Subscription record created/updated for pharmacist:', pharmacistId, 'plan:', planId);
+
+    // Update user metadata to reflect successful subscription
+    if (userId) {
+      try {
+        const { data: { user } } = await supabase.auth.admin.getUserById(userId);
+        if (user) {
+          await supabase.auth.admin.updateUserById(userId, {
+            user_metadata: {
+              ...user.user_metadata,
+              subscription_status: 'active',
+              current_plan: planId,
+              subscription_created_at: new Date().toISOString()
+            }
+          });
+        }
+      } catch (metadataError) {
+        console.error('Error updating user metadata after successful payment:', metadataError);
+        // Don't fail the webhook if metadata update fails
+      }
+    }
+
+    // Initialize usage tracking for the new subscription
+    const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM format
+    const { error: usageError } = await supabase
+      .from('usage_tracking')
+      .upsert({
+        pharmacist_id: pharmacistId,
+        month: currentMonth,
+        hmr_count: 0,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'pharmacist_id,month' });
+
+    if (usageError) {
+      console.error('Error initializing usage tracking:', usageError);
+    }
+
+  } catch (error) {
+    console.error('Error in handleCheckoutSessionCompleted:', error);
   }
 }
 
@@ -136,9 +197,9 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
     stripe_customer_id: subscription.customer as string,
     stripe_subscription_id: subscription.id,
     status: subscription.status,
-    current_period_start: new Date((subscription as any).current_period_start * 1000),
-    current_period_end: new Date((subscription as any).current_period_end * 1000),
-    trial_ends_at: (subscription as any).trial_end ? new Date((subscription as any).trial_end * 1000) : null,
+    current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
+    current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
   };
 
   const { error } = await supabase
@@ -146,9 +207,9 @@ async function handleSubscriptionCreated(subscription: Stripe.Subscription) {
     .upsert(subscriptionData, { onConflict: 'pharmacist_id' });
 
   if (error) {
-    console.error('Error updating subscription:', error);
+    console.error('Error updating subscription record:', error);
   } else {
-    console.log('Subscription updated for pharmacist:', pharmacistId);
+    console.log('Subscription record updated for pharmacist:', pharmacistId);
   }
 }
 
@@ -161,14 +222,14 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
     .from('user_subscriptions')
     .update({
       status: subscription.status,
-      current_period_start: new Date((subscription as any).current_period_start * 1000),
-      current_period_end: new Date((subscription as any).current_period_end * 1000),
-      trial_ends_at: (subscription as any).trial_end ? new Date((subscription as any).trial_end * 1000) : null,
+      current_period_start: new Date((subscription as any).current_period_start * 1000).toISOString(),
+      current_period_end: new Date((subscription as any).current_period_end * 1000).toISOString(),
+      updated_at: new Date().toISOString(),
     })
     .eq('stripe_subscription_id', subscription.id);
 
   if (error) {
-    console.error('Error updating subscription:', error);
+    console.error('Error updating subscription status:', error);
   } else {
     console.log('Subscription updated:', subscription.id);
   }
@@ -181,13 +242,16 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
 
   const { error } = await supabase
     .from('user_subscriptions')
-    .update({ status: 'canceled' })
+    .update({
+      status: 'cancelled',
+      updated_at: new Date().toISOString(),
+    })
     .eq('stripe_subscription_id', subscription.id);
 
   if (error) {
-    console.error('Error canceling subscription:', error);
+    console.error('Error updating subscription status:', error);
   } else {
-    console.log('Subscription canceled:', subscription.id);
+    console.log('Subscription cancelled:', subscription.id);
   }
 }
 
@@ -199,7 +263,10 @@ async function handleInvoicePaymentSucceeded(invoice: Stripe.Invoice) {
 
     const { error } = await supabase
       .from('user_subscriptions')
-      .update({ status: 'active' })
+      .update({ 
+        status: 'active',
+        updated_at: new Date().toISOString(),
+      })
       .eq('stripe_subscription_id', (invoice as any).subscription as string);
 
     if (error) {
@@ -218,7 +285,10 @@ async function handleInvoicePaymentFailed(invoice: Stripe.Invoice) {
 
     const { error } = await supabase
       .from('user_subscriptions')
-      .update({ status: 'past_due' })
+      .update({ 
+        status: 'past_due',
+        updated_at: new Date().toISOString(),
+      })
       .eq('stripe_subscription_id', (invoice as any).subscription as string);
 
     if (error) {

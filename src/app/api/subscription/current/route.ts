@@ -70,51 +70,36 @@ export async function GET(request: NextRequest) {
       console.error('Error fetching plans:', plansError);
     }
 
-    // Default to professional plan if no subscription found
-    let subscriptionData = subscription;
+    // If no subscription found, return null subscription data
     if (!subscription) {
-      // Create a professional subscription for users without one (instead of trial)
-      const { data: newSubscription, error: createError } = await supabase
-        .from('user_subscriptions')
-        .insert([{
-          pharmacist_id: pharmacist.id,
-          plan_id: 'professional',
-          status: 'active',
-          current_period_start: new Date().toISOString(),
-          current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-        }])
-        .select(`
-          *,
-          subscription_plans:plan_id (
-            id,
-            name,
-            price_monthly,
-            hmr_limit,
-            features,
-            sort_order
-          )
-        `)
-        .single();
-
-      if (createError) {
-        console.error('Error creating professional subscription:', createError);
-        return NextResponse.json({ error: 'Error creating subscription' }, { status: 500 });
-      }
-
-      subscriptionData = newSubscription;
+      return NextResponse.json({
+        subscription: null,
+        usage: {
+          current_month: currentMonth,
+          hmr_count: usage?.hmr_count || 0,
+          limit: 0,
+          can_create: false
+        },
+        available_plans: allPlans || []
+      });
     }
+
+    // Check if subscription is active
+    const isActiveSubscription = ['active', 'trialing'].includes(subscription.status);
+    const planLimit = subscription.subscription_plans?.hmr_limit;
+    const currentUsage = usage?.hmr_count || 0;
+    const canCreate = isActiveSubscription && (!planLimit || currentUsage < planLimit);
 
     return NextResponse.json({
       subscription: {
-        ...subscriptionData,
-        plan_name: subscriptionData.subscription_plans?.name || 'Professional',
+        ...subscription,
+        plan_name: subscription.subscription_plans?.name || 'Unknown Plan',
       },
       usage: {
         current_month: currentMonth,
-        hmr_count: usage?.hmr_count || 0,
-        limit: subscriptionData.subscription_plans?.hmr_limit || 30,
-        can_create: !subscriptionData.subscription_plans?.hmr_limit || 
-                   (usage?.hmr_count || 0) < subscriptionData.subscription_plans.hmr_limit
+        hmr_count: currentUsage,
+        limit: planLimit || 0,
+        can_create: canCreate
       },
       available_plans: allPlans || []
     });

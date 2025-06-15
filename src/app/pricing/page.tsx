@@ -21,6 +21,7 @@ import {
   MessageSquare
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 interface SubscriptionPlan {
   id: string;
@@ -37,6 +38,7 @@ export default function PricingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [plans, setPlans] = useState<SubscriptionPlan[]>([]);
   const [loading, setLoading] = useState(true);
+  const router = useRouter();
 
   useEffect(() => {
     fetchPlans();
@@ -54,6 +56,14 @@ export default function PricingPage() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handlePlanSelect = (planId: string) => {
+    // Store the selected plan in sessionStorage for persistence across navigation
+    sessionStorage.setItem('selectedPlan', planId);
+    
+    // Redirect to signup with plan parameter
+    router.push(`/signup?plan=${planId}`);
   };
 
   const formatPrice = (priceInCents: number) => {
@@ -91,24 +101,28 @@ export default function PricingPage() {
 
   const faqs = [
     {
-      question: 'How does the automated report generation work?',
-      answer: 'Our platform uses advanced algorithms to transform your patient interview data into comprehensive HMR reports. Simply input the patient information, medication details, and clinical observations, and our system generates a professional report following standard HMR guidelines.'
+      question: 'How does the free trial work?',
+      answer: 'Start with a 14-day free trial on the Professional plan. No credit card required. You can complete up to 5 HMR reports during your trial period to fully experience the platform.'
     },
     {
-      question: 'Is my patient data secure and HIPAA compliant?',
-      answer: 'Absolutely. We take data security seriously and maintain full HIPAA compliance. All patient data is encrypted both in transit and at rest, stored on secure servers, and access is strictly controlled. We undergo regular security audits to ensure the highest standards of protection.'
+      question: 'What happens if I exceed my monthly HMR limit?',
+      answer: 'If you approach your monthly limit, we\'ll notify you in advance. You can either upgrade to a higher plan or wait until the next billing cycle. We never cut off access mid-month - you\'ll always be able to complete reports you\'ve started.'
     },
     {
-      question: 'Can I customize the report templates?',
-      answer: 'Yes! Professional and Business plans include customizable report templates. You can add your practice branding, modify sections to match your workflow, and save custom templates for different types of reviews.'
+      question: 'Can I upgrade or downgrade my plan anytime?',
+      answer: 'Yes! You can change your plan at any time. Upgrades take effect immediately, while downgrades take effect at the start of your next billing cycle. You\'ll always have access to your current plan\'s features until the end of your billing period.'
     },
     {
-      question: 'What happens if I exceed my monthly report limit?',
-      answer: 'If you approach your limit, we\'ll notify you in advance. You can either upgrade your plan or purchase additional reports as needed. We never want to interrupt your patient care, so we\'ll work with you to find the best solution.'
+      question: 'Is my patient data secure?',
+      answer: 'Absolutely. We use enterprise-grade encryption and follow strict healthcare data protection standards. We store only essential patient identifiers (name, DOB, Medicare number) and never retain sensitive health information on our platform.'
     },
     {
-      question: 'Do you offer training and support?',
-      answer: 'Yes! All plans include comprehensive onboarding. Professional plans get priority email and phone support, while Business plans include dedicated account management and team training sessions to ensure everyone gets the most out of the platform.'
+      question: 'Do you offer discounts for multiple users?',
+      answer: 'Yes! The Business plan includes support for multiple team members. For larger organizations, our Enterprise plan offers custom pricing with volume discounts. Contact our sales team for a personalized quote.'
+    },
+    {
+      question: 'What payment methods do you accept?',
+      answer: 'We accept all major credit cards (Visa, MasterCard, American Express) through our secure Stripe payment processing. All transactions are encrypted and PCI-compliant.'
     },
     {
       question: 'Can I cancel or change my plan anytime?',
@@ -213,8 +227,8 @@ export default function PricingPage() {
                     Contact Sales
                   </a>
                 ) : (
-                <Link
-                  href="/signup"
+                <button
+                  onClick={() => handlePlanSelect(plan.id)}
                   className={`w-full py-3 px-6 rounded-lg font-semibold text-center block transition-all duration-200 ${
                       isPopular(plan.id)
                         ? 'bg-blue-600 text-white hover:bg-blue-700 shadow-md hover:shadow-lg' 
@@ -223,7 +237,7 @@ export default function PricingPage() {
                 >
                     Get Started
                     <ArrowRight className="ml-2 h-4 w-4" />
-                </Link>
+                </button>
                 )}
               </div>
             ))}
